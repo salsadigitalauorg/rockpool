@@ -8,6 +8,7 @@ import (
 
 var binaryPaths map[string]string
 var kubeconfig string
+var helmReleases []HelmRelease
 
 func main() {
 	verifyReqs()
@@ -16,7 +17,10 @@ func main() {
 	fmt.Println()
 	kubeconfig = getClusterKubeConfigPath("rockpool")
 	clusterVersion()
+	fmt.Println()
+	helmList()
 	installIngressNginx()
+	installHarbor("harbor.lagoon.rockpool.k3d.local", "pass")
 }
 
 func verifyReqs() {
@@ -43,8 +47,7 @@ func verifyReqs() {
 
 func clusterVersion() {
 	cmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "version")
-	out, err := cmd.Output()
-	fmt.Println(string(out))
+	err := runCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Printf("could not get cluster version: %s\n", err)
 	}
