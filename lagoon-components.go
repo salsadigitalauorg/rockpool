@@ -25,9 +25,7 @@ func installIngressNginx() {
 		"ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
-			"--create-namespace",
-			"--namespace",
-			"ingress-nginx",
+			"--create-namespace", "--namespace", "ingress-nginx", "--wait",
 		},
 	)
 	if err != nil {
@@ -62,4 +60,17 @@ func installHarbor(host string, password string) {
 		return
 	}
 	f.Close()
+
+	err = helmInstallOrUpgrade(
+		"harbor",
+		"harbor/harbor",
+		[]string{
+			"--create-namespace", "--namespace", "harbor", "--wait",
+			"-f", "rendered/harbor-values.yml", "--version=1.5.6",
+		},
+	)
+	if err != nil {
+		fmt.Println("unable to install harbor: ", err)
+		os.Exit(1)
+	}
 }

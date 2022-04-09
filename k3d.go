@@ -29,7 +29,7 @@ func createCluster(cn string) {
 		}
 	}
 
-	k3sArgs := []string{"--k3s-arg", "--disable=traefik@server:0", "-p", "80:80@loadbalancer"}
+	k3sArgs := []string{"--k3s-arg", "--disable=traefik@server:0", "-p", "80:80@loadbalancer", "-p", "443:443@loadbalancer"}
 	cmdArgs := []string{"cluster", "create", "--kubeconfig-update-default=false", "--image=rancher/k3s:v1.21.11-k3s1"}
 	cmdArgs = append(cmdArgs, k3sArgs...)
 	cmdArgs = append(cmdArgs, cn)

@@ -1,15 +1,15 @@
 expose:
   ingress:
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
-    core: {{ .host }}
-  tls:
+      core: {{ .host }}
+  {{/* tls:
     enabled: true
     certSource: secret
     secret:
-      secretName: harbor-harbor-ingress
-externalURL: https://{{ .host }}
+      secretName: harbor-harbor-ingress */}}
+externalURL: http://{{ .host }}
 harborAdminPassword: {{ .password }}
 chartmuseum:
   enabled: false
