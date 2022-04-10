@@ -9,6 +9,7 @@ import (
 var binaryPaths map[string]string
 var kubeconfig string
 var helmReleases []HelmRelease
+var lagoonBaseUrl string
 
 func main() {
 	verifyReqs()
@@ -20,7 +21,10 @@ func main() {
 	fmt.Println()
 	helmList()
 	installIngressNginx()
-	installHarbor("harbor.lagoon.rockpool.k3d.local", "pass")
+
+	lagoonBaseUrl = "lagoon.rockpool.k3d.local"
+	installHarbor("pass")
+	installLagoonCore()
 }
 
 func verifyReqs() {

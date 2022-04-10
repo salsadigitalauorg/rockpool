@@ -34,7 +34,7 @@ func installIngressNginx() {
 	}
 }
 
-func installHarbor(host string, password string) {
+func installHarbor(password string) {
 	cmd := exec.Command("helm", "repo", "add", "harbor", "https://helm.goharbor.io")
 	err := runCmdWithProgress(cmd)
 	if err != nil {
@@ -51,8 +51,8 @@ func installHarbor(host string, password string) {
 	}
 
 	config := map[string]string{
-		"host":     host,
-		"password": password,
+		"lagoonBaseUrl": lagoonBaseUrl,
+		"password":      password,
 	}
 	err = t.Execute(f, config)
 	if err != nil {
@@ -67,6 +67,44 @@ func installHarbor(host string, password string) {
 		[]string{
 			"--create-namespace", "--namespace", "harbor", "--wait",
 			"-f", "rendered/harbor-values.yml", "--version=1.5.6",
+		},
+	)
+	if err != nil {
+		fmt.Println("unable to install harbor: ", err)
+		os.Exit(1)
+	}
+}
+
+func installLagoonCore() {
+	cmd := exec.Command("helm", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
+	err := runCmdWithProgress(cmd)
+	if err != nil {
+		fmt.Println("unable to install lagoon repo: ", err)
+		os.Exit(1)
+	}
+
+	t := template.Must(template.ParseFiles("templates/lagoon-core-values.yml.tmpl"))
+
+	f, err := os.Create("rendered/lagoon-core-values.yml")
+	if err != nil {
+		fmt.Println("error creating lagoon core values file: ", err)
+		return
+	}
+
+	config := map[string]string{"lagoonBaseUrl": lagoonBaseUrl}
+	err = t.Execute(f, config)
+	if err != nil {
+		fmt.Println("error rendering lagoon core values template: ", err)
+		return
+	}
+	f.Close()
+
+	err = helmInstallOrUpgrade(
+		"lagoon-core",
+		"lagoon/lagoon-core",
+		[]string{
+			"--create-namespace", "--namespace", "lagoon-core",
+			"-f", "rendered/lagoon-core-values.yml",
 		},
 	)
 	if err != nil {

@@ -3,13 +3,13 @@ expose:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-      core: {{ .host }}
+      core: harbor.{{ .lagoonBaseUrl }}
   {{/* tls:
     enabled: true
     certSource: secret
     secret:
       secretName: harbor-harbor-ingress */}}
-externalURL: http://{{ .host }}
+externalURL: http://harbor.{{ .lagoonBaseUrl }}
 harborAdminPassword: {{ .password }}
 chartmuseum:
   enabled: false

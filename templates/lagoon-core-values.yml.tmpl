@@ -1,0 +1,151 @@
+elasticsearchURL: https://none.com
+harborURL: "https://none.com"
+harborAdminPassword: none
+kibanaURL: https://none.com
+logsDBAdminPassword: none
+s3FilesAccessKeyID: none
+s3FilesBucket: none
+s3FilesHost: none
+s3FilesSecretAccessKey: none
+s3FilesRegion: none
+s3BAASAccessKeyID: none
+s3BAASSecretAccessKey: none
+imageTag: v2.5.0
+registry: none.com
+
+api:
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: api.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: api-tls
+        hosts:
+          - api.{{ .lagoonBaseUrl }}
+
+keycloak:
+  image:
+    repository: ghcr.io/yusufhm/rockpool/lagoon-keycloak-arm
+    tag:
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: keycloak.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: keycloak-tls
+        hosts:
+          - keycloak.{{ .lagoonBaseUrl }}
+
+webhookHandler:
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: webhookhandler.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: webhookhandler-tls
+        hosts:
+          - webhookhandler.{{ .lagoonBaseUrl }}
+
+ui:
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: ui.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: ui-tls
+        hosts:
+          - ui.{{ .lagoonBaseUrl }}
+
+backupHandler:
+  enabled: false
+  {{/* ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: backuphandler.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: backuphandler-tls
+        hosts:
+          - backuphandler.{{ .lagoonBaseUrl }} */}}
+
+drushAlias:
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: drushalias.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: drushalias-tls
+        hosts:
+          - drushalias.{{ .lagoonBaseUrl }}
+
+ssh:
+  service:
+    type: LoadBalancer
+    port: 22
+
+
+broker:
+  image:
+    repository: ghcr.io/yusufhm/rockpool/lagoon-broker
+  serviceMonitor:
+    enabled: false
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: broker.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: broker-tls
+        hosts:
+          - broker.{{ .lagoonBaseUrl }}
+
+webhookHandler:
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: webhookhandler.{{ .lagoonBaseUrl }}
+      paths:
+      - /
+    tls:
+      - secretName: webhookhandler-tls
+        hosts:
+          - webhookhandler.{{ .lagoonBaseUrl }}
+
+logs2slack:
+  enabled: false
+logs2microsoftteams:
+  enabled: false
+logs2rocketchat:
+  enabled: false
+logs2email:
+  enabled: false
+logs2s3:
+  enabled: false
