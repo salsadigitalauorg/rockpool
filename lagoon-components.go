@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"text/template"
 )
 
@@ -91,7 +92,10 @@ func installLagoonCore() {
 		return
 	}
 
-	config := map[string]string{"lagoonBaseUrl": lagoonBaseUrl}
+	config := map[string]string{
+		"arch":          runtime.GOARCH,
+		"lagoonBaseUrl": lagoonBaseUrl,
+	}
 	err = t.Execute(f, config)
 	if err != nil {
 		fmt.Println("error rendering lagoon core values template: ", err)

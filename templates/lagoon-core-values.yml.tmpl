@@ -28,9 +28,10 @@ api:
           - api.{{ .lagoonBaseUrl }}
 
 keycloak:
+  {{- if eq .arch "arm64" }}
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-keycloak-arm
-    tag:
+  {{- end }}
   ingress:
     enabled: true
     annotations:
@@ -108,8 +109,10 @@ ssh:
 
 
 broker:
+  {{- if eq .arch "arm64" }}
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-broker
+  {{- end }}
   serviceMonitor:
     enabled: false
   ingress:
