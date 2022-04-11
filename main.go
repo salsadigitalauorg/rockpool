@@ -2,57 +2,32 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
+
+	r "github.com/yusufhm/rockpool/pkg/rockpool"
 )
 
-var binaryPaths map[string]string
-var kubeconfig string
-var helmReleases []HelmRelease
-var lagoonBaseUrl string
+var state r.State
+var config r.Config
 
 func main() {
-	verifyReqs()
+	state = r.State{}
+	r.VerifyReqs(&state)
 	fmt.Println()
-	createCluster("rockpool")
+
+	config = r.Config{
+		ClusterName:   "rockpool",
+		LagoonBaseUrl: "lagoon.rockpool.k3d.local",
+		HarborPass:    "pass",
+	}
+	r.CreateCluster(&state, config.ClusterName)
 	fmt.Println()
-	kubeconfig = getClusterKubeConfigPath("rockpool")
-	clusterVersion()
+	r.GetClusterKubeConfigPath(&state, config.ClusterName)
+
+	r.ClusterVersion(&state)
 	fmt.Println()
-	helmList()
-	installIngressNginx()
+	r.HelmList(&state)
+	r.InstallIngressNginx(&state)
 
-	lagoonBaseUrl = "lagoon.rockpool.k3d.local"
-	installHarbor("pass")
-	installLagoonCore()
-}
-
-func verifyReqs() {
-	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
-	missing := []string{}
-	binaryPaths = map[string]string{}
-	for _, b := range binaries {
-		path, err := exec.LookPath(b)
-		if err != nil {
-			missing = append(missing, fmt.Sprintf("could not find %s; please ensure it is installed before", b))
-			continue
-		}
-		fmt.Printf("%s is available at %s\n", b, path)
-		binaryPaths[b] = path
-	}
-	for _, m := range missing {
-		fmt.Printf(m)
-	}
-	if len(missing) > 0 {
-		fmt.Println("some requirements were not met; please review above")
-		os.Exit(1)
-	}
-}
-
-func clusterVersion() {
-	cmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "version")
-	err := runCmdWithProgress(cmd)
-	if err != nil {
-		fmt.Printf("could not get cluster version: %s\n", err)
-	}
+	r.InstallHarbor(&state, &config)
+	r.InstallLagoonCore(&state, &config)
 }

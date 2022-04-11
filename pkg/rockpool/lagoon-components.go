@@ -1,4 +1,4 @@
-package main
+package rockpool
 
 import (
 	"encoding/json"
@@ -7,9 +7,11 @@ import (
 	"os/exec"
 	"runtime"
 	"text/template"
+
+	"github.com/yusufhm/rockpool/internal"
 )
 
-func helmList() {
+func HelmList(s *State) {
 	cmd := exec.Command("helm", "list", "--all-namespaces", "--output", "json")
 	out, err := cmd.Output()
 	if err != nil {
@@ -17,12 +19,12 @@ func helmList() {
 		fmt.Println("unable to get list of helm releases: ", err)
 		os.Exit(1)
 	}
-	helmReleases = []HelmRelease{}
-	_ = json.Unmarshal(out, &helmReleases)
+	s.HelmReleases = []HelmRelease{}
+	_ = json.Unmarshal(out, &s.HelmReleases)
 }
 
-func installIngressNginx() {
-	err := helmInstallOrUpgrade(
+func InstallIngressNginx(s *State) {
+	err := helmInstallOrUpgrade(s,
 		"ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
@@ -35,9 +37,9 @@ func installIngressNginx() {
 	}
 }
 
-func installHarbor(password string) {
+func InstallHarbor(s *State, c *Config) {
 	cmd := exec.Command("helm", "repo", "add", "harbor", "https://helm.goharbor.io")
-	err := runCmdWithProgress(cmd)
+	err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Println("unable to install harbor repo: ", err)
 		os.Exit(1)
@@ -52,8 +54,8 @@ func installHarbor(password string) {
 	}
 
 	config := map[string]string{
-		"lagoonBaseUrl": lagoonBaseUrl,
-		"password":      password,
+		"lagoonBaseUrl": c.LagoonBaseUrl,
+		"password":      c.HarborPass,
 	}
 	err = t.Execute(f, config)
 	if err != nil {
@@ -62,7 +64,7 @@ func installHarbor(password string) {
 	}
 	f.Close()
 
-	err = helmInstallOrUpgrade(
+	err = helmInstallOrUpgrade(s,
 		"harbor",
 		"harbor/harbor",
 		[]string{
@@ -76,9 +78,9 @@ func installHarbor(password string) {
 	}
 }
 
-func installLagoonCore() {
+func InstallLagoonCore(s *State, c *Config) {
 	cmd := exec.Command("helm", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
-	err := runCmdWithProgress(cmd)
+	err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Println("unable to install lagoon repo: ", err)
 		os.Exit(1)
@@ -94,7 +96,7 @@ func installLagoonCore() {
 
 	config := map[string]string{
 		"arch":          runtime.GOARCH,
-		"lagoonBaseUrl": lagoonBaseUrl,
+		"lagoonBaseUrl": c.LagoonBaseUrl,
 	}
 	err = t.Execute(f, config)
 	if err != nil {
@@ -103,7 +105,7 @@ func installLagoonCore() {
 	}
 	f.Close()
 
-	err = helmInstallOrUpgrade(
+	err = helmInstallOrUpgrade(s,
 		"lagoon-core",
 		"lagoon/lagoon-core",
 		[]string{

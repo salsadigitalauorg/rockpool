@@ -1,4 +1,4 @@
-package main
+package rockpool
 
 import (
 	"encoding/json"
@@ -6,9 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/yusufhm/rockpool/internal"
 )
 
-func createCluster(cn string) {
+func CreateCluster(s *State, cn string) {
 	res, err := exec.Command("k3d", "cluster", "list", "-o", "json").Output()
 	if err != nil {
 		fmt.Printf("unable to get cluster list: %s\n", err)
@@ -33,21 +35,29 @@ func createCluster(cn string) {
 	cmdArgs := []string{"cluster", "create", "--kubeconfig-update-default=false", "--image=rancher/k3s:v1.21.11-k3s1"}
 	cmdArgs = append(cmdArgs, k3sArgs...)
 	cmdArgs = append(cmdArgs, cn)
-	cmd := exec.Command(binaryPaths["k3d"], cmdArgs...)
+	cmd := exec.Command(s.BinaryPaths["k3d"], cmdArgs...)
 	fmt.Printf("command to create cluster: %+v\n", cmd)
 
-	err = runCmdWithProgress(cmd)
+	err = internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Printf("unable to create cluster: %s", err)
 		os.Exit(1)
 	}
 }
 
-func getClusterKubeConfigPath(cn string) string {
-	out, err := exec.Command(binaryPaths["k3d"], "kubeconfig", "write", cn).CombinedOutput()
+func GetClusterKubeConfigPath(s *State, cn string) {
+	out, err := exec.Command(s.BinaryPaths["k3d"], "kubeconfig", "write", cn).CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
 		fmt.Printf("unable to get kubeconfig: %s\n", err)
 	}
-	return strings.Trim(string(out), "\n")
+	s.Kubeconfig = strings.Trim(string(out), "\n")
+}
+
+func ClusterVersion(s *State) {
+	cmd := exec.Command("kubectl", "--kubeconfig", s.Kubeconfig, "version")
+	err := internal.RunCmdWithProgress(cmd)
+	if err != nil {
+		fmt.Printf("could not get cluster version: %s\n", err)
+	}
 }
