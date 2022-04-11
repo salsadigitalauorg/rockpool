@@ -21,7 +21,9 @@ type State struct {
 }
 
 type Config struct {
-	ClusterName   string
-	LagoonBaseUrl string
-	HarborPass    string
+	ClusterName           string
+	LagoonBaseUrl         string
+	HarborPass            string
+	Arch                  string
+	RenderedTemplatesPath string
 }

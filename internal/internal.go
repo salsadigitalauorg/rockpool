@@ -3,8 +3,12 @@ package internal
 import (
 	"bufio"
 	"fmt"
+	"html/template"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 func RunCmdWithProgress(cmd *exec.Cmd) error {
@@ -20,4 +24,28 @@ func RunCmdWithProgress(cmd *exec.Cmd) error {
 		fmt.Println(m)
 	}
 	return cmd.Wait()
+}
+
+func RenderTemplate(tn string, path string, config interface{}) (string, error) {
+	tnFull := fmt.Sprintf("templates/%s", tn)
+	t := template.Must(template.ParseFiles(tnFull))
+
+	var rendered string
+	if filepath.Ext(tn) == ".tmpl" {
+		rendered = filepath.Join(path, strings.TrimSuffix(tn, ".tmpl"))
+	} else {
+		rendered = filepath.Join(path, tn)
+	}
+
+	f, err := os.Create(rendered)
+	if err != nil {
+		return "", err
+	}
+
+	err = t.Execute(f, config)
+	f.Close()
+	if err != nil {
+		return "", err
+	}
+	return rendered, nil
 }

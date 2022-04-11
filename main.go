@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
+	"runtime"
 
 	"github.com/spf13/pflag"
 	r "github.com/yusufhm/rockpool/pkg/rockpool"
@@ -15,14 +17,18 @@ var config r.Config
 func main() {
 	config = r.Config{}
 	parseFlags()
+	config.Arch = runtime.GOARCH
 
 	state = r.State{}
-	r.VerifyReqs(&state)
+	r.VerifyReqs(&state, &config)
 	fmt.Println()
 
 	r.CreateCluster(&state, config.ClusterName)
 	fmt.Println()
 	r.GetClusterKubeConfigPath(&state, config.ClusterName)
+
+	// Install mailhog.
+	r.KubeApply(&state, &config, "mailhog.yml.tmpl", true)
 
 	r.ClusterVersion(&state)
 	fmt.Println()
@@ -48,7 +54,10 @@ func parseFlags() {
 	pflag.StringVarP(&config.LagoonBaseUrl, "lagoon-base-url", "l", "lagoon.rockpool.k3d.local", `The base Lagoon url of the cluster;
 all Lagoon services will be created as subdomains of this url, e.g,
 ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local`)
-	pflag.StringVar(&config.HarborPass, "harbor-password", "pass", "The Harbor password.")
+	pflag.StringVar(&config.HarborPass, "harbor-password", "pass", "The Harbor password")
+
+	defaultRenderedPath := path.Join(os.TempDir(), "rockpool", "rendered")
+	pflag.StringVar(&config.RenderedTemplatesPath, "rendered-template-path", defaultRenderedPath, "The directory where rendered template files are placed")
 
 	pflag.Parse()
 

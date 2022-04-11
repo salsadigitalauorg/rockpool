@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
-	"text/template"
 
 	"github.com/yusufhm/rockpool/internal"
 )
@@ -24,7 +22,7 @@ func HelmList(s *State) {
 }
 
 func InstallIngressNginx(s *State) {
-	err := helmInstallOrUpgrade(s,
+	err := HelmInstallOrUpgrade(s,
 		"ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
@@ -45,31 +43,19 @@ func InstallHarbor(s *State, c *Config) {
 		os.Exit(1)
 	}
 
-	t := template.Must(template.ParseFiles("templates/harbor-values.yml.tmpl"))
-
-	f, err := os.Create("rendered/harbor-values.yml")
-	if err != nil {
-		fmt.Println("error creating harbor values file: ", err)
-		return
-	}
-
-	config := map[string]string{
-		"lagoonBaseUrl": c.LagoonBaseUrl,
-		"password":      c.HarborPass,
-	}
-	err = t.Execute(f, config)
+	values, err := internal.RenderTemplate("harbor-values.yml.tmpl", c.RenderedTemplatesPath, c)
 	if err != nil {
 		fmt.Println("error rendering harbor values template: ", err)
-		return
+		os.Exit(1)
 	}
-	f.Close()
+	fmt.Println("using generated harbor values at ", values)
 
-	err = helmInstallOrUpgrade(s,
+	err = HelmInstallOrUpgrade(s,
 		"harbor",
 		"harbor/harbor",
 		[]string{
 			"--create-namespace", "--namespace", "harbor", "--wait",
-			"-f", "rendered/harbor-values.yml", "--version=1.5.6",
+			"-f", values, "--version=1.5.6",
 		},
 	)
 	if err != nil {
@@ -86,31 +72,19 @@ func InstallLagoonCore(s *State, c *Config) {
 		os.Exit(1)
 	}
 
-	t := template.Must(template.ParseFiles("templates/lagoon-core-values.yml.tmpl"))
-
-	f, err := os.Create("rendered/lagoon-core-values.yml")
+	values, err := internal.RenderTemplate("lagoon-core-values.yml.tmpl", c.RenderedTemplatesPath, c)
 	if err != nil {
-		fmt.Println("error creating lagoon core values file: ", err)
-		return
+		fmt.Println("error rendering harbor values template: ", err)
+		os.Exit(1)
 	}
+	fmt.Println("using generated harbor values at ", values)
 
-	config := map[string]string{
-		"arch":          runtime.GOARCH,
-		"lagoonBaseUrl": c.LagoonBaseUrl,
-	}
-	err = t.Execute(f, config)
-	if err != nil {
-		fmt.Println("error rendering lagoon core values template: ", err)
-		return
-	}
-	f.Close()
-
-	err = helmInstallOrUpgrade(s,
+	err = HelmInstallOrUpgrade(s,
 		"lagoon-core",
 		"lagoon/lagoon-core",
 		[]string{
 			"--create-namespace", "--namespace", "lagoon-core",
-			"-f", "rendered/lagoon-core-values.yml",
+			"-f", values,
 		},
 	)
 	if err != nil {

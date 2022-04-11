@@ -19,16 +19,16 @@ api:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: api.{{ .lagoonBaseUrl }}
+    - host: api.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: api-tls
         hosts:
-          - api.{{ .lagoonBaseUrl }}
+          - api.{{ .LagoonBaseUrl }}
 
 keycloak:
-  {{- if eq .arch "arm64" }}
+  {{- if eq .Arch "arm64" }}
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-keycloak-arm
   {{- end }}
@@ -37,13 +37,13 @@ keycloak:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: keycloak.{{ .lagoonBaseUrl }}
+    - host: keycloak.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: keycloak-tls
         hosts:
-          - keycloak.{{ .lagoonBaseUrl }}
+          - keycloak.{{ .LagoonBaseUrl }}
 
 webhookHandler:
   ingress:
@@ -51,13 +51,13 @@ webhookHandler:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: webhookhandler.{{ .lagoonBaseUrl }}
+    - host: webhookhandler.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: webhookhandler-tls
         hosts:
-          - webhookhandler.{{ .lagoonBaseUrl }}
+          - webhookhandler.{{ .LagoonBaseUrl }}
 
 ui:
   ingress:
@@ -65,13 +65,13 @@ ui:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: ui.{{ .lagoonBaseUrl }}
+    - host: ui.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: ui-tls
         hosts:
-          - ui.{{ .lagoonBaseUrl }}
+          - ui.{{ .LagoonBaseUrl }}
 
 backupHandler:
   enabled: false
@@ -80,13 +80,13 @@ backupHandler:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: backuphandler.{{ .lagoonBaseUrl }}
+    - host: backuphandler.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: backuphandler-tls
         hosts:
-          - backuphandler.{{ .lagoonBaseUrl }} */}}
+          - backuphandler.{{ .LagoonBaseUrl }} */}}
 
 drushAlias:
   ingress:
@@ -94,13 +94,13 @@ drushAlias:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: drushalias.{{ .lagoonBaseUrl }}
+    - host: drushalias.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: drushalias-tls
         hosts:
-          - drushalias.{{ .lagoonBaseUrl }}
+          - drushalias.{{ .LagoonBaseUrl }}
 
 ssh:
   service:
@@ -109,7 +109,7 @@ ssh:
 
 
 broker:
-  {{- if eq .arch "arm64" }}
+  {{- if eq .Arch "arm64" }}
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-broker
   {{- end }}
@@ -120,13 +120,13 @@ broker:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: broker.{{ .lagoonBaseUrl }}
+    - host: broker.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: broker-tls
         hosts:
-          - broker.{{ .lagoonBaseUrl }}
+          - broker.{{ .LagoonBaseUrl }}
 
 webhookHandler:
   ingress:
@@ -134,13 +134,13 @@ webhookHandler:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: webhookhandler.{{ .lagoonBaseUrl }}
+    - host: webhookhandler.{{ .LagoonBaseUrl }}
       paths:
       - /
     tls:
       - secretName: webhookhandler-tls
         hosts:
-          - webhookhandler.{{ .lagoonBaseUrl }}
+          - webhookhandler.{{ .LagoonBaseUrl }}
 
 logs2slack:
   enabled: false

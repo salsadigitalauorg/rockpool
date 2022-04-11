@@ -7,12 +7,12 @@ import (
 	"github.com/yusufhm/rockpool/internal"
 )
 
-func helmAddRepo(name string, url string) error {
+func HelmAddRepo(name string, url string) error {
 	cmd := exec.Command("helm", "repo", "add", name, url)
 	return internal.RunCmdWithProgress(cmd)
 }
 
-func helmInstallOrUpgrade(s *State, releaseName string, chartName string, args []string) error {
+func HelmInstallOrUpgrade(s *State, releaseName string, chartName string, args []string) error {
 	for _, r := range s.HelmReleases {
 		if r.Name == releaseName {
 			fmt.Printf("helm release %s is already installed\n", releaseName)
