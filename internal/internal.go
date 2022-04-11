@@ -49,3 +49,10 @@ func RenderTemplate(tn string, path string, config interface{}) (string, error) 
 	}
 	return rendered, nil
 }
+
+func GetCmdStdErr(err error) string {
+	if exitError, ok := err.(*exec.ExitError); ok {
+		return string(exitError.Stderr)
+	}
+	return err.Error()
+}

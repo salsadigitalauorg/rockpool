@@ -12,17 +12,27 @@ func HelmAddRepo(name string, url string) error {
 	return internal.RunCmdWithProgress(cmd)
 }
 
-func HelmInstallOrUpgrade(s *State, releaseName string, chartName string, args []string) error {
-	for _, r := range s.HelmReleases {
-		if r.Name == releaseName {
-			fmt.Printf("helm release %s is already installed\n", releaseName)
-			return nil
+func HelmInstallOrUpgrade(s *State, c *Config, releaseName string, chartName string, args []string) error {
+	upgrade := false
+	for _, u := range c.UpgradeComponents {
+		if u == releaseName {
+			upgrade = true
+			break
+		}
+	}
+	if !upgrade {
+		for _, r := range s.HelmReleases {
+			if r.Name == releaseName {
+				fmt.Printf("helm release %s is already installed\n", releaseName)
+				return nil
+			}
 		}
 	}
 
-	cmd := exec.Command("helm", "--kubeconfig", s.Kubeconfig)
-	cmd.Args = append(cmd.Args, "install")
-	cmd.Args = append(cmd.Args, releaseName, chartName)
+	cmd := exec.Command(
+		"helm", "--kubeconfig", s.Kubeconfig,
+		"upgrade", "--install", releaseName, chartName,
+	)
 	cmd.Args = append(cmd.Args, args...)
 	fmt.Printf("command for %s helm release: %v\n", releaseName, cmd)
 	return internal.RunCmdWithProgress(cmd)

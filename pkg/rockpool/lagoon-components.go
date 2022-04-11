@@ -14,19 +14,20 @@ func HelmList(s *State) {
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println(string(out))
-		fmt.Println("unable to get list of helm releases: ", err)
+		fmt.Println("unable to get list of helm releases: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	s.HelmReleases = []HelmRelease{}
 	_ = json.Unmarshal(out, &s.HelmReleases)
 }
 
-func InstallIngressNginx(s *State) {
-	err := HelmInstallOrUpgrade(s,
+func InstallIngressNginx(s *State, c *Config) {
+	err := HelmInstallOrUpgrade(s, c,
 		"ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
 			"--create-namespace", "--namespace", "ingress-nginx", "--wait",
+			"--set", "controller.config.ssl-redirect=false",
 		},
 	)
 	if err != nil {
@@ -50,7 +51,7 @@ func InstallHarbor(s *State, c *Config) {
 	}
 	fmt.Println("using generated harbor values at ", values)
 
-	err = HelmInstallOrUpgrade(s,
+	err = HelmInstallOrUpgrade(s, c,
 		"harbor",
 		"harbor/harbor",
 		[]string{
@@ -79,7 +80,7 @@ func InstallLagoonCore(s *State, c *Config) {
 	}
 	fmt.Println("using generated harbor values at ", values)
 
-	err = HelmInstallOrUpgrade(s,
+	err = HelmInstallOrUpgrade(s, c,
 		"lagoon-core",
 		"lagoon/lagoon-core",
 		[]string{

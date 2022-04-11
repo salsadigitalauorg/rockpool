@@ -23,7 +23,10 @@ metadata:
   namespace: default
 spec:
   ports:
-    - port: 8025
+    - name: http
+      port: 8025
+    - name: smtp
+      port: 1025
   selector:
     app: mailhog
 
@@ -46,3 +49,4 @@ spec:
         image: ajoergensen/mailhog:latest
         ports:
           - containerPort: 8025
+          - containerPort: 1025

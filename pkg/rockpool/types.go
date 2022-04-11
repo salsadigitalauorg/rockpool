@@ -26,4 +26,5 @@ type Config struct {
 	HarborPass            string
 	Arch                  string
 	RenderedTemplatesPath string
+	UpgradeComponents     []string
 }

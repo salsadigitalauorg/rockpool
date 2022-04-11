@@ -13,19 +13,22 @@ s3BAASSecretAccessKey: none
 imageTag: v2.5.0
 registry: none.com
 
+keycloakAPIURL: http://keycloak.{{ .LagoonBaseUrl }}/auth
+lagoonAPIURL: http://api.{{ .LagoonBaseUrl }}/graphql
+lagoonUIURL: http://ui.{{ .LagoonBaseUrl }}
 api:
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
     - host: api.{{ .LagoonBaseUrl }}
       paths:
       - /
-    tls:
+    {{/* tls:
       - secretName: api-tls
         hosts:
-          - api.{{ .LagoonBaseUrl }}
+          - api.{{ .LagoonBaseUrl }} */}}
 
 keycloak:
   {{- if eq .Arch "arm64" }}
@@ -34,44 +37,44 @@ keycloak:
   {{- end }}
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
     - host: keycloak.{{ .LagoonBaseUrl }}
       paths:
       - /
-    tls:
+    {{/* tls:
       - secretName: keycloak-tls
         hosts:
-          - keycloak.{{ .LagoonBaseUrl }}
+          - keycloak.{{ .LagoonBaseUrl }} */}}
 
 webhookHandler:
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
     - host: webhookhandler.{{ .LagoonBaseUrl }}
       paths:
       - /
-    tls:
+    {{/* tls:
       - secretName: webhookhandler-tls
         hosts:
-          - webhookhandler.{{ .LagoonBaseUrl }}
+          - webhookhandler.{{ .LagoonBaseUrl }} */}}
 
 ui:
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
     - host: ui.{{ .LagoonBaseUrl }}
       paths:
       - /
-    tls:
+    {{/* tls:
       - secretName: ui-tls
         hosts:
-          - ui.{{ .LagoonBaseUrl }}
+          - ui.{{ .LagoonBaseUrl }} */}}
 
 backupHandler:
   enabled: false
@@ -91,16 +94,16 @@ backupHandler:
 drushAlias:
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
     - host: drushalias.{{ .LagoonBaseUrl }}
       paths:
       - /
-    tls:
+    {{/* tls:
       - secretName: drushalias-tls
         hosts:
-          - drushalias.{{ .LagoonBaseUrl }}
+          - drushalias.{{ .LagoonBaseUrl }} */}}
 
 ssh:
   service:
@@ -117,30 +120,30 @@ broker:
     enabled: false
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
     - host: broker.{{ .LagoonBaseUrl }}
       paths:
       - /
-    tls:
+    {{/* tls:
       - secretName: broker-tls
         hosts:
-          - broker.{{ .LagoonBaseUrl }}
+          - broker.{{ .LagoonBaseUrl }} */}}
 
 webhookHandler:
   ingress:
     enabled: true
-    annotations:
-      kubernetes.io/tls-acme: "true"
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
     hosts:
     - host: webhookhandler.{{ .LagoonBaseUrl }}
       paths:
       - /
-    tls:
+    {{/* tls:
       - secretName: webhookhandler-tls
         hosts:
-          - webhookhandler.{{ .LagoonBaseUrl }}
+          - webhookhandler.{{ .LagoonBaseUrl }} */}}
 
 logs2slack:
   enabled: false

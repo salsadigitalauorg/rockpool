@@ -33,7 +33,7 @@ func main() {
 	r.ClusterVersion(&state)
 	fmt.Println()
 	r.HelmList(&state)
-	r.InstallIngressNginx(&state)
+	r.InstallIngressNginx(&state, &config)
 
 	r.InstallHarbor(&state, &config)
 	r.InstallLagoonCore(&state, &config)
@@ -58,6 +58,7 @@ ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local`)
 
 	defaultRenderedPath := path.Join(os.TempDir(), "rockpool", "rendered")
 	pflag.StringVar(&config.RenderedTemplatesPath, "rendered-template-path", defaultRenderedPath, "The directory where rendered template files are placed")
+	pflag.StringSliceVar(&config.UpgradeComponents, "upgrade-components", []string{}, "A list of components to upgrade, e.g, ingress-nginx,harbor")
 
 	pflag.Parse()
 
