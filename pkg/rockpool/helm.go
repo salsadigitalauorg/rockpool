@@ -7,11 +7,6 @@ import (
 	"github.com/yusufhm/rockpool/internal"
 )
 
-func HelmAddRepo(name string, url string) error {
-	cmd := exec.Command("helm", "repo", "add", name, url)
-	return internal.RunCmdWithProgress(cmd)
-}
-
 func HelmInstallOrUpgrade(s *State, c *Config, releaseName string, chartName string, args []string) error {
 	upgrade := false
 	for _, u := range c.UpgradeComponents {

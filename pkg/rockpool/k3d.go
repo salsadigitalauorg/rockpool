@@ -59,8 +59,7 @@ func GetClusterKubeConfigPath(s *State, cn string) {
 }
 
 func ClusterVersion(s *State) {
-	cmd := exec.Command("kubectl", "--kubeconfig", s.Kubeconfig, "version")
-	err := internal.RunCmdWithProgress(cmd)
+	err := internal.RunCmdWithProgress(KubeCtl(s, "version"))
 	if err != nil {
 		fmt.Printf("could not get cluster version: %s\n", err)
 	}
@@ -86,9 +85,21 @@ set -ex
 
 /opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
   -s smtpServer.from="lagoon@k3d-rockpool" --config /tmp/kcadm.config
+
+rm /tmp/kcadm.config
 `,
 	)
 	if err != nil {
 		fmt.Println("error configuring keycloak: ", internal.GetCmdStdErr(err))
+	}
+}
+
+func (c *Config) ToMap() map[string]string {
+	return map[string]string{
+		"ClusterName":           c.ClusterName,
+		"LagoonBaseUrl":         c.LagoonBaseUrl,
+		"HarborPass":            c.HarborPass,
+		"Arch":                  c.Arch,
+		"RenderedTemplatesPath": c.RenderedTemplatesPath,
 	}
 }

@@ -39,6 +39,8 @@ func main() {
 	r.InstallLagoonCore(&state, &config)
 
 	r.ConfigureKeycloak(&state)
+
+	r.InstallLagoonRemote(&state, &config)
 }
 
 func parseFlags() {

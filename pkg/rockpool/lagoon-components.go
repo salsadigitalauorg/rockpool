@@ -65,20 +65,27 @@ func InstallHarbor(s *State, c *Config) {
 	}
 }
 
-func InstallLagoonCore(s *State, c *Config) {
-	cmd := exec.Command("helm", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
+func AddLagoonRepo(s *State) {
+	cmd := exec.Command(
+		"helm", "--kubeconfig", s.Kubeconfig, "repo", "add",
+		"lagoon", "https://uselagoon.github.io/lagoon-charts/",
+	)
 	err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Println("unable to install lagoon repo: ", err)
 		os.Exit(1)
 	}
+}
+
+func InstallLagoonCore(s *State, c *Config) {
+	AddLagoonRepo(s)
 
 	values, err := internal.RenderTemplate("lagoon-core-values.yml.tmpl", c.RenderedTemplatesPath, c)
 	if err != nil {
-		fmt.Println("error rendering harbor values template: ", err)
+		fmt.Println("error rendering lagoon-core values template: ", err)
 		os.Exit(1)
 	}
-	fmt.Println("using generated harbor values at ", values)
+	fmt.Println("using generated lagoon-core values at ", values)
 
 	err = HelmInstallOrUpgrade(s, c,
 		"lagoon-core",
@@ -89,7 +96,35 @@ func InstallLagoonCore(s *State, c *Config) {
 		},
 	)
 	if err != nil {
-		fmt.Println("unable to install harbor: ", err)
+		fmt.Println("unable to install lagoon-core: ", err)
+		os.Exit(1)
+	}
+}
+
+func InstallLagoonRemote(s *State, c *Config) {
+	AddLagoonRepo(s)
+
+	// Get RabbitMQ pass.
+	cm := c.ToMap()
+	cm["RabbitMQPassword"] = KubeGetSecret(s, "lagoon-core", "lagoon-core-broker", "RABBITMQ_PASSWORD")
+
+	values, err := internal.RenderTemplate("lagoon-remote-values.yml.tmpl", c.RenderedTemplatesPath, cm)
+	if err != nil {
+		fmt.Println("error rendering lagoon-remote values template: ", err)
+		os.Exit(1)
+	}
+	fmt.Println("using generated lagoon-remote values at ", values)
+
+	err = HelmInstallOrUpgrade(s, c,
+		"lagoon-remote",
+		"lagoon/lagoon-remote",
+		[]string{
+			"--create-namespace", "--namespace", "lagoon",
+			"-f", values,
+		},
+	)
+	if err != nil {
+		fmt.Println("unable to install lagoon-remote: ", err)
 		os.Exit(1)
 	}
 }

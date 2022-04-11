@@ -1,0 +1,37 @@
+lagoon-build-deploy:
+  enabled: true
+  extraArgs:
+    - "--enable-harbor=true"
+    - "--harbor-url=https://harbor.{{ .LagoonBaseUrl }}"
+    - "--harbor-api=https://harbor.{{ .LagoonBaseUrl }}/api/"
+    - "--harbor-username=admin"
+    - "--harbor-password={{ .HarborPass }}>"
+  rabbitMQUsername: lagoon
+  rabbitMQPassword: {{ .RabbitMQPassword }}
+  rabbitMQHostname: lagoon-core-broker.lagoon-core.svc.cluster.local
+  lagoonTargetName: {{ .ClusterName }}
+  taskSSHHost: lagoon-core-ssh.lagoon-core.svc.cluster.local
+  taskSSHPort: "22"
+  taskAPIHost: "api.{{ .LagoonBaseUrl }}"
+
+dbaas-operator:
+  enabled: false
+
+  mariadbProviders:
+    production:
+      environment: production
+      hostname: 172.17.0.1.nip.io
+      readReplicaHostnames:
+      - 172.17.0.1.nip.io
+      password: password
+      port: '3306'
+      user: root
+
+    development:
+      environment: development
+      hostname: 172.17.0.1.nip.io
+      readReplicaHostnames:
+      - 172.17.0.1.nip.io
+      password: password
+      port: '3306'
+      user: root
