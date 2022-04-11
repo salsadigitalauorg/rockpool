@@ -37,6 +37,8 @@ func main() {
 
 	r.InstallHarbor(&state, &config)
 	r.InstallLagoonCore(&state, &config)
+
+	r.ConfigureKeycloak(&state)
 }
 
 func parseFlags() {

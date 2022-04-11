@@ -65,3 +65,30 @@ func ClusterVersion(s *State) {
 		fmt.Printf("could not get cluster version: %s\n", err)
 	}
 }
+
+func ConfigureKeycloak(s *State) {
+	// Configure keycloak.
+	err := KubeExec(s, "lagoon-core", "lagoon-core-keycloak", `
+set -ex
+/opt/jboss/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080/auth --realm master \
+  --user $KEYCLOAK_ADMIN_USER --password $KEYCLOAK_ADMIN_PASSWORD \
+  --config /tmp/kcadm.config
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s resetPasswordAllowed=true --config /tmp/kcadm.config
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s smtpServer.host="mailhog.default.svc.cluster.local" --config /tmp/kcadm.config
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s smtpServer.port=1025 --config /tmp/kcadm.config
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s smtpServer.from="lagoon@k3d-rockpool" --config /tmp/kcadm.config
+`,
+	)
+	if err != nil {
+		fmt.Println("error configuring keycloak: ", internal.GetCmdStdErr(err))
+	}
+}

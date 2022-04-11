@@ -25,3 +25,13 @@ func KubeApply(s *State, c *Config, fn string, force bool) {
 	}
 	internal.RunCmdWithProgress(cmd)
 }
+
+func KubeExec(s *State, namespace string, deploy string, cmdStr string) error {
+	cmd := exec.Command(
+		"kubectl", "--kubeconfig", s.Kubeconfig, "exec",
+		"--namespace", namespace, "deploy/"+deploy, "--",
+		"bash", "-c", cmdStr,
+	)
+	fmt.Println("kube exec command: ", cmd)
+	return internal.RunCmdWithProgress(cmd)
+}
