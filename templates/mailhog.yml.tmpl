@@ -4,7 +4,10 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: nginx
   name: mailhog
-  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: Rockpool
+    app.kubernetes.io/instance: rockpool-mailhog
+    app.kubernetes.io/name: mailhog
 spec:
   rules:
     - host: mailhog.{{ .LagoonBaseUrl }}
@@ -20,7 +23,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mailhog
-  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: Rockpool
+    app.kubernetes.io/instance: rockpool-mailhog
+    app.kubernetes.io/name: mailhog
 spec:
   ports:
     - name: http
@@ -28,21 +34,28 @@ spec:
     - name: smtp
       port: 1025
   selector:
-    app: mailhog
+    app.kubernetes.io/instance: rockpool-mailhog
+    app.kubernetes.io/name: mailhog
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mailhog
+  labels:
+    app.kubernetes.io/managed-by: Rockpool
+    app.kubernetes.io/instance: rockpool-mailhog
+    app.kubernetes.io/name: mailhog
 spec:
   selector:
     matchLabels:
-      app: mailhog
+      app.kubernetes.io/instance: rockpool-mailhog
+      app.kubernetes.io/name: mailhog
   template:
     metadata:
       labels:
-        app: mailhog
+        app.kubernetes.io/instance: rockpool-mailhog
+        app.kubernetes.io/name: mailhog
     spec:
       containers:
       - name: mailhog

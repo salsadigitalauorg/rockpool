@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// RunCmdWithProgress runs a command and progressively outputs the progress.
 func RunCmdWithProgress(cmd *exec.Cmd) error {
 	// Use pipes so we can output progress.
 	stdout, _ := cmd.StdoutPipe()
@@ -26,6 +27,8 @@ func RunCmdWithProgress(cmd *exec.Cmd) error {
 	return cmd.Wait()
 }
 
+// RenderTemplate executes a given template file and returns the path to its
+// rendered version.
 func RenderTemplate(tn string, path string, config interface{}) (string, error) {
 	tnFull := fmt.Sprintf("templates/%s", tn)
 	t := template.Must(template.ParseFiles(tnFull))
@@ -50,6 +53,7 @@ func RenderTemplate(tn string, path string, config interface{}) (string, error) 
 	return rendered, nil
 }
 
+// GetCmdStdErr extracts the error from a failed command's err.
 func GetCmdStdErr(err error) string {
 	if exitError, ok := err.(*exec.ExitError); ok {
 		return string(exitError.Stderr)

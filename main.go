@@ -8,56 +8,42 @@ import (
 	"runtime"
 
 	"github.com/spf13/pflag"
-	r "github.com/yusufhm/rockpool/pkg/rockpool"
+	"github.com/yusufhm/rockpool/pkg/rockpool"
 )
 
-var state r.State
-var config r.Config
+var r rockpool.Rockpool
 var down bool
 var stop bool
 
 func main() {
-	config = r.Config{}
-	parseFlags()
-	config.Arch = runtime.GOARCH
-
-	state = r.State{
-		Clusters:     []r.Cluster{},
-		BinaryPaths:  map[string]string{},
-		HelmReleases: []r.HelmRelease{},
-		Kubeconfig:   "",
+	r = rockpool.Rockpool{
+		State: rockpool.State{
+			Clusters:     rockpool.ClusterList{},
+			BinaryPaths:  map[string]string{},
+			HelmReleases: map[string][]rockpool.HelmRelease{},
+			Kubeconfig:   map[string]string{},
+		},
+		Config: rockpool.Config{},
 	}
-	r.VerifyReqs(&state, &config)
+	parseFlags()
+	r.Config.Arch = runtime.GOARCH
+
+	r.VerifyReqs()
+	r.FetchClusters()
 	fmt.Println()
 
 	if stop {
-		r.StopCluster(&state, config.ClusterName)
+		r.Stop()
 		os.Exit(0)
 	}
 
 	if down {
-		r.DeleteCluster(&state, config.ClusterName)
+		r.Down()
 		os.Exit(0)
 	}
 
-	r.CreateCluster(&state, config.ClusterName)
-	fmt.Println()
-	r.GetClusterKubeConfigPath(&state, config.ClusterName)
-
-	// Install mailhog.
-	r.KubeApply(&state, &config, "mailhog.yml.tmpl", true)
-
-	r.ClusterVersion(&state)
-	fmt.Println()
-	r.HelmList(&state)
-	r.InstallIngressNginx(&state, &config)
-
-	r.InstallHarbor(&state, &config)
-	r.InstallLagoonCore(&state, &config)
-
-	r.ConfigureKeycloak(&state)
-
-	r.InstallLagoonRemote(&state, &config)
+	r.LagoonController()
+	r.LagoonTarget()
 }
 
 func parseFlags() {
@@ -65,21 +51,21 @@ func parseFlags() {
 
 	pflag.Usage = func() {
 		fmt.Fprint(os.Stderr, "Rockpool\n\nEasily create local Lagoon instances.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage:\n  %s [dir]\n\nFlags:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage:\n  %s \n\nFlags:\n", os.Args[0])
 		pflag.PrintDefaults()
 		fmt.Fprintln(os.Stderr)
 	}
 
 	displayUsage := pflag.BoolP("help", "h", false, "Displays usage information")
-	pflag.StringVarP(&config.ClusterName, "cluster-name", "n", "rockpool", "The name of the cluster")
-	pflag.StringVarP(&config.LagoonBaseUrl, "lagoon-base-url", "l", "lagoon.rockpool.k3d.local", `The base Lagoon url of the cluster;
+	pflag.StringVarP(&r.Config.ClusterName, "cluster-name", "n", "rockpool", "The name of the cluster")
+	pflag.StringVarP(&r.Config.LagoonBaseUrl, "lagoon-base-url", "l", "lagoon.rockpool.k3d.local", `The base Lagoon url of the cluster;
 all Lagoon services will be created as subdomains of this url, e.g,
 ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local`)
-	pflag.StringVar(&config.HarborPass, "harbor-password", "pass", "The Harbor password")
+	pflag.StringVar(&r.Config.HarborPass, "harbor-password", "pass", "The Harbor password")
 
 	defaultRenderedPath := path.Join(os.TempDir(), "rockpool", "rendered")
-	pflag.StringVar(&config.RenderedTemplatesPath, "rendered-template-path", defaultRenderedPath, "The directory where rendered template files are placed")
-	pflag.StringSliceVar(&config.UpgradeComponents, "upgrade-components", []string{}, "A list of components to upgrade, e.g, ingress-nginx,harbor")
+	pflag.StringVar(&r.Config.RenderedTemplatesPath, "rendered-template-path", defaultRenderedPath, "The directory where rendered template files are placed")
+	pflag.StringSliceVar(&r.Config.UpgradeComponents, "upgrade-components", []string{}, "A list of components to upgrade, e.g, ingress-nginx,harbor")
 	pflag.BoolVar(&down, "down", false, "Stops the cluster and deletes it")
 	pflag.BoolVar(&stop, "stop", false, "Stops the cluster")
 

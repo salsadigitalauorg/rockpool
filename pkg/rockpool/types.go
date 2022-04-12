@@ -1,5 +1,7 @@
 package rockpool
 
+import "sync"
+
 type Cluster struct {
 	Name           string `json:"name"`
 	ServersRunning int    `json:"serversRunning"`
@@ -21,10 +23,12 @@ type HelmRelease struct {
 }
 
 type State struct {
-	Clusters     ClusterList
-	BinaryPaths  map[string]string
-	HelmReleases []HelmRelease
-	Kubeconfig   string
+	Clusters    ClusterList
+	BinaryPaths map[string]string
+	// List of Helm releases per cluster.
+	HelmReleases map[string][]HelmRelease
+	// Kubeconfig per cluster.
+	Kubeconfig map[string]string
 }
 
 type Config struct {
@@ -34,4 +38,10 @@ type Config struct {
 	Arch                  string
 	RenderedTemplatesPath string
 	UpgradeComponents     []string
+}
+
+type Rockpool struct {
+	State
+	Config
+	wg *sync.WaitGroup
 }

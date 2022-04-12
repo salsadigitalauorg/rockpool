@@ -1,130 +1,121 @@
 package rockpool
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/yusufhm/rockpool/internal"
 )
 
-func HelmList(s *State) {
-	cmd := exec.Command("helm", "list", "--all-namespaces", "--output", "json")
-	out, err := cmd.Output()
-	if err != nil {
-		fmt.Println(string(out))
-		fmt.Println("unable to get list of helm releases: ", internal.GetCmdStdErr(err))
-		os.Exit(1)
-	}
-	s.HelmReleases = []HelmRelease{}
-	_ = json.Unmarshal(out, &s.HelmReleases)
-}
-
-func InstallIngressNginx(s *State, c *Config) {
-	err := HelmInstallOrUpgrade(s, c,
-		"ingress-nginx",
+func (r *Rockpool) InstallIngressNginx() {
+	err := r.HelmInstallOrUpgrade(r.ControllerClusterName(),
+		"ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
-			"--create-namespace", "--namespace", "ingress-nginx", "--wait",
+			"--create-namespace", "--wait",
 			"--set", "controller.config.ssl-redirect=false",
 		},
 	)
 	if err != nil {
-		fmt.Println("unable to install ingress-nginx: ", err)
+		fmt.Println("unable to install ingress-nginx: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
-func InstallHarbor(s *State, c *Config) {
-	cmd := exec.Command("helm", "repo", "add", "harbor", "https://helm.goharbor.io")
-	err := internal.RunCmdWithProgress(cmd)
+func (r *Rockpool) InstallHarbor() {
+	cmd := r.Helm(
+		r.ControllerClusterName(), "",
+		"repo", "add", "harbor", "https://helm.goharbor.io",
+	)
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println("unable to install harbor repo: ", err)
+		fmt.Println("unable to add harbor repo: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
-	values, err := internal.RenderTemplate("harbor-values.yml.tmpl", c.RenderedTemplatesPath, c)
+	values, err := internal.RenderTemplate("harbor-values.yml.tmpl", r.Config.RenderedTemplatesPath, r.Config)
 	if err != nil {
 		fmt.Println("error rendering harbor values template: ", err)
 		os.Exit(1)
 	}
 	fmt.Println("using generated harbor values at ", values)
 
-	err = HelmInstallOrUpgrade(s, c,
-		"harbor",
-		"harbor/harbor",
+	err = r.HelmInstallOrUpgrade(r.ControllerClusterName(),
+		"harbor", "harbor", "harbor/harbor",
 		[]string{
-			"--create-namespace", "--namespace", "harbor", "--wait",
+			"--create-namespace", "--wait",
 			"-f", values, "--version=1.5.6",
 		},
 	)
 	if err != nil {
-		fmt.Println("unable to install harbor: ", err)
+		fmt.Println("unable to install harbor: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
-func AddLagoonRepo(s *State) {
-	cmd := exec.Command(
-		"helm", "--kubeconfig", s.Kubeconfig, "repo", "add",
-		"lagoon", "https://uselagoon.github.io/lagoon-charts/",
+func (r *Rockpool) AddLagoonRepo(cn string) {
+	cmd := r.Helm(
+		cn, "", "repo", "add", "lagoon",
+		"https://uselagoon.github.io/lagoon-charts/",
 	)
-	err := internal.RunCmdWithProgress(cmd)
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println("unable to install lagoon repo: ", err)
+		fmt.Println("unable to add lagoon repo: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
-func InstallLagoonCore(s *State, c *Config) {
-	AddLagoonRepo(s)
+func (r *Rockpool) InstallLagoonCore() {
+	r.AddLagoonRepo(r.ControllerClusterName())
 
-	values, err := internal.RenderTemplate("lagoon-core-values.yml.tmpl", c.RenderedTemplatesPath, c)
+	values, err := internal.RenderTemplate(
+		"lagoon-core-values.yml.tmpl",
+		r.Config.RenderedTemplatesPath, r.Config,
+	)
 	if err != nil {
 		fmt.Println("error rendering lagoon-core values template: ", err)
 		os.Exit(1)
 	}
 	fmt.Println("using generated lagoon-core values at ", values)
 
-	err = HelmInstallOrUpgrade(s, c,
+	err = r.HelmInstallOrUpgrade(r.ControllerClusterName(), "lagoon-core",
 		"lagoon-core",
 		"lagoon/lagoon-core",
-		[]string{
-			"--create-namespace", "--namespace", "lagoon-core",
-			"-f", values,
-		},
+		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
 	)
 	if err != nil {
-		fmt.Println("unable to install lagoon-core: ", err)
+		fmt.Println("unable to install lagoon-core: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
-func InstallLagoonRemote(s *State, c *Config) {
-	AddLagoonRepo(s)
+func (r *Rockpool) InstallLagoonRemote(cn string) {
+	r.AddLagoonRepo(cn)
 
 	// Get RabbitMQ pass.
-	cm := c.ToMap()
-	cm["RabbitMQPassword"] = KubeGetSecret(s, "lagoon-core", "lagoon-core-broker", "RABBITMQ_PASSWORD")
+	cm := r.Config.ToMap()
+	cm["RabbitMQPassword"] = r.KubeGetSecret(r.ControllerClusterName(),
+		"lagoon-core",
+		"lagoon-core-broker",
+		"RABBITMQ_PASSWORD",
+	)
 
-	values, err := internal.RenderTemplate("lagoon-remote-values.yml.tmpl", c.RenderedTemplatesPath, cm)
+	values, err := internal.RenderTemplate(
+		"lagoon-remote-values.yml.tmpl",
+		r.Config.RenderedTemplatesPath, cm,
+	)
 	if err != nil {
 		fmt.Println("error rendering lagoon-remote values template: ", err)
 		os.Exit(1)
 	}
 	fmt.Println("using generated lagoon-remote values at ", values)
 
-	err = HelmInstallOrUpgrade(s, c,
-		"lagoon-remote",
+	err = r.HelmInstallOrUpgrade(cn, "lagoon", "lagoon-remote",
 		"lagoon/lagoon-remote",
-		[]string{
-			"--create-namespace", "--namespace", "lagoon",
-			"-f", values,
-		},
+		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
-		fmt.Println("unable to install lagoon-remote: ", err)
+		fmt.Println("unable to install lagoon-remote: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
