@@ -10,25 +10,44 @@ import (
 	"github.com/yusufhm/rockpool/internal"
 )
 
-func CreateCluster(s *State, cn string) {
+func (cr *Cluster) IsRunning() bool {
+	return cr.AgentsCount == cr.AgentsRunning && cr.ServersCount == cr.ServersRunning
+}
+
+func (cl *ClusterList) Get() {
 	res, err := exec.Command("k3d", "cluster", "list", "-o", "json").Output()
 	if err != nil {
 		fmt.Printf("unable to get cluster list: %s\n", err)
 		os.Exit(1)
 	}
 
-	clusters := []Cluster{}
-	err = json.Unmarshal(res, &clusters)
+	err = json.Unmarshal(res, cl)
 	if err != nil {
 		fmt.Printf("unable to parse cluster list: %s\n", err)
 		os.Exit(1)
 	}
+}
 
-	for _, c := range clusters {
+func (cl *ClusterList) ClusterExists(cn string) (bool, Cluster) {
+	if len(*cl) == 0 {
+		cl.Get()
+	}
+	for _, c := range *cl {
 		if c.Name == cn {
-			fmt.Printf("%s cluster already exists\n", cn)
-			return
+			return true, c
 		}
+	}
+	return false, Cluster{}
+}
+
+func CreateCluster(s *State, cn string) {
+	if exists, cs := s.Clusters.ClusterExists(cn); exists && cs.IsRunning() {
+		fmt.Printf("%s cluster already exists\n", cn)
+		return
+	} else if exists {
+		fmt.Printf("%s cluster already exists, but is stopped; starting now\n", cn)
+		StartCluster(s, cn)
+		return
 	}
 
 	k3sArgs := []string{
@@ -42,9 +61,45 @@ func CreateCluster(s *State, cn string) {
 	cmd := exec.Command(s.BinaryPaths["k3d"], cmdArgs...)
 	fmt.Printf("command to create cluster: %+v\n", cmd)
 
-	err = internal.RunCmdWithProgress(cmd)
+	err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Printf("unable to create cluster: %s", err)
+		os.Exit(1)
+	}
+}
+
+func StartCluster(s *State, cn string) {
+	if exists, _ := s.Clusters.ClusterExists(cn); !exists {
+		fmt.Printf("%s cluster does not exist\n", cn)
+		os.Exit(1)
+	}
+	cmd := exec.Command(s.BinaryPaths["k3d"], "cluster", "start", cn)
+	err := internal.RunCmdWithProgress(cmd)
+	if err != nil {
+		fmt.Printf("unable to start cluster: %s", err)
+		os.Exit(1)
+	}
+}
+
+func StopCluster(s *State, cn string) {
+	if exists, _ := s.Clusters.ClusterExists(cn); !exists {
+		fmt.Printf("%s cluster does not exist\n", cn)
+		os.Exit(1)
+	}
+	cmd := exec.Command(s.BinaryPaths["k3d"], "cluster", "stop", cn)
+	err := internal.RunCmdWithProgress(cmd)
+	if err != nil {
+		fmt.Printf("unable to stop cluster: %s", err)
+		os.Exit(1)
+	}
+}
+
+func DeleteCluster(s *State, cn string) {
+	StopCluster(s, cn)
+	cmd := exec.Command(s.BinaryPaths["k3d"], "cluster", "delete", cn)
+	err := internal.RunCmdWithProgress(cmd)
+	if err != nil {
+		fmt.Printf("unable to delete cluster: %s", err)
 		os.Exit(1)
 	}
 }

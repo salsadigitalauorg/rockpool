@@ -1,8 +1,14 @@
 package rockpool
 
 type Cluster struct {
-	Name string `json:"name"`
+	Name           string `json:"name"`
+	ServersRunning int    `json:"serversRunning"`
+	ServersCount   int    `json:"serversCount"`
+	AgentsRunning  int    `json:"agentsRunning"`
+	AgentsCount    int    `json:"agentsCount"`
 }
+
+type ClusterList []Cluster
 
 type HelmRelease struct {
 	Name       string `json:"name"`
@@ -15,6 +21,7 @@ type HelmRelease struct {
 }
 
 type State struct {
+	Clusters     ClusterList
 	BinaryPaths  map[string]string
 	HelmReleases []HelmRelease
 	Kubeconfig   string

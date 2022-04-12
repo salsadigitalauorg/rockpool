@@ -13,15 +13,32 @@ import (
 
 var state r.State
 var config r.Config
+var down bool
+var stop bool
 
 func main() {
 	config = r.Config{}
 	parseFlags()
 	config.Arch = runtime.GOARCH
 
-	state = r.State{}
+	state = r.State{
+		Clusters:     []r.Cluster{},
+		BinaryPaths:  map[string]string{},
+		HelmReleases: []r.HelmRelease{},
+		Kubeconfig:   "",
+	}
 	r.VerifyReqs(&state, &config)
 	fmt.Println()
+
+	if stop {
+		r.StopCluster(&state, config.ClusterName)
+		os.Exit(0)
+	}
+
+	if down {
+		r.DeleteCluster(&state, config.ClusterName)
+		os.Exit(0)
+	}
 
 	r.CreateCluster(&state, config.ClusterName)
 	fmt.Println()
@@ -63,6 +80,8 @@ ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local`)
 	defaultRenderedPath := path.Join(os.TempDir(), "rockpool", "rendered")
 	pflag.StringVar(&config.RenderedTemplatesPath, "rendered-template-path", defaultRenderedPath, "The directory where rendered template files are placed")
 	pflag.StringSliceVar(&config.UpgradeComponents, "upgrade-components", []string{}, "A list of components to upgrade, e.g, ingress-nginx,harbor")
+	pflag.BoolVar(&down, "down", false, "Stops the cluster and deletes it")
+	pflag.BoolVar(&stop, "stop", false, "Stops the cluster")
 
 	pflag.Parse()
 
