@@ -100,7 +100,7 @@ func (r *Rockpool) LagoonTarget() {
 	r.ClusterVersion(tgtCn)
 	fmt.Println()
 
-	r.HelmList(r.ControllerClusterName())
+	r.HelmList(tgtCn)
 	r.InstallLagoonRemote(tgtCn)
 }
 

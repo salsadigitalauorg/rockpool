@@ -108,7 +108,6 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 		fmt.Println("error rendering lagoon-remote values template: ", err)
 		os.Exit(1)
 	}
-	fmt.Println("using generated lagoon-remote values at ", values)
 
 	_, err = r.HelmInstallOrUpgrade(cn, "lagoon", "lagoon-remote",
 		"lagoon/lagoon-remote",
