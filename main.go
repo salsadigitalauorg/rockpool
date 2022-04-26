@@ -42,6 +42,7 @@ func main() {
 		os.Exit(0)
 	}
 
+	r.CreateRegistry()
 	r.LagoonController()
 	r.LagoonTarget()
 }

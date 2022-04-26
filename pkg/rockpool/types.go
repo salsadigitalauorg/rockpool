@@ -5,6 +5,14 @@ import (
 	"sync"
 )
 
+type Registry struct {
+	Name  string `json:"name"`
+	State struct {
+		Running bool
+		Status  string
+	}
+}
+
 type Cluster struct {
 	Name           string `json:"name"`
 	ServersRunning int    `json:"serversRunning"`
@@ -27,6 +35,7 @@ type HelmRelease struct {
 
 type State struct {
 	Clusters    ClusterList
+	Registry    Registry
 	BinaryPaths map[string]string
 	// List of Helm releases per cluster.
 	HelmReleases map[string][]HelmRelease

@@ -37,6 +37,43 @@ func (cl *ClusterList) ClusterExists(cn string) (bool, Cluster) {
 	return false, Cluster{}
 }
 
+func (r *Rockpool) FetchRegistry() {
+	var allRegistries []Registry
+	res, err := exec.Command("k3d", "registry", "list", "-o", "json").Output()
+	if err != nil {
+		fmt.Printf("unable to get registry list: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = json.Unmarshal(res, &allRegistries)
+	if err != nil {
+		fmt.Printf("unable to parse registry list: %s\n", err)
+		os.Exit(1)
+	}
+
+	for _, reg := range allRegistries {
+		if reg.Name == "k3d-rockpool-registry" {
+			r.Registry = reg
+			break
+		}
+	}
+
+}
+
+func (r *Rockpool) CreateRegistry() {
+	r.FetchRegistry()
+	if r.Registry.Name == "k3d-rockpool-registry" {
+		fmt.Println("registry already exists")
+		return
+	}
+	cmd := exec.Command("k3d", "registry", "create", "rockpool-registry")
+	_, err := internal.RunCmdWithProgress(cmd)
+	if err != nil {
+		fmt.Println("unable to create registry: ", err)
+		os.Exit(1)
+	}
+}
+
 func (r *Rockpool) FetchClusters() {
 	var allK3dCl ClusterList
 	allK3dCl.Get()
@@ -64,6 +101,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 		"cluster", "create", "--kubeconfig-update-default=false",
 		"--image=rancher/k3s:v1.21.11-k3s1",
 		"--agents", "1", "--network", "k3d-rockpool",
+		"--registry-use", "k3d-rockpool-registry",
 	}
 
 	if strings.HasSuffix(cn, "-controller") {
@@ -120,6 +158,7 @@ func (r *Rockpool) StopCluster(cn string) {
 }
 
 func (r *Rockpool) DeleteCluster(cn string) {
+	r.wg.Add(1)
 	r.StopCluster(cn)
 	cmd := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "delete", cn)
 	_, err := internal.RunCmdWithProgress(cmd)
@@ -128,6 +167,9 @@ func (r *Rockpool) DeleteCluster(cn string) {
 		os.Exit(1)
 	}
 	r.FetchClusters()
+	if r.wg != nil {
+		r.wg.Done()
+	}
 }
 
 func (r *Rockpool) GetClusterKubeConfigPath(cn string) {
