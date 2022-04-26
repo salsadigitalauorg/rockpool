@@ -24,3 +24,7 @@ cd ../broker
 sed -i .bak 's/${IMAGE_REPO\:\-lagoon}\/broker-single/ghcr.io\/yusufhm\/rockpool\/lagoon-broker-single-arm\:v2\.5\.0/g' Dockerfile
 docker build -t ghcr.io/yusufhm/rockpool/lagoon-broker:v2.5.0 .
 docker push ghcr.io/yusufhm/rockpool/lagoon-broker:v2.5.0
+
+cd ../../images/docker-host
+docker build -t ghcr.io/yusufhm/rockpool/lagoon-docker-host:v2.5.0 .
+docker push ghcr.io/yusufhm/rockpool/lagoon-docker-host:v2.5.0
