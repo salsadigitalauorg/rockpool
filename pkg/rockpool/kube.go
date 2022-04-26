@@ -1,8 +1,10 @@
 package rockpool
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -34,8 +36,13 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) {
 	internal.RunCmdWithProgress(cmd)
 }
 
-func (r *Rockpool) KubeExec(cn string, ns string, deploy string, cmdStr string) error {
+func (r *Rockpool) KubeExecNoProgress(cn string, ns string, deploy string, cmdStr string) *exec.Cmd {
 	cmd := r.KubeCtl(cn, ns, "exec", "deploy/"+deploy, "--", "bash", "-c", cmdStr)
+	return cmd
+}
+
+func (r *Rockpool) KubeExec(cn string, ns string, deploy string, cmdStr string) (string, error) {
+	cmd := r.KubeExecNoProgress(cn, ns, deploy, cmdStr)
 	fmt.Println("kube exec command: ", cmd)
 	return internal.RunCmdWithProgress(cmd)
 }
@@ -58,4 +65,42 @@ func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field stri
 		return string(decoded)
 	}
 	return ""
+}
+
+func (r *Rockpool) KubeGetConfigMap(cn string, ns string, name string) []byte {
+	cmd := r.KubeCtl(
+		cn, ns, "get", "configmap", name,
+		"--output", "json",
+	)
+	fmt.Println(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Printf("error when getting configmap %s: %s", name, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	return out
+}
+
+func (r *Rockpool) KubeReplace(cn string, ns string, name string, content string) string {
+	cat := exec.Command("echo", content)
+	replace := r.KubeCtl(cn, ns, "replace", "-f", "-")
+
+	reader, writer := io.Pipe()
+	cat.Stdout = writer
+	replace.Stdin = reader
+
+	var replaceOut bytes.Buffer
+	replace.Stdout = &replaceOut
+
+	cat.Start()
+	replace.Start()
+	cat.Wait()
+	writer.Close()
+
+	if err := replace.Wait(); err != nil {
+		fmt.Printf("error replacing config %s: %s", name, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	io.Copy(os.Stdout, &replaceOut)
+	return replaceOut.String()
 }

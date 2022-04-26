@@ -1,6 +1,9 @@
 package rockpool
 
-import "sync"
+import (
+	"encoding/json"
+	"sync"
+)
 
 type Cluster struct {
 	Name           string `json:"name"`
@@ -28,7 +31,8 @@ type State struct {
 	// List of Helm releases per cluster.
 	HelmReleases map[string][]HelmRelease
 	// Kubeconfig per cluster.
-	Kubeconfig map[string]string
+	Kubeconfig         map[string]string
+	ControllerDockerIP string
 }
 
 type Config struct {
@@ -44,4 +48,23 @@ type Rockpool struct {
 	State
 	Config
 	wg *sync.WaitGroup
+}
+
+type DockerContainer struct {
+	Name            string
+	NetworkSettings struct {
+		Networks map[string]struct {
+			IPAddress string
+		}
+	}
+}
+
+type CoreDNSConfigMap struct {
+	ApiVersion string `json:"apiVersion"`
+	Data       struct {
+		Corefile  string
+		NodeHosts string
+	} `json:"data"`
+	Kind     string          `json:"kind"`
+	Metadata json.RawMessage `json:"metadata"`
 }

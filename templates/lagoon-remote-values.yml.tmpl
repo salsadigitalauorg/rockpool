@@ -1,9 +1,10 @@
 imageTag: v2.5.0
 
+{{- if eq .Arch "arm64" }}
 dockerHost:
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-docker-host
-    tag: "v2.5.0"
+{{- end }}
 
 lagoon-build-deploy:
   enabled: true
@@ -15,10 +16,10 @@ lagoon-build-deploy:
     - "--harbor-password={{ .HarborPass }}>"
   rabbitMQUsername: lagoon
   rabbitMQPassword: {{ .RabbitMQPassword }}
-  rabbitMQHostname: lagoon-core-broker.lagoon-core.svc.cluster.local
+  rabbitMQHostname: broker.{{ .LagoonBaseUrl }}
   lagoonTargetName: {{ .ClusterName }}
-  taskSSHHost: lagoon-core-ssh.lagoon-core.svc.cluster.local
-  taskSSHPort: "22"
+  taskSSHHost: ssh.{{ .LagoonBaseUrl }}
+  taskSSHPort: "2022"
   taskAPIHost: "api.{{ .LagoonBaseUrl }}"
 
 dbaas-operator:

@@ -110,12 +110,14 @@ ssh:
     type: LoadBalancer
     port: 22
 
-
 broker:
   {{- if eq .Arch "arm64" }}
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-broker
   {{- end }}
+  service:
+    amqpExternal:
+      enabled: true
   serviceMonitor:
     enabled: false
   ingress:

@@ -63,7 +63,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 	cmdArgs := []string{
 		"cluster", "create", "--kubeconfig-update-default=false",
 		"--image=rancher/k3s:v1.21.11-k3s1",
-		"--agents", "1",
+		"--agents", "1", "--network", "k3d-rockpool",
 	}
 
 	if strings.HasSuffix(cn, "-controller") {
@@ -71,6 +71,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 			"-p", "80:80@loadbalancer",
 			"-p", "443:443@loadbalancer",
 			"-p", "2022:22@loadbalancer",
+			"-p", "5672:5672@loadbalancer",
 		)
 	}
 
@@ -79,7 +80,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 	cmd := exec.Command(r.State.BinaryPaths["k3d"], cmdArgs...)
 	fmt.Printf("command to create cluster: %+v\n", cmd)
 
-	err := internal.RunCmdWithProgress(cmd)
+	_, err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Printf("unable to create cluster: %s", err)
 		os.Exit(1)
@@ -93,7 +94,7 @@ func (r *Rockpool) StartCluster(cn string) {
 		os.Exit(1)
 	}
 	cmd := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn)
-	err := internal.RunCmdWithProgress(cmd)
+	_, err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Printf("unable to start cluster: %s", err)
 		os.Exit(1)
@@ -107,7 +108,7 @@ func (r *Rockpool) StopCluster(cn string) {
 		os.Exit(1)
 	}
 	cmd := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "stop", cn)
-	err := internal.RunCmdWithProgress(cmd)
+	_, err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Printf("unable to stop cluster: %s", err)
 		os.Exit(1)
@@ -121,7 +122,7 @@ func (r *Rockpool) StopCluster(cn string) {
 func (r *Rockpool) DeleteCluster(cn string) {
 	r.StopCluster(cn)
 	cmd := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "delete", cn)
-	err := internal.RunCmdWithProgress(cmd)
+	_, err := internal.RunCmdWithProgress(cmd)
 	if err != nil {
 		fmt.Printf("unable to delete cluster: %s", err)
 		os.Exit(1)
@@ -139,7 +140,7 @@ func (r *Rockpool) GetClusterKubeConfigPath(cn string) {
 }
 
 func (r *Rockpool) ClusterVersion(cn string) {
-	err := internal.RunCmdWithProgress(r.KubeCtl(cn, "", "version"))
+	_, err := internal.RunCmdWithProgress(r.KubeCtl(cn, "", "version"))
 	if err != nil {
 		fmt.Printf("could not get cluster version: %s\n", err)
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func (r *Rockpool) InstallIngressNginx() {
-	err := r.HelmInstallOrUpgrade(r.ControllerClusterName(),
+	_, err := r.HelmInstallOrUpgrade(r.ControllerClusterName(),
 		"ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
@@ -40,7 +40,7 @@ func (r *Rockpool) InstallHarbor() {
 	}
 	fmt.Println("using generated harbor values at ", values)
 
-	err = r.HelmInstallOrUpgrade(r.ControllerClusterName(),
+	_, err = r.HelmInstallOrUpgrade(r.ControllerClusterName(),
 		"harbor", "harbor", "harbor/harbor",
 		[]string{
 			"--create-namespace", "--wait",
@@ -78,7 +78,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	}
 	fmt.Println("using generated lagoon-core values at ", values)
 
-	err = r.HelmInstallOrUpgrade(r.ControllerClusterName(), "lagoon-core",
+	_, err = r.HelmInstallOrUpgrade(r.ControllerClusterName(), "lagoon-core",
 		"lagoon-core",
 		"lagoon/lagoon-core",
 		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
@@ -110,7 +110,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 	}
 	fmt.Println("using generated lagoon-remote values at ", values)
 
-	err = r.HelmInstallOrUpgrade(cn, "lagoon", "lagoon-remote",
+	_, err = r.HelmInstallOrUpgrade(cn, "lagoon", "lagoon-remote",
 		"lagoon/lagoon-remote",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)

@@ -12,19 +12,21 @@ import (
 )
 
 // RunCmdWithProgress runs a command and progressively outputs the progress.
-func RunCmdWithProgress(cmd *exec.Cmd) error {
+func RunCmdWithProgress(cmd *exec.Cmd) (string, error) {
 	// Use pipes so we can output progress.
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
 	_ = cmd.Start()
 
+	var stdoutStr string
 	scanner := bufio.NewScanner(io.MultiReader(stdout, stderr))
 	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
 		m := scanner.Text()
+		stdoutStr += m + "\n"
 		fmt.Println(m)
 	}
-	return cmd.Wait()
+	return stdoutStr, cmd.Wait()
 }
 
 // RenderTemplate executes a given template file and returns the path to its
