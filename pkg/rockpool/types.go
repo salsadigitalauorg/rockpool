@@ -3,6 +3,8 @@ package rockpool
 import (
 	"encoding/json"
 	"sync"
+
+	"github.com/briandowns/spinner"
 )
 
 type Registry struct {
@@ -34,6 +36,7 @@ type HelmRelease struct {
 }
 
 type State struct {
+	Spinner     spinner.Spinner
 	Clusters    ClusterList
 	Registry    Registry
 	BinaryPaths map[string]string
@@ -46,6 +49,7 @@ type State struct {
 
 type Config struct {
 	ClusterName           string
+	Hostname              string
 	LagoonBaseUrl         string
 	HarborPass            string
 	Arch                  string

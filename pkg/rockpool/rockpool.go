@@ -71,13 +71,15 @@ func (r *Rockpool) LagoonController() {
 	fmt.Println()
 
 	r.GetClusterKubeConfigPath(r.ControllerClusterName())
-	r.InstallMailHog()
-
 	r.ClusterVersion(r.ControllerClusterName())
 	fmt.Println()
 
+	r.InstallMailHog()
+
 	r.HelmList(r.ControllerClusterName())
 	r.InstallIngressNginx()
+
+	r.InstallGitlab()
 
 	r.InstallHarbor()
 	r.InstallLagoonCore()
@@ -105,7 +107,19 @@ func (r *Rockpool) LagoonTarget() {
 }
 
 func (r *Rockpool) InstallMailHog() {
-	r.KubeApply(r.ControllerClusterName(), "default", "mailhog.yml.tmpl", true)
+	_, err := r.KubeApply(r.ControllerClusterName(), "default", "mailhog.yml.tmpl", true)
+	if err != nil {
+		fmt.Println("unable to install mailhog: ", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) InstallGitlab() {
+	_, err := r.KubeApply(r.ControllerClusterName(), "gitlab", "gitlab.yml.tmpl", true)
+	if err != nil {
+		fmt.Println("unable to install gitlab: ", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
 }
 
 func (r *Rockpool) ConfigureKeycloak() {
@@ -183,13 +197,15 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		fmt.Println("error parsing CoreDNS configmap: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
+	gitlab_entry := fmt.Sprintf("%s %s.%s\n", r.ControllerDockerIP, "gitlab", r.Hostname)
+	if strings.Contains(corednsCm.Data.NodeHosts, gitlab_entry) {
+		fmt.Println("CoreDNS already contains the records")
+		return
+	}
+	corednsCm.Data.NodeHosts += gitlab_entry
 	for _, h := range []string{"harbor", "broker", "ssh", "api"} {
 		entry := fmt.Sprintf("%s %s.%s\n", r.ControllerDockerIP, h, r.LagoonBaseUrl)
-		if strings.Contains(corednsCm.Data.NodeHosts, entry) {
-			fmt.Println("CoreDNS already contains the records")
-			return
-		}
-		corednsCm.Data.NodeHosts = corednsCm.Data.NodeHosts + entry
+		corednsCm.Data.NodeHosts += entry
 	}
 	cm, err = json.Marshal(corednsCm)
 	if err != nil {

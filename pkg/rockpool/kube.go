@@ -21,7 +21,7 @@ func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) {
+func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) (string, error) {
 	f, err := internal.RenderTemplate(fn, r.Config.RenderedTemplatesPath, r.Config)
 	if err != nil {
 		fmt.Printf("unable to render manifests for %s: %s", fn, err)
@@ -33,7 +33,7 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) {
 	if force {
 		cmd.Args = append(cmd.Args, "--force=true")
 	}
-	internal.RunCmdWithProgress(cmd)
+	return internal.RunCmdWithProgress(cmd)
 }
 
 func (r *Rockpool) KubeExecNoProgress(cn string, ns string, deploy string, cmdStr string) *exec.Cmd {

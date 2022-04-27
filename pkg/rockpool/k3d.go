@@ -143,7 +143,10 @@ func (r *Rockpool) StartCluster(cn string) {
 func (r *Rockpool) StopCluster(cn string) {
 	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
 		fmt.Printf("%s cluster does not exist\n", cn)
-		os.Exit(1)
+		if r.wg != nil {
+			r.wg.Done()
+		}
+		return
 	}
 	cmd := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "stop", cn)
 	_, err := internal.RunCmdWithProgress(cmd)

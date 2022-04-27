@@ -6,7 +6,9 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/spf13/pflag"
 	"github.com/yusufhm/rockpool/pkg/rockpool"
 )
@@ -18,6 +20,7 @@ var stop bool
 func main() {
 	r = rockpool.Rockpool{
 		State: rockpool.State{
+			Spinner:      *spinner.New(spinner.CharSets[14], 100*time.Millisecond),
 			Clusters:     rockpool.ClusterList{},
 			BinaryPaths:  map[string]string{},
 			HelmReleases: map[string][]rockpool.HelmRelease{},
@@ -25,6 +28,7 @@ func main() {
 		},
 		Config: rockpool.Config{},
 	}
+	r.Spinner.Color("red", "bold")
 	parseFlags()
 	r.Config.Arch = runtime.GOARCH
 
@@ -59,6 +63,9 @@ func parseFlags() {
 
 	displayUsage := pflag.BoolP("help", "h", false, "Displays usage information")
 	pflag.StringVarP(&r.Config.ClusterName, "cluster-name", "n", "rockpool", "The name of the cluster")
+	pflag.StringVarP(&r.Config.Hostname, "url", "u", "rockpool.k3d.local", `The base url of rockpool;
+ancillary services will be created as subdomains of this url, e.g,
+gitlab.rockpool.k3d.local`)
 	pflag.StringVarP(&r.Config.LagoonBaseUrl, "lagoon-base-url", "l", "lagoon.rockpool.k3d.local", `The base Lagoon url of the cluster;
 all Lagoon services will be created as subdomains of this url, e.g,
 ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local`)

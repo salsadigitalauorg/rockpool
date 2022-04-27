@@ -23,3 +23,14 @@ jobservice:
   jobLogger: stdout
 registry:
   replicas: 1
+{{- if eq .Arch "arm64" }}
+core:
+  image:
+    repository: 'harbortest/harbor-core'
+    tag: 'dev'
+database:
+  internal:
+    image:
+      repository: 'harbortest/harbor-db'
+      tag: 'dev'
+{{- end }}
