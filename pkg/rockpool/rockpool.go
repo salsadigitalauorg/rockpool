@@ -79,7 +79,8 @@ func (r *Rockpool) LagoonController() {
 	r.HelmList(r.ControllerClusterName())
 	r.InstallIngressNginx()
 
-	r.InstallGitlab()
+	// r.InstallGitlab()
+	r.InstallGitea()
 
 	r.InstallHarbor()
 	r.InstallLagoonCore()
@@ -118,6 +119,14 @@ func (r *Rockpool) InstallGitlab() {
 	_, err := r.KubeApply(r.ControllerClusterName(), "gitlab", "gitlab.yml.tmpl", true)
 	if err != nil {
 		fmt.Println("unable to install gitlab: ", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) InstallGitea() {
+	_, err := r.KubeApply(r.ControllerClusterName(), "gitea", "gitea.yml.tmpl", true)
+	if err != nil {
+		fmt.Println("unable to install gitea: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }

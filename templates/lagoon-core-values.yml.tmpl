@@ -122,6 +122,13 @@ broker:
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-broker
   {{- end }}
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "1000m"
+    limits:
+      memory: "512Mi"
+      cpu: "1500m"
   service:
     amqpExternal:
       enabled: true
