@@ -4,9 +4,9 @@ expose:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
       core: harbor.{{ .LagoonBaseUrl }}
-  {{/* tls:
-    enabled: true
-    certSource: secret
+  tls:
+    enabled: false
+  {{/*   certSource: secret
     secret:
       secretName: harbor-harbor-ingress */}}
 externalURL: http://harbor.{{ .LagoonBaseUrl }}

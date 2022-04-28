@@ -206,15 +206,15 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		fmt.Println("error parsing CoreDNS configmap: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	gitlab_entry := fmt.Sprintf("%s %s.%s\n", r.ControllerDockerIP, "gitlab", r.Hostname)
-	if strings.Contains(corednsCm.Data.NodeHosts, gitlab_entry) {
-		fmt.Println("CoreDNS already contains the records")
-		return
+	gitea_entry := fmt.Sprintf("%s %s.%s\n", r.ControllerDockerIP, "gitea", r.Hostname)
+	if !strings.Contains(corednsCm.Data.NodeHosts, gitea_entry) {
+		corednsCm.Data.NodeHosts += gitea_entry
 	}
-	corednsCm.Data.NodeHosts += gitlab_entry
 	for _, h := range []string{"harbor", "broker", "ssh", "api"} {
 		entry := fmt.Sprintf("%s %s.%s\n", r.ControllerDockerIP, h, r.LagoonBaseUrl)
-		corednsCm.Data.NodeHosts += entry
+		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
+			corednsCm.Data.NodeHosts += entry
+		}
 	}
 	cm, err = json.Marshal(corednsCm)
 	if err != nil {
