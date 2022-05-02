@@ -4,14 +4,15 @@ imageTag: v2.5.0
 dockerHost:
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-docker-host
+  registry: harbor.{{ .LagoonBaseUrl }}
 {{- end }}
 
 lagoon-build-deploy:
   enabled: true
   extraArgs:
     - "--enable-harbor=true"
-    - "--harbor-url=http://harbor.{{ .LagoonBaseUrl }}"
-    - "--harbor-api=http://harbor.{{ .LagoonBaseUrl }}/api/"
+    - "--harbor-url=https://harbor.{{ .LagoonBaseUrl }}"
+    - "--harbor-api=https://harbor.{{ .LagoonBaseUrl }}/api/"
     - "--harbor-username=admin"
     - "--harbor-password={{ .HarborPass }}"
   rabbitMQUsername: lagoon

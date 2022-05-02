@@ -81,6 +81,9 @@ func (r *Rockpool) FetchClusters() {
 		if !strings.HasPrefix(c.Name, r.ClusterName) {
 			continue
 		}
+		if exists, _ := r.Clusters.ClusterExists(c.Name); exists {
+			continue
+		}
 		r.Clusters = append(r.Clusters, c)
 	}
 }

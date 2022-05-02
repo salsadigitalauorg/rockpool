@@ -22,18 +22,21 @@ func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
 }
 
 func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) (string, error) {
+	cmd := r.KubeCtl(cn, ns, "apply", "-f", fn)
+	if force {
+		cmd.Args = append(cmd.Args, "--force=true")
+	}
+	return internal.RunCmdWithProgress(cmd)
+}
+
+func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) (string, error) {
 	f, err := internal.RenderTemplate(fn, r.Config.RenderedTemplatesPath, r.Config)
 	if err != nil {
 		fmt.Printf("unable to render manifests for %s: %s", fn, err)
 		os.Exit(1)
 	}
 	fmt.Println("using generated manifest at ", f)
-
-	cmd := r.KubeCtl(cn, ns, "apply", "-f", f)
-	if force {
-		cmd.Args = append(cmd.Args, "--force=true")
-	}
-	return internal.RunCmdWithProgress(cmd)
+	return r.KubeApply(cn, ns, f, force)
 }
 
 func (r *Rockpool) KubeExecNoProgress(cn string, ns string, deploy string, cmdStr string) *exec.Cmd {
@@ -47,24 +50,28 @@ func (r *Rockpool) KubeExec(cn string, ns string, deploy string, cmdStr string) 
 	return internal.RunCmdWithProgress(cmd)
 }
 
-func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field string) string {
-	cmd := r.KubeCtl(
-		cn, ns, "get", "secret", secret,
-		"--output", fmt.Sprintf("jsonpath='{.data.%s}'", field),
-	)
+func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field string) ([]byte, string) {
+	cmd := r.KubeCtl(cn, ns, "get", "secret", secret, "--output")
+	if field != "" {
+		cmd.Args = append(cmd.Args, fmt.Sprintf("jsonpath='{.data.%s}'", field))
+	} else {
+		cmd.Args = append(cmd.Args, "json")
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Printf("error when getting secret %s: %s", secret, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	out = []byte(strings.Trim(string(out), "'"))
-	if decoded, err := base64.URLEncoding.DecodeString(string(out)); err != nil {
-		fmt.Printf("error when decoding secret %s: %#v", secret, internal.GetCmdStdErr(err))
-		os.Exit(1)
-	} else {
-		return string(decoded)
+	if field != "" {
+		out = []byte(strings.Trim(string(out), "'"))
+		if decoded, err := base64.URLEncoding.DecodeString(string(out)); err != nil {
+			fmt.Printf("error when decoding secret %s: %#v", secret, internal.GetCmdStdErr(err))
+			os.Exit(1)
+		} else {
+			return nil, string(decoded)
+		}
 	}
-	return ""
+	return out, ""
 }
 
 func (r *Rockpool) KubeGetConfigMap(cn string, ns string, name string) []byte {
@@ -103,4 +110,8 @@ func (r *Rockpool) KubeReplace(cn string, ns string, name string, content string
 	}
 	io.Copy(os.Stdout, &replaceOut)
 	return replaceOut.String()
+}
+
+func (r *Rockpool) KubePatch(cn string, ns string, kind string, name string, fn string) ([]byte, error) {
+	return r.KubeCtl(cn, ns, "patch", kind, name, "--patch-file", fn).Output()
 }

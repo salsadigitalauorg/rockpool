@@ -78,6 +78,7 @@ func (r *Rockpool) LagoonController() {
 
 	r.HelmList(r.ControllerClusterName())
 	r.InstallIngressNginx()
+	r.InstallCertManager()
 
 	// r.InstallGitlab()
 	r.InstallGitea()
@@ -108,15 +109,29 @@ func (r *Rockpool) LagoonTarget() {
 }
 
 func (r *Rockpool) InstallMailHog() {
-	_, err := r.KubeApply(r.ControllerClusterName(), "default", "mailhog.yml.tmpl", true)
+	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "default", "mailhog.yml.tmpl", true)
 	if err != nil {
 		fmt.Println("unable to install mailhog: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
+func (r *Rockpool) InstallCertManager() {
+	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "", "cert-manager.yaml", true)
+	if err != nil {
+		fmt.Println("unable to install cert-manager: ", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+
+	_, err = r.KubeApplyTemplate(r.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
+	if err != nil {
+		fmt.Println("unable to install cert-manager: ", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+}
+
 func (r *Rockpool) InstallGitlab() {
-	_, err := r.KubeApply(r.ControllerClusterName(), "gitlab", "gitlab.yml.tmpl", true)
+	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "gitlab", "gitlab.yml.tmpl", true)
 	if err != nil {
 		fmt.Println("unable to install gitlab: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -124,7 +139,7 @@ func (r *Rockpool) InstallGitlab() {
 }
 
 func (r *Rockpool) InstallGitea() {
-	_, err := r.KubeApply(r.ControllerClusterName(), "gitea", "gitea.yml.tmpl", true)
+	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "gitea", "gitea.yml.tmpl", true)
 	if err != nil {
 		fmt.Println("unable to install gitea: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -222,4 +237,5 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		os.Exit(1)
 	}
 	r.KubeReplace(cn, "kube-system", "coredns", string(cm))
+	r.KubeCtl(cn, "kube-system", "rollout", "restart", "deployment/coredns")
 }

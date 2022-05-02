@@ -1,15 +1,16 @@
 expose:
   ingress:
-    {{/* annotations:
-      kubernetes.io/tls-acme: "true" */}}
+    annotations:
+      kubernetes.io/tls-acme: "true"
+      cert-manager.io/cluster-issuer: "ca-issuer"
     hosts:
       core: harbor.{{ .LagoonBaseUrl }}
   tls:
-    enabled: false
-  {{/*   certSource: secret
+    enabled: true
+    certSource: secret
     secret:
-      secretName: harbor-harbor-ingress */}}
-externalURL: http://harbor.{{ .LagoonBaseUrl }}
+      secretName: harbor-harbor-ingress
+externalURL: https://harbor.{{ .LagoonBaseUrl }}
 harborAdminPassword: {{ .HarborPass }}
 chartmuseum:
   enabled: false
@@ -23,14 +24,3 @@ jobservice:
   jobLogger: stdout
 registry:
   replicas: 1
-{{- if eq .Arch "arm64" }}
-core:
-  image:
-    repository: 'harbortest/harbor-core'
-    tag: 'dev'
-database:
-  internal:
-    image:
-      repository: 'harbortest/harbor-db'
-      tag: 'dev'
-{{- end }}

@@ -3,12 +3,12 @@ package internal
 import (
 	"bufio"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 )
 
 // RunCmdWithProgress runs a command and progressively outputs the progress.

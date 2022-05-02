@@ -49,6 +49,7 @@ func main() {
 	r.CreateRegistry()
 	r.LagoonController()
 	r.LagoonTarget()
+	r.InstallHarborCerts()
 }
 
 func parseFlags() {

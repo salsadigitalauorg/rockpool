@@ -1,6 +1,6 @@
 elasticsearchURL: https://none.com
-harborURL: "https://none.com"
-harborAdminPassword: none
+harborURL: "https://harbor.{{ .LagoonBaseUrl }}"
+harborAdminPassword: "{{ .HarborPass }}"
 kibanaURL: https://none.com
 logsDBAdminPassword: none
 s3FilesAccessKeyID: none
@@ -11,12 +11,13 @@ s3FilesRegion: none
 s3BAASAccessKeyID: none
 s3BAASSecretAccessKey: none
 imageTag: v2.5.0
-registry: none.com
+registry: "harbor.{{ .LagoonBaseUrl }}"
 
 keycloakAPIURL: http://keycloak.{{ .LagoonBaseUrl }}/auth
 lagoonAPIURL: http://api.{{ .LagoonBaseUrl }}/graphql
 lagoonUIURL: http://ui.{{ .LagoonBaseUrl }}
 api:
+  replicaCount: 1
   ingress:
     enabled: true
     {{/* annotations:
@@ -70,6 +71,7 @@ webhookHandler:
           - webhookhandler.{{ .LagoonBaseUrl }} */}}
 
 ui:
+  replicaCount: 1
   ingress:
     enabled: true
     {{/* annotations:
@@ -85,6 +87,7 @@ ui:
 
 backupHandler:
   enabled: false
+  replicaCount: 1
   {{/* ingress:
     enabled: true
     annotations:
@@ -113,11 +116,13 @@ drushAlias:
           - drushalias.{{ .LagoonBaseUrl }} */}}
 
 ssh:
+  replicaCount: 1
   service:
     type: LoadBalancer
     port: 22
 
 broker:
+  replicaCount: 1
   {{- if eq .Arch "arm64" }}
   image:
     repository: ghcr.io/yusufhm/rockpool/lagoon-broker
@@ -147,7 +152,17 @@ broker:
         hosts:
           - broker.{{ .LagoonBaseUrl }} */}}
 
+authServer:
+  replicaCount: 1
+
+webhooks2tasks:
+  replicaCount: 1
+
+actionsHandler:
+  replicaCount: 1
+
 webhookHandler:
+  replicaCount: 1
   ingress:
     enabled: true
     {{/* annotations:
@@ -160,6 +175,18 @@ webhookHandler:
       - secretName: webhookhandler-tls
         hosts:
           - webhookhandler.{{ .LagoonBaseUrl }} */}}
+
+logs2webhook:
+  replicaCount: 1
+
+drushAlias:
+  replicaCount: 1
+
+controllerhandler:
+  replicaCount: 1
+
+workflows:
+  replicaCount: 1
 
 logs2slack:
   enabled: false
