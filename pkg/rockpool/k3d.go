@@ -163,6 +163,11 @@ func (r *Rockpool) StopCluster(cn string) {
 	}
 }
 
+func (r *Rockpool) RestartCluster(cn string) {
+	r.StopCluster(cn)
+	r.StartCluster(cn)
+}
+
 func (r *Rockpool) DeleteCluster(cn string) {
 	r.wg.Add(1)
 	r.StopCluster(cn)

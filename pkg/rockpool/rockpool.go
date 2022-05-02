@@ -53,7 +53,7 @@ func (r *Rockpool) Stop() {
 	r.wg = &sync.WaitGroup{}
 	r.wg.Add(2)
 	go r.StopCluster(r.ControllerClusterName())
-	go r.StopCluster(r.Config.ClusterName + "-target-1")
+	go r.StopCluster(r.TargetClusterName(1))
 	r.wg.Wait()
 }
 
@@ -61,7 +61,7 @@ func (r *Rockpool) Down() {
 	r.wg = &sync.WaitGroup{}
 	r.wg.Add(2)
 	go r.DeleteCluster(r.ControllerClusterName())
-	go r.DeleteCluster(r.Config.ClusterName + "-target-1")
+	go r.DeleteCluster(r.TargetClusterName(1))
 	r.wg.Wait()
 }
 
@@ -94,8 +94,12 @@ func (r *Rockpool) ControllerClusterName() string {
 	return r.Config.ClusterName + "-controller"
 }
 
+func (r *Rockpool) TargetClusterName(targetId int) string {
+	return r.Config.ClusterName + "-target-" + fmt.Sprint(targetId)
+}
+
 func (r *Rockpool) LagoonTarget() {
-	tgtCn := r.Config.ClusterName + "-target-1"
+	tgtCn := r.TargetClusterName(1)
 	r.CreateCluster(tgtCn)
 	fmt.Println()
 

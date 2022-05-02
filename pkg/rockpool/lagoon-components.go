@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
+	"strings"
 
 	"github.com/yusufhm/rockpool/internal"
 )
@@ -84,7 +84,7 @@ func (r *Rockpool) InstallHarborCerts() {
 	}
 	fmt.Println("generated harbor ca.crt at", caCrtFile)
 
-	cn := r.Config.ClusterName + "-target-1"
+	cn := r.TargetClusterName(1)
 	if _, err = r.KubeApply(cn, "lagoon", secretManifest, true); err != nil {
 		fmt.Printf("error creating ca.crt in target %s: %s\n", cn, err)
 		os.Exit(1)
@@ -97,26 +97,39 @@ func (r *Rockpool) InstallHarborCerts() {
 		if c.Name == "rockpool-controller" {
 			continue
 		}
+
+		clusterUpdated := false
 		for _, n := range c.Nodes {
 			if n.Role == "loadbalancer" {
 				continue
 			}
 
-			entryCmd := exec.Command("docker", "exec", n.Name, "ash", "-c", entryCmdStr)
-			_, err := entryCmd.Output()
-			if err != nil {
-				fmt.Printf("error adding host entry in %s: %s\n", c.Name, internal.GetCmdStdErr(err))
-				os.Exit(1)
+			hostsContent, _ := r.DockerExec(n.Name, "cat /etc/hosts")
+			if !strings.Contains(string(hostsContent), entry) {
+				_, err := r.DockerExec(n.Name, entryCmdStr)
+				if err != nil {
+					fmt.Printf("error adding host entry in %s: %s\n", c.Name, internal.GetCmdStdErr(err))
+					os.Exit(1)
+				}
+			}
+
+			caCrtFileOut, _ := r.DockerExec(n.Name, "ls /etc/ssl/certs/harbor-cert.crt")
+			if strings.Trim(string(caCrtFileOut), "\n") == "/etc/ssl/certs/harbor-cert.crt" {
+				continue
 			}
 
 			// Add harbor's ca.crt to the target.
 			destCaCrt := fmt.Sprintf("%s:/etc/ssl/certs/harbor-cert.crt", n.Name)
-			caCrtCmd := exec.Command("docker", "cp", caCrtFile, destCaCrt)
-			_, err = caCrtCmd.Output()
+			_, err = r.DockerCp(caCrtFile, destCaCrt)
 			if err != nil {
 				fmt.Printf("error copying ca.crt to %s: %s\n", c.Name, internal.GetCmdStdErr(err))
 				os.Exit(1)
 			}
+			clusterUpdated = true
+		}
+
+		if clusterUpdated {
+			r.RestartCluster(c.Name)
 		}
 	}
 

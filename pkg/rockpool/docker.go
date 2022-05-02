@@ -15,6 +15,11 @@ func (r *Rockpool) Docker(args ...string) *exec.Cmd {
 	return cmd
 }
 
+func (r *Rockpool) DockerExec(n string, cmdStr string) ([]byte, error) {
+	cmd := r.Docker("exec", n, "ash", "-c", cmdStr)
+	return cmd.Output()
+}
+
 func (r *Rockpool) DockerInspect(cn string) []DockerContainer {
 	cmd := r.Docker("inspect", cn)
 	out, err := cmd.Output()
@@ -30,6 +35,11 @@ func (r *Rockpool) DockerInspect(cn string) []DockerContainer {
 		os.Exit(1)
 	}
 	return containers
+}
+
+func (r *Rockpool) DockerCp(src string, dest string) ([]byte, error) {
+	cmd := r.Docker("cp", src, dest)
+	return cmd.Output()
 }
 
 func (r *Rockpool) DockerControllerIP() {

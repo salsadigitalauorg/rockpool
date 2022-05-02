@@ -32,6 +32,7 @@ func main() {
 	parseFlags()
 	r.Config.Arch = runtime.GOARCH
 
+	r.Spinner.Start()
 	r.VerifyReqs()
 	r.FetchClusters()
 	fmt.Println()
@@ -50,6 +51,7 @@ func main() {
 	r.LagoonController()
 	r.LagoonTarget()
 	r.InstallHarborCerts()
+	r.Spinner.Stop()
 }
 
 func parseFlags() {
