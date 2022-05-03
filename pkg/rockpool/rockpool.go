@@ -68,10 +68,8 @@ func (r *Rockpool) Down() {
 func (r *Rockpool) LagoonController() {
 	r.CreateCluster(r.ControllerClusterName())
 	r.DockerControllerIP()
-	fmt.Println()
 
 	r.GetClusterKubeConfigPath(r.ControllerClusterName())
-	fmt.Println()
 
 	r.InstallMailHog()
 
@@ -100,11 +98,9 @@ func (r *Rockpool) TargetClusterName(targetId int) string {
 func (r *Rockpool) LagoonTarget() {
 	tgtCn := r.TargetClusterName(1)
 	r.CreateCluster(tgtCn)
-	fmt.Println()
 
 	r.GetClusterKubeConfigPath(tgtCn)
 	r.ConfigureTargetCoreDNS(tgtCn)
-	fmt.Println()
 
 	r.HelmList(tgtCn)
 	r.InstallLagoonRemote(tgtCn)

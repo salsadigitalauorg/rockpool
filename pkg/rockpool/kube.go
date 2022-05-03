@@ -21,7 +21,7 @@ func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) (string, error) {
+func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byte, error) {
 	dryRun := r.KubeCtl(cn, ns, "apply", "-f", fn, "--dry-run=server")
 	out, err := dryRun.Output()
 	if err != nil {
@@ -36,17 +36,17 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) (strin
 		}
 	}
 	if !changesRequired {
-		return "", nil
+		return nil, nil
 	}
 
 	cmd := r.KubeCtl(cn, ns, "apply", "-f", fn)
 	if force {
 		cmd.Args = append(cmd.Args, "--force=true")
 	}
-	return internal.RunCmdWithProgress(cmd)
+	return cmd.Output()
 }
 
-func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) (string, error) {
+func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) ([]byte, error) {
 	f, err := internal.RenderTemplate(fn, r.Config.RenderedTemplatesPath, r.Config)
 	if err != nil {
 		fmt.Printf("unable to render manifests for %s: %s", fn, err)
@@ -61,10 +61,10 @@ func (r *Rockpool) KubeExecNoProgress(cn string, ns string, deploy string, cmdSt
 	return cmd
 }
 
-func (r *Rockpool) KubeExec(cn string, ns string, deploy string, cmdStr string) (string, error) {
+func (r *Rockpool) KubeExec(cn string, ns string, deploy string, cmdStr string) ([]byte, error) {
 	cmd := r.KubeExecNoProgress(cn, ns, deploy, cmdStr)
 	fmt.Println("kube exec command: ", cmd)
-	return internal.RunCmdWithProgress(cmd)
+	return cmd.Output()
 }
 
 func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field string) ([]byte, string) {

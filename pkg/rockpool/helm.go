@@ -35,7 +35,7 @@ func (r *Rockpool) HelmList(cn string) {
 	r.State.HelmReleases[cn] = releases
 }
 
-func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) (string, error) {
+func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) ([]byte, error) {
 	upgrade := false
 	for _, u := range r.Config.UpgradeComponents {
 		if u == releaseName {
@@ -47,15 +47,20 @@ func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string
 		for _, r := range r.State.HelmReleases[cn] {
 			if r.Name == releaseName {
 				fmt.Printf("helm release %s is already installed\n", releaseName)
-				return "", nil
+				return nil, nil
 			}
 		}
 	} else {
-		fmt.Println("upgrading helm release ", releaseName)
+		fmt.Println("upgrading helm release", releaseName)
+	}
+
+	// New install.
+	if !upgrade {
+		fmt.Println("installing helm release", releaseName)
 	}
 
 	cmd := r.Helm(cn, ns, "upgrade", "--install", releaseName, chartName)
 	cmd.Args = append(cmd.Args, args...)
 	fmt.Printf("command for %s helm release: %v\n", releaseName, cmd)
-	return internal.RunCmdWithProgress(cmd)
+	return cmd.Output()
 }

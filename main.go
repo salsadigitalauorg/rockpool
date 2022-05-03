@@ -34,7 +34,6 @@ func main() {
 
 	r.VerifyReqs()
 	r.FetchClusters()
-	fmt.Println()
 
 	if stop {
 		r.Stop()

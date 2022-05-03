@@ -139,12 +139,11 @@ func (r *Rockpool) InstallHarborCerts() {
 		fmt.Println("error rendering the build deploy patch file: ", err)
 		os.Exit(1)
 	}
-	out, err := r.KubePatch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
+	_, err = r.KubePatch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
 	if err != nil {
 		fmt.Println("error patching the lagoon-build-deploy deployment: ", err)
 		os.Exit(1)
 	}
-	fmt.Println(string(out))
 }
 
 func (r *Rockpool) AddLagoonRepo(cn string) {
