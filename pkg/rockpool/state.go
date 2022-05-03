@@ -29,7 +29,7 @@ func (r *Rockpool) VerifyReqs() {
 	// Create temporary directory for rendered templates.
 	err := os.MkdirAll(r.Config.RenderedTemplatesPath, os.ModePerm)
 	if err != nil {
-		fmt.Printf("unabled to create temp dir %s: %s\n", r.Config.RenderedTemplatesPath, err)
+		fmt.Printf("unable to create temp dir %s: %s\n", r.Config.RenderedTemplatesPath, err)
 		os.Exit(1)
 	}
 }

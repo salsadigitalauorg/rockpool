@@ -20,6 +20,25 @@ func (c *Config) ToMap() map[string]string {
 	}
 }
 
+func (r *Rockpool) Up() {
+	r.VerifyReqs()
+	r.FetchClusters()
+	r.CreateRegistry()
+	r.CreateClusters()
+	r.LagoonController()
+	r.LagoonTarget()
+	r.InstallHarborCerts()
+}
+
+func (r *Rockpool) Start() {
+	r.wg = &sync.WaitGroup{}
+	r.wg.Add(2)
+	go r.StartCluster(r.ControllerClusterName())
+	go r.StartCluster(r.TargetClusterName(1))
+	r.wg.Wait()
+	r.wg = nil
+}
+
 func (r *Rockpool) Stop() {
 	r.wg = &sync.WaitGroup{}
 	r.wg.Add(2)
