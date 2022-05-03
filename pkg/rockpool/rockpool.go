@@ -71,7 +71,6 @@ func (r *Rockpool) LagoonController() {
 	fmt.Println()
 
 	r.GetClusterKubeConfigPath(r.ControllerClusterName())
-	r.ClusterVersion(r.ControllerClusterName())
 	fmt.Println()
 
 	r.InstallMailHog()
@@ -105,7 +104,6 @@ func (r *Rockpool) LagoonTarget() {
 
 	r.GetClusterKubeConfigPath(tgtCn)
 	r.ConfigureTargetCoreDNS(tgtCn)
-	r.ClusterVersion(tgtCn)
 	fmt.Println()
 
 	r.HelmList(tgtCn)

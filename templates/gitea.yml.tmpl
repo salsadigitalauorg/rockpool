@@ -4,7 +4,7 @@ metadata:
   name: gitea
 
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
@@ -16,9 +16,12 @@ spec:
       http:
         paths:
           - backend:
-              serviceName: gitea
-              servicePort: 80
+              service:
+                name: gitea
+                port:
+                  number: 80
             path: /
+            pathType: Prefix
 
 ---
 apiVersion: v1

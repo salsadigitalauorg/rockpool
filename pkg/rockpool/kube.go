@@ -22,6 +22,23 @@ func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
 }
 
 func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) (string, error) {
+	dryRun := r.KubeCtl(cn, ns, "apply", "-f", fn, "--dry-run=server")
+	out, err := dryRun.Output()
+	if err != nil {
+		fmt.Println("error executing dry-run apply:", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	changesRequired := false
+	for _, l := range strings.Split(strings.Trim(string(out), "\n"), "\n") {
+		if !strings.Contains(l, "unchanged (server dry run)") {
+			changesRequired = true
+			break
+		}
+	}
+	if !changesRequired {
+		return "", nil
+	}
+
 	cmd := r.KubeCtl(cn, ns, "apply", "-f", fn)
 	if force {
 		cmd.Args = append(cmd.Args, "--force=true")
@@ -35,7 +52,7 @@ func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool
 		fmt.Printf("unable to render manifests for %s: %s", fn, err)
 		os.Exit(1)
 	}
-	fmt.Println("using generated manifest at ", f)
+	fmt.Println("using generated manifest at", f)
 	return r.KubeApply(cn, ns, f, force)
 }
 
@@ -113,5 +130,15 @@ func (r *Rockpool) KubeReplace(cn string, ns string, name string, content string
 }
 
 func (r *Rockpool) KubePatch(cn string, ns string, kind string, name string, fn string) ([]byte, error) {
+	dryRun := r.KubeCtl(cn, ns, "patch", kind, name, "--patch-file", fn)
+	dryRun.Args = append(dryRun.Args, "--dry-run=server")
+	out, err := dryRun.Output()
+	if err != nil {
+		fmt.Println("error executing dry-run patch:", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	if strings.Contains(string(out), "(no change)") {
+		return nil, nil
+	}
 	return r.KubeCtl(cn, ns, "patch", kind, name, "--patch-file", fn).Output()
 }
