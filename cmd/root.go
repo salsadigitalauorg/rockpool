@@ -44,6 +44,7 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the clusters",
 	Run: func(cmd *cobra.Command, args []string) {
+		r.UpdateState()
 		r.Start()
 	},
 }
@@ -52,6 +53,7 @@ var stopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the clusters",
 	Run: func(cmd *cobra.Command, args []string) {
+		r.UpdateState()
 		r.Stop()
 	},
 }
@@ -60,6 +62,7 @@ var restartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the clusters",
 	Run: func(cmd *cobra.Command, args []string) {
+		r.UpdateState()
 		r.Stop()
 		r.Up()
 	},
@@ -76,6 +79,7 @@ var downCmd = &cobra.Command{
 	Use:   "down",
 	Short: "Stop the clusters and delete them",
 	Run: func(cmd *cobra.Command, args []string) {
+		r.UpdateState()
 		r.Down()
 	},
 }

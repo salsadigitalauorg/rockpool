@@ -21,7 +21,7 @@ func (c *Config) ToMap() map[string]string {
 }
 
 func (r *Rockpool) Up() {
-	r.VerifyReqs()
+	r.VerifyReqs(true)
 	r.FetchClusters()
 	r.CreateRegistry()
 	r.CreateClusters()

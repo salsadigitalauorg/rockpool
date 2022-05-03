@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/yusufhm/rockpool/internal"
 )
 
 func (cr *Cluster) IsRunning() bool {
@@ -138,13 +140,14 @@ func (r *Rockpool) StartCluster(cn string) {
 		fmt.Printf("%s cluster does not exist\n", cn)
 		os.Exit(1)
 	}
-	fmt.Printf("starting cluster %s...", cn)
+	fmt.Printf("starting cluster %s...\n", cn)
 	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn).Output()
 	if err != nil {
 		fmt.Println("unable to start cluster:", err)
 		os.Exit(1)
 	}
 	r.FetchClusters()
+	r.WgDone()
 	fmt.Println("started cluster", cn)
 }
 
@@ -154,10 +157,10 @@ func (r *Rockpool) StopCluster(cn string) {
 		r.WgDone()
 		return
 	}
-	fmt.Printf("stopping cluster %s...", cn)
+	fmt.Printf("stopping cluster %s...\n", cn)
 	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "stop", cn).Output()
 	if err != nil {
-		fmt.Printf("unable to stop cluster: %s", err)
+		fmt.Println("unable to stop cluster:", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	r.FetchClusters()
@@ -176,7 +179,7 @@ func (r *Rockpool) DeleteCluster(cn string) {
 	fmt.Printf("deleting cluster %s...", cn)
 	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "delete", cn).Output()
 	if err != nil {
-		fmt.Printf("unable to delete cluster: %s", err)
+		fmt.Println("unable to delete cluster:", err)
 		os.Exit(1)
 	}
 	r.FetchClusters()
@@ -188,7 +191,7 @@ func (r *Rockpool) GetClusterKubeConfigPath(cn string) {
 	out, err := exec.Command(r.State.BinaryPaths["k3d"], "kubeconfig", "write", cn).CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
-		fmt.Printf("unable to get kubeconfig: %s\n", err)
+		fmt.Println("unable to get kubeconfig:", err)
 	}
 	r.State.Kubeconfig[cn] = strings.Trim(string(out), "\n")
 }

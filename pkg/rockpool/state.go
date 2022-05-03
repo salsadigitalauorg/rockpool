@@ -6,7 +6,7 @@ import (
 	"os/exec"
 )
 
-func (r *Rockpool) VerifyReqs() {
+func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
 	missing := []string{}
 	r.State.BinaryPaths = map[string]string{}
@@ -18,10 +18,12 @@ func (r *Rockpool) VerifyReqs() {
 		}
 		r.State.BinaryPaths[b] = path
 	}
-	for _, m := range missing {
-		fmt.Println(m)
+	if failOnMissing {
+		for _, m := range missing {
+			fmt.Println(m)
+		}
 	}
-	if len(missing) > 0 {
+	if failOnMissing && len(missing) > 0 {
 		fmt.Println("some requirements were not met; please review above")
 		os.Exit(1)
 	}
@@ -41,6 +43,7 @@ func (r *Rockpool) WgDone() {
 }
 
 func (r *Rockpool) UpdateState() {
+	r.VerifyReqs(false)
 	r.FetchClusters()
 }
 
