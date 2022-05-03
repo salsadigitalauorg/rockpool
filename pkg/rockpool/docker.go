@@ -41,17 +41,3 @@ func (r *Rockpool) DockerCp(src string, dest string) ([]byte, error) {
 	cmd := r.Docker("cp", src, dest)
 	return cmd.Output()
 }
-
-func (r *Rockpool) DockerControllerIP() {
-	ctrs := r.DockerInspect("k3d-rockpool-controller-serverlb")
-	if len(ctrs) == 0 {
-		fmt.Println("controller container is not running")
-		os.Exit(1)
-	}
-	if rpNet, ok := ctrs[0].NetworkSettings.Networks["k3d-rockpool"]; ok {
-		r.ControllerDockerIP = rpNet.IPAddress
-	} else {
-		fmt.Println("rockpool network not found in controller container")
-		os.Exit(1)
-	}
-}

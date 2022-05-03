@@ -46,6 +46,7 @@ func main() {
 	}
 
 	r.CreateRegistry()
+	r.CreateClusters()
 	r.LagoonController()
 	r.LagoonTarget()
 	r.InstallHarborCerts()

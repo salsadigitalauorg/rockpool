@@ -96,7 +96,6 @@ func (r *Rockpool) KubeGetConfigMap(cn string, ns string, name string) []byte {
 		cn, ns, "get", "configmap", name,
 		"--output", "json",
 	)
-	fmt.Println(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Printf("error when getting configmap %s: %s", name, internal.GetCmdStdErr(err))

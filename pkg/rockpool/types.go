@@ -56,8 +56,7 @@ type State struct {
 	// List of Helm releases per cluster.
 	HelmReleases map[string][]HelmRelease
 	// Kubeconfig per cluster.
-	Kubeconfig         map[string]string
-	ControllerDockerIP string
+	Kubeconfig map[string]string
 }
 
 type Config struct {

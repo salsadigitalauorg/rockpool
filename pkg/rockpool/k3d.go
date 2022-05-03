@@ -89,13 +89,14 @@ func (r *Rockpool) FetchClusters() {
 }
 
 func (r *Rockpool) CreateCluster(cn string) {
-	r.FetchClusters()
 	if exists, cs := r.State.Clusters.ClusterExists(cn); exists && cs.IsRunning() {
 		fmt.Printf("%s cluster already exists\n", cn)
+		r.WgDone()
 		return
 	} else if exists {
 		fmt.Printf("%s cluster already exists, but is stopped; starting now\n", cn)
 		r.StartCluster(cn)
+		r.WgDone()
 		return
 	}
 
@@ -128,8 +129,8 @@ func (r *Rockpool) CreateCluster(cn string) {
 		fmt.Println("unable to create cluster:", err)
 		os.Exit(1)
 	}
-	r.FetchClusters()
 	fmt.Println("created cluster", cn)
+	r.WgDone()
 }
 
 func (r *Rockpool) StartCluster(cn string) {
@@ -150,9 +151,7 @@ func (r *Rockpool) StartCluster(cn string) {
 func (r *Rockpool) StopCluster(cn string) {
 	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
 		fmt.Printf("%s cluster does not exist\n", cn)
-		if r.wg != nil {
-			r.wg.Done()
-		}
+		r.WgDone()
 		return
 	}
 	fmt.Printf("stopping cluster %s...", cn)
@@ -162,9 +161,7 @@ func (r *Rockpool) StopCluster(cn string) {
 		os.Exit(1)
 	}
 	r.FetchClusters()
-	if r.wg != nil {
-		r.wg.Done()
-	}
+	r.WgDone()
 	fmt.Println("stopped cluster", cn)
 }
 
@@ -183,9 +180,7 @@ func (r *Rockpool) DeleteCluster(cn string) {
 		os.Exit(1)
 	}
 	r.FetchClusters()
-	if r.wg != nil {
-		r.wg.Done()
-	}
+	r.WgDone()
 	fmt.Println("deleted cluster", cn)
 }
 

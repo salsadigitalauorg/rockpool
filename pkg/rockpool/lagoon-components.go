@@ -91,7 +91,7 @@ func (r *Rockpool) InstallHarborCerts() {
 	}
 
 	// Add host entries in target nodes.
-	entry := fmt.Sprintf("%s    harbor.%s", r.State.ControllerDockerIP, r.Config.LagoonBaseUrl)
+	entry := fmt.Sprintf("%s    harbor.%s", r.ControllerIP(), r.Config.LagoonBaseUrl)
 	entryCmdStr := fmt.Sprintf("echo '%s' >> /etc/hosts", entry)
 	for _, c := range r.State.Clusters {
 		if c.Name == "rockpool-controller" {

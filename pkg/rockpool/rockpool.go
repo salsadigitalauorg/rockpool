@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -21,40 +20,13 @@ func (c *Config) ToMap() map[string]string {
 	}
 }
 
-func (r *Rockpool) VerifyReqs() {
-	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
-	missing := []string{}
-	r.State.BinaryPaths = map[string]string{}
-	for _, b := range binaries {
-		path, err := exec.LookPath(b)
-		if err != nil {
-			missing = append(missing, fmt.Sprintf("could not find %s; please ensure it is installed before", b))
-			continue
-		}
-		r.State.BinaryPaths[b] = path
-	}
-	for _, m := range missing {
-		fmt.Println(m)
-	}
-	if len(missing) > 0 {
-		fmt.Println("some requirements were not met; please review above")
-		os.Exit(1)
-	}
-
-	// Create temporary directory for rendered templates.
-	err := os.MkdirAll(r.Config.RenderedTemplatesPath, os.ModePerm)
-	if err != nil {
-		fmt.Printf("unabled to create temp dir %s: %s\n", r.Config.RenderedTemplatesPath, err)
-		os.Exit(1)
-	}
-}
-
 func (r *Rockpool) Stop() {
 	r.wg = &sync.WaitGroup{}
 	r.wg.Add(2)
 	go r.StopCluster(r.ControllerClusterName())
 	go r.StopCluster(r.TargetClusterName(1))
 	r.wg.Wait()
+	r.wg = nil
 }
 
 func (r *Rockpool) Down() {
@@ -63,12 +35,21 @@ func (r *Rockpool) Down() {
 	go r.DeleteCluster(r.ControllerClusterName())
 	go r.DeleteCluster(r.TargetClusterName(1))
 	r.wg.Wait()
+	r.wg = nil
+}
+
+func (r *Rockpool) CreateClusters() {
+	r.FetchClusters()
+	r.wg = &sync.WaitGroup{}
+	r.wg.Add(2)
+	go r.CreateCluster(r.ControllerClusterName())
+	go r.CreateCluster(r.TargetClusterName(1))
+	r.wg.Wait()
+	r.wg = nil
+	r.FetchClusters()
 }
 
 func (r *Rockpool) LagoonController() {
-	r.CreateCluster(r.ControllerClusterName())
-	r.DockerControllerIP()
-
 	r.GetClusterKubeConfigPath(r.ControllerClusterName())
 
 	r.InstallMailHog()
@@ -85,14 +66,6 @@ func (r *Rockpool) LagoonController() {
 
 	// Wait for Keycloak to be installed, then configure it.
 	r.ConfigureKeycloak()
-}
-
-func (r *Rockpool) ControllerClusterName() string {
-	return r.Config.ClusterName + "-controller"
-}
-
-func (r *Rockpool) TargetClusterName(targetId int) string {
-	return r.Config.ClusterName + "-target-" + fmt.Sprint(targetId)
 }
 
 func (r *Rockpool) LagoonTarget() {
@@ -219,12 +192,12 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		fmt.Println("error parsing CoreDNS configmap: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	gitea_entry := fmt.Sprintf("%s %s.%s\n", r.ControllerDockerIP, "gitea", r.Hostname)
+	gitea_entry := fmt.Sprintf("%s %s.%s\n", r.ControllerIP(), "gitea", r.Hostname)
 	if !strings.Contains(corednsCm.Data.NodeHosts, gitea_entry) {
 		corednsCm.Data.NodeHosts += gitea_entry
 	}
 	for _, h := range []string{"harbor", "broker", "ssh", "api"} {
-		entry := fmt.Sprintf("%s %s.%s\n", r.ControllerDockerIP, h, r.LagoonBaseUrl)
+		entry := fmt.Sprintf("%s %s.%s\n", r.ControllerIP(), h, r.LagoonBaseUrl)
 		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
 			corednsCm.Data.NodeHosts += entry
 		}
