@@ -120,7 +120,6 @@ func (r *Rockpool) CreateCluster(cn string) {
 }
 
 func (r *Rockpool) StartCluster(cn string) {
-	defer r.WgDone()
 	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
 		fmt.Printf("%s cluster does not exist\n", cn)
 		return
@@ -138,7 +137,6 @@ func (r *Rockpool) StartCluster(cn string) {
 }
 
 func (r *Rockpool) StopCluster(cn string) {
-	defer r.WgDone()
 	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
 		fmt.Printf("%s cluster does not exist\n", cn)
 		return
@@ -163,7 +161,6 @@ func (r *Rockpool) DeleteCluster(cn string) {
 	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
 		return
 	}
-	r.WgAdd(1)
 	r.StopCluster(cn)
 	fmt.Printf("deleting cluster %s...\n", cn)
 	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "delete", cn).Output()

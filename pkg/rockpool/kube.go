@@ -25,8 +25,7 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byt
 	dryRun := r.KubeCtl(cn, ns, "apply", "-f", fn, "--dry-run=server")
 	out, err := dryRun.Output()
 	if err != nil {
-		fmt.Println("error executing dry-run apply:", internal.GetCmdStdErr(err))
-		os.Exit(1)
+		return nil, err
 	}
 	changesRequired := false
 	for _, l := range strings.Split(strings.Trim(string(out), "\n"), "\n") {
@@ -49,8 +48,7 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byt
 func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) ([]byte, error) {
 	f, err := internal.RenderTemplate(fn, r.Config.RenderedTemplatesPath, r.Config, "")
 	if err != nil {
-		fmt.Printf("unable to render manifests for %s: %s", fn, err)
-		os.Exit(1)
+		return nil, err
 	}
 	fmt.Println("using generated manifest at", f)
 	return r.KubeApply(cn, ns, f, force)

@@ -1,0 +1,22 @@
+gitea:
+  config:
+    database:
+      DB_TYPE: sqlite3
+  admin:
+    username: "rockpool"
+    password: "pass"
+    email: "rockpool@example.com"
+
+ingress:
+  enabled: true
+  hosts:
+    - host: gitea.{{ .Hostname }}
+      paths:
+        - path: /
+          pathType: Prefix
+
+memcached:
+  enabled: false
+
+postgresql:
+  enabled: false

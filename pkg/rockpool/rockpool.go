@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/yusufhm/rockpool/internal"
 )
@@ -68,7 +69,10 @@ func (r *Rockpool) Start(clusters []string) {
 	}
 	r.WgAdd(len(clusters))
 	for _, c := range clusters {
-		go r.StartCluster(c)
+		go func(c string) {
+			defer r.WgDone()
+			r.StartCluster(c)
+		}(c)
 	}
 	r.WgWait()
 }
@@ -79,7 +83,10 @@ func (r *Rockpool) Stop(clusters []string) {
 	}
 	r.WgAdd(len(clusters))
 	for _, c := range clusters {
-		go r.StopCluster(c)
+		go func(c string) {
+			defer r.WgDone()
+			r.StopCluster(c)
+		}(c)
 	}
 	r.WgWait()
 }
@@ -153,9 +160,42 @@ func (r *Rockpool) InstallCertManager() {
 		os.Exit(1)
 	}
 
-	_, err = r.KubeApplyTemplate(r.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
-	if err != nil {
-		fmt.Println("unable to install cert-manager: ", internal.GetCmdStdErr(err))
+	retries := 10
+	deployNotFound := true
+	var failedErr error
+	for deployNotFound && retries > 0 {
+		failedErr = nil
+		_, err = r.KubeCtl(r.ControllerClusterName(), "cert-manager",
+			"wait", "--for=condition=Available=true", "deployment/cert-manager-webhook").Output()
+		if err != nil {
+			failedErr = err
+			retries--
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		deployNotFound = false
+	}
+	if failedErr != nil {
+		fmt.Println("error while waiting for cert-manager webhook: ", internal.GetCmdStdErr(failedErr))
+		os.Exit(1)
+	}
+
+	retries = 30
+	failed := true
+	for retries > 0 && failed {
+		failedErr = nil
+		_, err = r.KubeApplyTemplate(r.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
+		if err != nil {
+			failed = true
+			failedErr = err
+			retries--
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		failed = false
+	}
+	if failed {
+		fmt.Println("unable to install cert-manager: ", internal.GetCmdStdErr(failedErr))
 		os.Exit(1)
 	}
 }
@@ -169,7 +209,27 @@ func (r *Rockpool) InstallGitlab() {
 }
 
 func (r *Rockpool) InstallGitea() {
-	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "gitea", "gitea.yml.tmpl", true)
+	cmd := r.Helm(
+		r.ControllerClusterName(), "",
+		"repo", "add", "gitea-charts", "https://dl.gitea.io/charts/",
+	)
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("unable to add harbor repo: ", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+
+	values, err := internal.RenderTemplate("gitea-values.yml.tmpl", r.Config.RenderedTemplatesPath, r.Config, "")
+	if err != nil {
+		fmt.Println("error rendering gitea values template: ", err)
+		os.Exit(1)
+	}
+	fmt.Println("using generated gitea values at ", values)
+
+	_, err = r.HelmInstallOrUpgrade(r.ControllerClusterName(),
+		"gitea", "gitea", "gitea-charts/gitea",
+		[]string{"--create-namespace", "--wait", "-f", values},
+	)
 	if err != nil {
 		fmt.Println("unable to install gitea: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
