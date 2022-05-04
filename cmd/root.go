@@ -33,38 +33,50 @@ var rootCmd = &cobra.Command{
 }
 
 var upCmd = &cobra.Command{
-	Use:   "up",
+	Use:   "up [cluster-name...]",
 	Short: "Create and/or start the clusters",
+	Long: `up is for creating or starting all the clusters, or the ones
+specified in the arguments as a comma-separated list,
+e.g, 'rockpool up controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.Up()
+		r.Up(fullClusterNamesFromArgs(args))
 	},
 }
 
 var startCmd = &cobra.Command{
-	Use:   "start",
+	Use:   "start [cluster-name...]",
 	Short: "Start the clusters",
+	Long: `start is for starting all the clusters, or the ones
+specified in the arguments as a comma-separated list,
+e.g, 'rockpool start controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.UpdateState()
-		r.Start()
+		r.Start(fullClusterNamesFromArgs(args))
 	},
 }
 
 var stopCmd = &cobra.Command{
-	Use:   "stop",
+	Use:   "stop [cluster-name...]",
 	Short: "Stop the clusters",
+	Long: `stop is for stopping all the clusters, or the ones
+specified in the arguments as a comma-separated list,
+e.g, 'rockpool stop controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.UpdateState()
-		r.Stop()
+		r.Stop(fullClusterNamesFromArgs(args))
 	},
 }
 
 var restartCmd = &cobra.Command{
-	Use:   "restart",
+	Use:   "restart [cluster-name...]",
 	Short: "Restart the clusters",
+	Long: `restart is for stopping and starting all the clusters, or the ones
+specified in the arguments as a comma-separated list,
+e.g, 'rockpool restart controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.UpdateState()
-		r.Stop()
-		r.Up()
+		r.Stop(fullClusterNamesFromArgs(args))
+		r.Start(fullClusterNamesFromArgs(args))
 	},
 }
 
@@ -76,12 +88,23 @@ var statusCmd = &cobra.Command{
 }
 
 var downCmd = &cobra.Command{
-	Use:   "down",
+	Use:   "down [cluster-name...]",
 	Short: "Stop the clusters and delete them",
+	Long: `down is for stopping and deleting all the clusters, or the ones
+specified in the arguments as a comma-separated list,
+e.g, 'rockpool down controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.UpdateState()
-		r.Down()
+		r.Down(fullClusterNamesFromArgs(args))
 	},
+}
+
+func fullClusterNamesFromArgs(argClusters []string) []string {
+	clusters := []string{}
+	for _, c := range argClusters {
+		clusters = append(clusters, r.ClusterName+"-"+c)
+	}
+	return clusters
 }
 
 func init() {
@@ -90,6 +113,7 @@ func init() {
 	r.Config.Arch = runtime.GOARCH
 
 	upCmd.Flags().StringVarP(&r.Config.ClusterName, "cluster-name", "n", "rockpool", "The name of the cluster")
+	upCmd.Flags().IntVarP(&r.Config.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
 	upCmd.Flags().StringVarP(&r.Config.Hostname, "url", "u", "rockpool.k3d.local",
 		`The base url of rockpool; ancillary services will be created
 as subdomains of this url, e.g, gitlab.rockpool.k3d.local

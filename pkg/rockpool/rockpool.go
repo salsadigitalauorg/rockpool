@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/yusufhm/rockpool/internal"
 )
@@ -20,55 +19,90 @@ func (c *Config) ToMap() map[string]string {
 	}
 }
 
-func (r *Rockpool) Up() {
+func (r *Rockpool) Up(clusters []string) {
+	if len(clusters) == 0 {
+		clusters = r.allClusters()
+	}
 	r.VerifyReqs(true)
 	r.FetchClusters()
 	r.CreateRegistry()
-	r.CreateClusters()
-	r.LagoonController()
-	r.LagoonTarget()
-	r.InstallHarborCerts()
+	r.CreateClusters(clusters)
+
+	setupController := false
+	setupTargets := []string{}
+	for _, c := range clusters {
+		if c == "rockpool-controller" {
+			setupController = true
+			continue
+		}
+		setupTargets = append(setupTargets, c)
+	}
+
+	if setupController {
+		r.SetupLagoonController()
+	}
+
+	if len(setupTargets) > 0 {
+		r.WgAdd(len(setupTargets))
+		for _, c := range setupTargets {
+			go r.SetupLagoonTarget(c)
+		}
+		r.WgWait()
+	}
 }
 
-func (r *Rockpool) Start() {
-	r.wg = &sync.WaitGroup{}
-	r.wg.Add(2)
-	go r.StartCluster(r.ControllerClusterName())
-	go r.StartCluster(r.TargetClusterName(1))
-	r.wg.Wait()
-	r.wg = nil
+func (r *Rockpool) allClusters() []string {
+	cls := []string{r.ControllerClusterName()}
+	for i := 1; i <= r.Config.NumTargets; i++ {
+		cls = append(cls, r.TargetClusterName(i))
+	}
+	return cls
 }
 
-func (r *Rockpool) Stop() {
-	r.wg = &sync.WaitGroup{}
-	r.wg.Add(2)
-	go r.StopCluster(r.ControllerClusterName())
-	go r.StopCluster(r.TargetClusterName(1))
-	r.wg.Wait()
-	r.wg = nil
+func (r *Rockpool) Start(clusters []string) {
+	if len(clusters) == 0 {
+		clusters = r.allClusters()
+	}
+	r.WgAdd(len(clusters))
+	for _, c := range clusters {
+		go r.StartCluster(c)
+	}
+	r.WgWait()
 }
 
-func (r *Rockpool) Down() {
-	r.wg = &sync.WaitGroup{}
-	r.wg.Add(2)
-	go r.DeleteCluster(r.ControllerClusterName())
-	go r.DeleteCluster(r.TargetClusterName(1))
-	r.wg.Wait()
-	r.wg = nil
+func (r *Rockpool) Stop(clusters []string) {
+	if len(clusters) == 0 {
+		clusters = r.allClusters()
+	}
+	r.WgAdd(len(clusters))
+	for _, c := range clusters {
+		go r.StopCluster(c)
+	}
+	r.WgWait()
 }
 
-func (r *Rockpool) CreateClusters() {
+func (r *Rockpool) Down(clusters []string) {
+	if len(clusters) == 0 {
+		clusters = r.allClusters()
+	}
+	r.WgAdd(len(clusters))
+	for _, c := range clusters {
+		go r.DeleteCluster(c)
+	}
+	r.WgWait()
+}
+
+func (r *Rockpool) CreateClusters(clusters []string) {
 	r.FetchClusters()
-	r.wg = &sync.WaitGroup{}
-	r.wg.Add(2)
-	go r.CreateCluster(r.ControllerClusterName())
-	go r.CreateCluster(r.TargetClusterName(1))
-	r.wg.Wait()
-	r.wg = nil
+	r.WgAdd(len(clusters))
+	for _, c := range clusters {
+		go r.CreateCluster(c)
+	}
+	r.WgWait()
 	r.FetchClusters()
 }
 
-func (r *Rockpool) LagoonController() {
+func (r *Rockpool) SetupLagoonController() {
 	r.GetClusterKubeConfigPath(r.ControllerClusterName())
 
 	r.InstallMailHog()
@@ -87,15 +121,15 @@ func (r *Rockpool) LagoonController() {
 	r.ConfigureKeycloak()
 }
 
-func (r *Rockpool) LagoonTarget() {
-	tgtCn := r.TargetClusterName(1)
-	r.CreateCluster(tgtCn)
+func (r *Rockpool) SetupLagoonTarget(cn string) {
+	defer r.WgDone()
+	r.GetClusterKubeConfigPath(cn)
+	r.ConfigureTargetCoreDNS(cn)
 
-	r.GetClusterKubeConfigPath(tgtCn)
-	r.ConfigureTargetCoreDNS(tgtCn)
+	r.HelmList(cn)
+	r.InstallLagoonRemote(cn)
 
-	r.HelmList(tgtCn)
-	r.InstallLagoonRemote(tgtCn)
+	r.InstallHarborCerts(cn)
 }
 
 func (r *Rockpool) InstallMailHog() {

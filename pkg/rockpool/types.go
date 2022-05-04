@@ -67,6 +67,7 @@ type Config struct {
 	Arch                  string
 	RenderedTemplatesPath string
 	UpgradeComponents     []string
+	NumTargets            int
 }
 
 type Rockpool struct {

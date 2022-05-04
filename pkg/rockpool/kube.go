@@ -47,7 +47,7 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byt
 }
 
 func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) ([]byte, error) {
-	f, err := internal.RenderTemplate(fn, r.Config.RenderedTemplatesPath, r.Config)
+	f, err := internal.RenderTemplate(fn, r.Config.RenderedTemplatesPath, r.Config, "")
 	if err != nil {
 		fmt.Printf("unable to render manifests for %s: %s", fn, err)
 		os.Exit(1)

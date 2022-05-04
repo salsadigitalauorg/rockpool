@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sync"
 )
 
 func (r *Rockpool) VerifyReqs(failOnMissing bool) {
@@ -36,6 +37,20 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 	}
 }
 
+func (r *Rockpool) WgAdd(delta int) {
+	if r.wg == nil {
+		r.wg = &sync.WaitGroup{}
+	}
+	r.wg.Add(delta)
+}
+
+func (r *Rockpool) WgWait() {
+	if r.wg != nil {
+		r.wg.Wait()
+		r.wg = nil
+	}
+}
+
 func (r *Rockpool) WgDone() {
 	if r.wg != nil {
 		r.wg.Done()
@@ -45,6 +60,10 @@ func (r *Rockpool) WgDone() {
 func (r *Rockpool) UpdateState() {
 	r.VerifyReqs(false)
 	r.FetchClusters()
+}
+
+func (r *Rockpool) TotalClusterNum() int {
+	return r.Config.NumTargets + 1
 }
 
 func (r *Rockpool) ControllerIP() string {

@@ -12,31 +12,33 @@ import (
 )
 
 // RunCmdWithProgress runs a command and progressively outputs the progress.
-func RunCmdWithProgress(cmd *exec.Cmd) (string, error) {
+func RunCmdWithProgress(cmd *exec.Cmd) ([]byte, error) {
 	// Use pipes so we can output progress.
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
 	_ = cmd.Start()
 
-	var stdoutStr string
+	var stdoutBytes []byte
 	scanner := bufio.NewScanner(io.MultiReader(stdout, stderr))
 	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
 		m := scanner.Text()
-		stdoutStr += m + "\n"
 		fmt.Println(m)
+		stdoutBytes = append(stdoutBytes, scanner.Bytes()...)
 	}
-	return stdoutStr, cmd.Wait()
+	return stdoutBytes, cmd.Wait()
 }
 
 // RenderTemplate executes a given template file and returns the path to its
 // rendered version.
-func RenderTemplate(tn string, path string, config interface{}) (string, error) {
+func RenderTemplate(tn string, path string, config interface{}, destName string) (string, error) {
 	tnFull := fmt.Sprintf("templates/%s", tn)
 	t := template.Must(template.ParseFiles(tnFull))
 
 	var rendered string
-	if filepath.Ext(tn) == ".tmpl" {
+	if destName != "" {
+		rendered = filepath.Join(path, destName)
+	} else if filepath.Ext(tn) == ".tmpl" {
 		rendered = filepath.Join(path, strings.TrimSuffix(tn, ".tmpl"))
 	} else {
 		rendered = filepath.Join(path, tn)

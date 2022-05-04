@@ -91,14 +91,13 @@ func (r *Rockpool) FetchClusters() {
 }
 
 func (r *Rockpool) CreateCluster(cn string) {
+	defer r.WgDone()
 	if exists, cs := r.State.Clusters.ClusterExists(cn); exists && cs.IsRunning() {
 		fmt.Printf("%s cluster already exists\n", cn)
-		r.WgDone()
 		return
 	} else if exists {
 		fmt.Printf("%s cluster already exists, but is stopped; starting now\n", cn)
 		r.StartCluster(cn)
-		r.WgDone()
 		return
 	}
 
@@ -123,7 +122,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 	cmdArgs = append(cmdArgs, cn)
 	cmd := exec.Command(r.State.BinaryPaths["k3d"], cmdArgs...)
 
-	fmt.Printf("creating cluster %s...", cn)
+	fmt.Printf("creating cluster %s...\n", cn)
 	fmt.Println("command to create cluster:", cmd)
 
 	_, err := cmd.Output()
@@ -132,39 +131,39 @@ func (r *Rockpool) CreateCluster(cn string) {
 		os.Exit(1)
 	}
 	fmt.Println("created cluster", cn)
-	r.WgDone()
 }
 
 func (r *Rockpool) StartCluster(cn string) {
+	defer r.WgDone()
 	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
 		fmt.Printf("%s cluster does not exist\n", cn)
-		os.Exit(1)
+		return
 	}
 	fmt.Printf("starting cluster %s...\n", cn)
-	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn).Output()
+	// _, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn).Output()
+	_, err := internal.RunCmdWithProgress(exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn))
 	if err != nil {
-		fmt.Println("unable to start cluster:", err)
+		fmt.Println("unable to start cluster:", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	r.FetchClusters()
-	r.WgDone()
 	fmt.Println("started cluster", cn)
+	r.AddHarborHostEntries(cn)
 }
 
 func (r *Rockpool) StopCluster(cn string) {
+	defer r.WgDone()
 	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
 		fmt.Printf("%s cluster does not exist\n", cn)
-		r.WgDone()
 		return
 	}
 	fmt.Printf("stopping cluster %s...\n", cn)
-	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "stop", cn).Output()
+	_, err := internal.RunCmdWithProgress(exec.Command(r.State.BinaryPaths["k3d"], "cluster", "stop", cn))
 	if err != nil {
 		fmt.Println("unable to stop cluster:", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	r.FetchClusters()
-	r.WgDone()
 	fmt.Println("stopped cluster", cn)
 }
 
@@ -174,16 +173,19 @@ func (r *Rockpool) RestartCluster(cn string) {
 }
 
 func (r *Rockpool) DeleteCluster(cn string) {
-	r.wg.Add(1)
+	defer r.WgDone()
+	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
+		return
+	}
+	r.WgAdd(1)
 	r.StopCluster(cn)
-	fmt.Printf("deleting cluster %s...", cn)
+	fmt.Printf("deleting cluster %s...\n", cn)
 	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "delete", cn).Output()
 	if err != nil {
 		fmt.Println("unable to delete cluster:", err)
 		os.Exit(1)
 	}
 	r.FetchClusters()
-	r.WgDone()
 	fmt.Println("deleted cluster", cn)
 }
 
