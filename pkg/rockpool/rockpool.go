@@ -131,25 +131,25 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 	r.HelmList(cn)
 	r.ConfigureTargetCoreDNS(cn)
 	r.InstallLagoonRemote(cn)
-
-	r.GetLagoonApiClient()
 	r.RegisterLagoonRemote(cn)
 
 	r.InstallHarborCerts(cn)
 }
 
 func (r *Rockpool) InstallMailHog() {
-	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "default", "mailhog.yml.tmpl", true)
+	cn := r.ControllerClusterName()
+	_, err := r.KubeApplyTemplate(cn, "default", "mailhog.yml.tmpl", true)
 	if err != nil {
-		fmt.Println("unable to install mailhog: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install mailhog: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
 func (r *Rockpool) InstallCertManager() {
-	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "", "cert-manager.yaml", true)
+	cn := r.ControllerClusterName()
+	_, err := r.KubeApplyTemplate(cn, "", "cert-manager.yaml", true)
 	if err != nil {
-		fmt.Println("unable to install cert-manager: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install cert-manager: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
@@ -169,7 +169,7 @@ func (r *Rockpool) InstallCertManager() {
 		deployNotFound = false
 	}
 	if failedErr != nil {
-		fmt.Println("error while waiting for cert-manager webhook: ", internal.GetCmdStdErr(failedErr))
+		fmt.Printf("[%s] error while waiting for cert-manager webhook: %s\n", cn, internal.GetCmdStdErr(failedErr))
 		os.Exit(1)
 	}
 
@@ -188,50 +188,49 @@ func (r *Rockpool) InstallCertManager() {
 		failed = false
 	}
 	if failed {
-		fmt.Println("unable to install cert-manager: ", internal.GetCmdStdErr(failedErr))
+		fmt.Printf("[%s] unable to install cert-manager: %s\n", cn, internal.GetCmdStdErr(failedErr))
 		os.Exit(1)
 	}
 }
 
 func (r *Rockpool) InstallGitlab() {
-	_, err := r.KubeApplyTemplate(r.ControllerClusterName(), "gitlab", "gitlab.yml.tmpl", true)
+	cn := r.ControllerClusterName()
+	_, err := r.KubeApplyTemplate(cn, "gitlab", "gitlab.yml.tmpl", true)
 	if err != nil {
-		fmt.Println("unable to install gitlab: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install gitlab: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
 func (r *Rockpool) InstallGitea() {
-	cmd := r.Helm(
-		r.ControllerClusterName(), "",
-		"repo", "add", "gitea-charts", "https://dl.gitea.io/charts/",
-	)
+	cn := r.ControllerClusterName()
+	cmd := r.Helm(cn, "", "repo", "add", "gitea-charts", "https://dl.gitea.io/charts/")
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println("unable to add harbor repo: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to add harbor repo: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
 	values, err := internal.RenderTemplate("gitea-values.yml.tmpl", r.Config.RenderedTemplatesPath, r.Config, "")
 	if err != nil {
-		fmt.Println("error rendering gitea values template: ", err)
+		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
 		os.Exit(1)
 	}
-	fmt.Println("using generated gitea values at ", values)
+	fmt.Printf("[%s] using generated gitea values at %s\n", cn, values)
 
-	_, err = r.HelmInstallOrUpgrade(r.ControllerClusterName(),
-		"gitea", "gitea", "gitea-charts/gitea",
+	_, err = r.HelmInstallOrUpgrade(cn, "gitea", "gitea", "gitea-charts/gitea",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
-		fmt.Println("unable to install gitea: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install gitea: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
 func (r *Rockpool) ConfigureKeycloak() {
+	cn := r.ControllerClusterName()
 	if _, err := r.KubeExecNoProgress(
-		r.ControllerClusterName(), "lagoon-core", "lagoon-core-keycloak", `
+		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 rm -f /tmp/kcadm.config
 /opt/jboss/keycloak/bin/kcadm.sh config credentials \
@@ -240,19 +239,19 @@ rm -f /tmp/kcadm.config
   --config /tmp/kcadm.config
 `,
 	).Output(); err != nil {
-		fmt.Println("error logging in to Keycloak: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error logging in to Keycloak: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
 	// Skip if values have already been set.
 	if out, err := r.KubeExecNoProgress(
-		r.ControllerClusterName(), "lagoon-core", "lagoon-core-keycloak", `
+		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 /opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon \
 	--fields 'smtpServer(from)' --config /tmp/kcadm.config
 `,
 	).Output(); err != nil {
-		fmt.Println("error checking keycloak configuration: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error checking keycloak configuration: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	} else {
 		s := struct {
@@ -262,18 +261,17 @@ set -e
 		}{}
 		err := json.Unmarshal(out, &s)
 		if err != nil {
-			fmt.Println("error parsing keycloak configuration: ", err)
+			fmt.Printf("[%s] error parsing keycloak configuration: %s\n", cn, err)
 			os.Exit(1)
 		}
 		if s.SmtpServer.From == "lagoon@k3d-rockpool" {
-			fmt.Println("keycloak already configured")
+			fmt.Printf("[%s] keycloak already configured\n", cn)
 			return
 		}
 	}
 
 	// Configure keycloak.
-	_, err := r.KubeExecNoProgress(
-		r.ControllerClusterName(), "lagoon-core", "lagoon-core-keycloak", `
+	_, err := r.KubeExecNoProgress(cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 
 /opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
@@ -298,7 +296,7 @@ client_id=$(echo ${client%,*} | sed 's/"//g')
 `,
 	).Output()
 	if err != nil {
-		fmt.Println("error configuring keycloak: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error configuring keycloak: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
@@ -309,7 +307,7 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 	corednsCm := CoreDNSConfigMap{}
 	err := json.Unmarshal(cm, &corednsCm)
 	if err != nil {
-		fmt.Println("error parsing CoreDNS configmap: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error parsing CoreDNS configmap: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	gitea_entry := fmt.Sprintf("%s %s.%s\n", r.ControllerIP(), "gitea", r.Hostname)
@@ -322,11 +320,18 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 			corednsCm.Data.NodeHosts += entry
 		}
 	}
+
 	cm, err = json.Marshal(corednsCm)
 	if err != nil {
-		fmt.Println("error encoding CoreDNS configmap: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error encoding CoreDNS configmap: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	r.KubeReplace(cn, "kube-system", "coredns", string(cm))
-	r.KubeCtl(cn, "kube-system", "rollout", "restart", "deployment/coredns")
+
+	fmt.Printf("[%s] %s\n", cn, r.KubeReplace(cn, "kube-system", "coredns", string(cm)))
+	out, err := r.KubeCtl(cn, "kube-system", "rollout", "restart", "deployment/coredns").Output()
+	if err != nil {
+		fmt.Printf("[%s] CoreDNS restart failed: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	fmt.Printf("[%s] %s\n", cn, string(out))
 }

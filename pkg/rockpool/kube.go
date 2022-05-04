@@ -50,7 +50,7 @@ func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("using generated manifest at", f)
+	fmt.Printf("[%s] using generated manifest at %s\n", cn, f)
 	return r.KubeApply(cn, ns, f, force)
 }
 
@@ -74,13 +74,13 @@ func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field stri
 	}
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("[%s] error when getting secret %s: %s", cn, secret, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error when getting secret %s: %s\n", cn, secret, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	if field != "" {
 		out = []byte(strings.Trim(string(out), "'"))
 		if decoded, err := base64.URLEncoding.DecodeString(string(out)); err != nil {
-			fmt.Printf("[%s] error when decoding secret %s: %#v", cn, secret, internal.GetCmdStdErr(err))
+			fmt.Printf("[%s] error when decoding secret %s: %#v\n", cn, secret, internal.GetCmdStdErr(err))
 			os.Exit(1)
 		} else {
 			return nil, string(decoded)
@@ -96,7 +96,7 @@ func (r *Rockpool) KubeGetConfigMap(cn string, ns string, name string) []byte {
 	)
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("[%s] error when getting configmap %s: %s", cn, name, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error when getting configmap %s: %s\n", cn, name, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	return out
@@ -119,10 +119,9 @@ func (r *Rockpool) KubeReplace(cn string, ns string, name string, content string
 	writer.Close()
 
 	if err := replace.Wait(); err != nil {
-		fmt.Printf("[%s] error replacing config %s: %s", cn, name, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error replacing config %s: %s\n", cn, name, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	io.Copy(os.Stdout, &replaceOut)
 	return replaceOut.String()
 }
 

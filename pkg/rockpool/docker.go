@@ -25,13 +25,13 @@ func (r *Rockpool) DockerInspect(cn string) []DockerContainer {
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println(string(out))
-		fmt.Println("unable to get list of docker containers: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to get list of docker containers: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	containers := []DockerContainer{}
 	err = json.Unmarshal(out, &containers)
 	if err != nil {
-		fmt.Println("unable to parse docker containers: ", err)
+		fmt.Printf("[%s] unable to parse docker containers: %s\n", cn, err)
 		os.Exit(1)
 	}
 	return containers

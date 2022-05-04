@@ -23,13 +23,13 @@ func (r *Rockpool) HelmList(cn string) {
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println(string(out))
-		fmt.Println("unable to get list of helm releases: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to get list of helm releases: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	releases := []HelmRelease{}
 	err = json.Unmarshal(out, &releases)
 	if err != nil {
-		fmt.Println("unable to parse helm releases: ", err)
+		fmt.Printf("[%s] unable to parse helm releases: %s\n", cn, err)
 		os.Exit(1)
 	}
 	r.State.HelmReleases[cn] = releases
@@ -46,21 +46,21 @@ func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string
 	if !upgrade {
 		for _, r := range r.State.HelmReleases[cn] {
 			if r.Name == releaseName {
-				fmt.Printf("helm release %s is already installed\n", releaseName)
+				fmt.Printf("[%s] helm release %s is already installed\n", cn, releaseName)
 				return nil, nil
 			}
 		}
 	} else {
-		fmt.Println("upgrading helm release", releaseName)
+		fmt.Printf("[%s] upgrading helm release %s\n", cn, releaseName)
 	}
 
 	// New install.
 	if !upgrade {
-		fmt.Println("installing helm release", releaseName)
+		fmt.Printf("[%s] installing helm release %s\n", cn, releaseName)
 	}
 
 	cmd := r.Helm(cn, ns, "upgrade", "--install", releaseName, chartName)
 	cmd.Args = append(cmd.Args, args...)
-	fmt.Printf("command for %s helm release: %v\n", releaseName, cmd)
+	fmt.Printf("[%s] command for %s helm release: %v\n", cn, releaseName, cmd)
 	return cmd.Output()
 }

@@ -13,7 +13,7 @@ import (
 )
 
 func (r *Rockpool) lagoonFetchApiToken() string {
-	fmt.Println("fetching lagoon api token...")
+	fmt.Println("[rockpool] fetching lagoon api token...")
 	_, password := r.KubeGetSecret(r.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-keycloak",
@@ -29,7 +29,7 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", r.State.KeycloakUrl, "lagoon")
 	resp, err := http.PostForm(url, data)
 	if err != nil {
-		fmt.Println("error fetching Lagoon API token:", err)
+		fmt.Println("[rockpool] error fetching Lagoon API token:", err)
 		os.Exit(1)
 	}
 
@@ -38,7 +38,7 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 	}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
-		fmt.Println("error parsing Lagoon API token:", err)
+		fmt.Println("[rockpool] error parsing Lagoon API token:", err)
 		os.Exit(1)
 	}
 	return res.Token
@@ -54,13 +54,13 @@ func (r *Rockpool) GetLagoonApiClient() {
 }
 
 func (r *Rockpool) LagoonApiGetRemotes() {
-	fmt.Println("fetching lagoon api remotes...")
+	fmt.Println("[rockpool] fetching lagoon api remotes...")
 	var query struct {
 		AllKubernetes []Remote
 	}
 	err := r.GqlClient.Query(context.Background(), &query, nil)
 	if err != nil {
-		fmt.Println("error fetching Lagoon remotes:", err)
+		fmt.Println("[rockpool] error fetching Lagoon remotes:", err)
 		os.Exit(1)
 	}
 	r.State.Remotes = query.AllKubernetes
@@ -81,7 +81,7 @@ func (r *Rockpool) LagoonApiAddRemote(re Remote, token string) {
 	}
 	err := r.GqlClient.Mutate(context.Background(), &m, vars)
 	if err != nil {
-		fmt.Printf("error adding Lagoon remote %s: %#v\n", re.Name, err)
+		fmt.Printf("[rockpool] error adding Lagoon remote %s: %#v\n", re.Name, err)
 		os.Exit(1)
 	}
 	r.Remotes = append(r.Remotes, m.AddKubernetes.Remote)

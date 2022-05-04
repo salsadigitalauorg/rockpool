@@ -71,7 +71,7 @@ func GetTargetIdFromCn(cn string) int {
 	idStr := cnParts[len(cnParts)-1]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		fmt.Println("invalid cluster id: ", idStr)
+		fmt.Printf("[%s] invalid cluster id: %s\n", cn, idStr)
 		os.Exit(1)
 	}
 	return id

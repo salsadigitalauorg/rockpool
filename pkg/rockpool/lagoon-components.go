@@ -11,8 +11,8 @@ import (
 )
 
 func (r *Rockpool) InstallIngressNginx() {
-	_, err := r.HelmInstallOrUpgrade(r.ControllerClusterName(),
-		"ingress-nginx", "ingress-nginx",
+	cn := r.ControllerClusterName()
+	_, err := r.HelmInstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
 			"--create-namespace", "--wait",
@@ -20,30 +20,28 @@ func (r *Rockpool) InstallIngressNginx() {
 		},
 	)
 	if err != nil {
-		fmt.Println("unable to install ingress-nginx: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install ingress-nginx: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
 func (r *Rockpool) InstallHarbor() {
-	cmd := r.Helm(
-		r.ControllerClusterName(), "",
-		"repo", "add", "harbor", "https://helm.goharbor.io",
-	)
+	cn := r.ControllerClusterName()
+	cmd := r.Helm(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io")
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println("unable to add harbor repo: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to add harbor repo: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
 	values, err := internal.RenderTemplate("harbor-values.yml.tmpl", r.Config.RenderedTemplatesPath, r.Config, "")
 	if err != nil {
-		fmt.Println("error rendering harbor values template: ", err)
+		fmt.Printf("[%s] error rendering harbor values template: %s\n", cn, err)
 		os.Exit(1)
 	}
-	fmt.Println("using generated harbor values at ", values)
+	fmt.Printf("[%s] using generated harbor values at %s\n", cn, values)
 
-	_, err = r.HelmInstallOrUpgrade(r.ControllerClusterName(),
+	_, err = r.HelmInstallOrUpgrade(cn,
 		"harbor", "harbor", "harbor/harbor",
 		[]string{
 			"--create-namespace", "--wait",
@@ -51,13 +49,14 @@ func (r *Rockpool) InstallHarbor() {
 		},
 	)
 	if err != nil {
-		fmt.Println("unable to install harbor: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install harbor: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
 func (r *Rockpool) FetchHarborCerts() (string, string) {
-	certBytes, _ := r.KubeGetSecret(r.ControllerClusterName(), "harbor", "harbor-harbor-ingress", "")
+	cn := r.ControllerClusterName()
+	certBytes, _ := r.KubeGetSecret(cn, "harbor", "harbor-harbor-ingress", "")
 	certData := struct {
 		Data map[string]string `json:"data"`
 	}{}
@@ -65,23 +64,23 @@ func (r *Rockpool) FetchHarborCerts() (string, string) {
 
 	secretManifest, err := internal.RenderTemplate("harbor-cert.yml.tmpl", r.Config.RenderedTemplatesPath, certData, "")
 	if err != nil {
-		fmt.Println("error rendering harbor cert template: ", err)
+		fmt.Printf("[%s] error rendering harbor cert template: %s\n", cn, err)
 		os.Exit(1)
 	}
-	fmt.Println("generated harbor cert at", secretManifest)
+	fmt.Printf("[%s] generated harbor cert at %s\n", cn, secretManifest)
 
 	cacrt := certData.Data["ca.crt"]
 	decoded, err := base64.URLEncoding.DecodeString(cacrt)
 	if err != nil {
-		fmt.Printf("error when decoding ca.crt: %#v", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error when decoding ca.crt: %#v\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	caCrtFile, err := internal.RenderTemplate("harbor-ca.crt.tmpl", r.Config.RenderedTemplatesPath, string(decoded), "")
 	if err != nil {
-		fmt.Println("error rendering harbor ca.crt template: ", err)
+		fmt.Printf("[%s] error rendering harbor ca.crt template: %s\n", cn, err)
 		os.Exit(1)
 	}
-	fmt.Println("generated harbor ca.crt at", caCrtFile)
+	fmt.Printf("[%s] generated harbor ca.crt at %s\n", cn, caCrtFile)
 
 	return secretManifest, caCrtFile
 }
@@ -93,13 +92,13 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 
 	exists, c := r.Clusters.ClusterExists(cn)
 	if !exists {
-		fmt.Println("cluster", cn, "does not exist")
+		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return
 	}
 
 	secretManifest, caCrtFile := r.FetchHarborCerts()
 	if _, err := r.KubeApply(cn, "lagoon", secretManifest, true); err != nil {
-		fmt.Printf("error creating ca.crt in %s: %s\n", cn, err)
+		fmt.Printf("[%s] error creating ca.crt: %s\n", cn, err)
 		os.Exit(1)
 	}
 
@@ -119,7 +118,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 		destCaCrt := fmt.Sprintf("%s:/etc/ssl/certs/harbor-cert.crt", n.Name)
 		_, err := r.DockerCp(caCrtFile, destCaCrt)
 		if err != nil {
-			fmt.Printf("error copying ca.crt to %s: %s\n", c.Name, internal.GetCmdStdErr(err))
+			fmt.Printf("[%s] error copying ca.crt: %s\n", cn, internal.GetCmdStdErr(err))
 			os.Exit(1)
 		}
 		clusterUpdated = true
@@ -132,12 +131,12 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 	// Patch lagoon-remote-lagoon-build-deploy to add the cert secret.
 	patchFile, err := internal.RenderTemplate("patch-lagoon-remote-lagoon-build-deploy.yaml", r.Config.RenderedTemplatesPath, nil, "")
 	if err != nil {
-		fmt.Println("error rendering the build deploy patch file: ", err)
+		fmt.Printf("[%s] error rendering the build deploy patch file: %s\n", cn, err)
 		os.Exit(1)
 	}
 	_, err = r.KubePatch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
 	if err != nil {
-		fmt.Println("error patching the lagoon-build-deploy deployment: ", err)
+		fmt.Printf("[%s] error patching the lagoon-build-deploy deployment: %s\n", cn, err)
 		os.Exit(1)
 	}
 }
@@ -150,7 +149,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 
 	exists, c := r.Clusters.ClusterExists(cn)
 	if !exists {
-		fmt.Println("cluster", cn, "does not exist")
+		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return
 	}
 
@@ -163,41 +162,39 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 
 		hostsContent, _ := r.DockerExec(n.Name, "cat /etc/hosts")
 		if !strings.Contains(string(hostsContent), entry) {
-			fmt.Printf("adding host entries to %s...\n", n.Name)
+			fmt.Printf("[%s] adding harbor host entries...\n", n.Name)
 			_, err := r.DockerExec(n.Name, entryCmdStr)
 			if err != nil {
-				fmt.Printf("error adding host entry in %s: %s\n", c.Name, internal.GetCmdStdErr(err))
+				fmt.Printf("[%s] error adding harbor host entry: %s\n", cn, internal.GetCmdStdErr(err))
 				os.Exit(1)
 			}
-			fmt.Println("added host entries to", n.Name)
+			fmt.Printf("[%s] added harbor host entries\n", cn)
 		}
 	}
 }
 
 func (r *Rockpool) AddLagoonRepo(cn string) {
-	cmd := r.Helm(
-		cn, "", "repo", "add", "lagoon",
-		"https://uselagoon.github.io/lagoon-charts/",
-	)
+	cmd := r.Helm(cn, "", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println("unable to add lagoon repo: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to add lagoon repo: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
 
 func (r *Rockpool) InstallLagoonCore() {
-	r.AddLagoonRepo(r.ControllerClusterName())
+	cn := r.ControllerClusterName()
+	r.AddLagoonRepo(cn)
 
 	values, err := internal.RenderTemplate(
 		"lagoon-core-values.yml.tmpl",
 		r.Config.RenderedTemplatesPath, r.Config, "",
 	)
 	if err != nil {
-		fmt.Println("error rendering lagoon-core values template: ", err)
+		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
 		os.Exit(1)
 	}
-	fmt.Println("using generated lagoon-core values at ", values)
+	fmt.Printf("[%s] using generated lagoon-core values at %s\n", cn, values)
 
 	_, err = r.HelmInstallOrUpgrade(r.ControllerClusterName(), "lagoon-core",
 		"lagoon-core",
@@ -205,7 +202,7 @@ func (r *Rockpool) InstallLagoonCore() {
 		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
 	)
 	if err != nil {
-		fmt.Println("unable to install lagoon-core: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install lagoon-core: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
@@ -229,7 +226,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 		cn+"-lagoon-remote-values.yml",
 	)
 	if err != nil {
-		fmt.Println("error rendering lagoon-remote values template: ", err)
+		fmt.Printf("[%s] error rendering lagoon-remote values template: %s\n", cn, err)
 		os.Exit(1)
 	}
 
@@ -238,7 +235,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
-		fmt.Println("unable to install lagoon-remote: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to install lagoon-remote: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
@@ -254,18 +251,18 @@ func (r *Rockpool) RegisterLagoonRemote(cn string) {
 	}
 	for _, existingRe := range r.State.Remotes {
 		if existingRe.Id == re.Id && existingRe.Name == re.Name {
-			fmt.Println("Lagoon remote already exists for", re.Name)
+			fmt.Printf("[%s] Lagoon remote already exists for %s\n", cn, re.Name)
 			return
 		}
 	}
 	b64Token, err := r.KubeCtl(cn, "lagoon", "get", "secret", "-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
 	if err != nil {
-		fmt.Println("error when fetching lagoon remote token: ", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error when fetching lagoon remote token: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	token, err := base64.URLEncoding.DecodeString(strings.Trim(string(b64Token), "'"))
 	if err != nil {
-		fmt.Printf("error when decoding lagoon remote token for %s: %s\n", cn, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error when decoding lagoon remote token: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	r.LagoonApiAddRemote(re, string(token))

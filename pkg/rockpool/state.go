@@ -15,7 +15,7 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 	for _, b := range binaries {
 		path, err := exec.LookPath(b)
 		if err != nil {
-			missing = append(missing, fmt.Sprintf("could not find %s; please ensure it is installed before", b))
+			missing = append(missing, fmt.Sprintf("[rockpool] could not find %s; please ensure it is installed and can be found in the $PATH", b))
 			continue
 		}
 		r.State.BinaryPaths[b] = path
@@ -26,14 +26,14 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 		}
 	}
 	if failOnMissing && len(missing) > 0 {
-		fmt.Println("some requirements were not met; please review above")
+		fmt.Println("[rockpool] some requirements were not met; please review above")
 		os.Exit(1)
 	}
 
 	// Create temporary directory for rendered templates.
 	err := os.MkdirAll(r.Config.RenderedTemplatesPath, os.ModePerm)
 	if err != nil {
-		fmt.Printf("unable to create temp dir %s: %s\n", r.Config.RenderedTemplatesPath, err)
+		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.Config.RenderedTemplatesPath, err)
 		os.Exit(1)
 	}
 }
@@ -96,7 +96,7 @@ func (r *Rockpool) ControllerIP() string {
 			}
 		}
 	}
-	fmt.Println("unable to get controller ip")
+	fmt.Println("[rockpool] unable to get controller ip")
 	os.Exit(1)
 	return ""
 }
@@ -113,7 +113,7 @@ func (r *Rockpool) TargetIP(cn string) string {
 			}
 		}
 	}
-	fmt.Println("unable to get target ip")
+	fmt.Println("[rockpool] unable to get target ip")
 	os.Exit(1)
 	return ""
 }
