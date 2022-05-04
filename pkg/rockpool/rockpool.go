@@ -47,8 +47,8 @@ func (r *Rockpool) Up(clusters []string) {
 	r.GetLagoonApiClient()
 	r.LagoonApiGetRemotes()
 	if len(setupTargets) > 0 {
-		r.WgAdd(len(setupTargets))
 		for _, c := range setupTargets {
+			r.WgAdd(1)
 			go r.SetupLagoonTarget(c)
 		}
 		r.WgWait()
@@ -67,22 +67,17 @@ func (r *Rockpool) Start(clusters []string) {
 	if len(clusters) == 0 {
 		clusters = r.allClusters()
 	}
-	r.WgAdd(len(clusters))
 	for _, c := range clusters {
-		go func(c string) {
-			defer r.WgDone()
-			r.StartCluster(c)
-		}(c)
+		r.StartCluster(c)
 	}
-	r.WgWait()
 }
 
 func (r *Rockpool) Stop(clusters []string) {
 	if len(clusters) == 0 {
 		clusters = r.allClusters()
 	}
-	r.WgAdd(len(clusters))
 	for _, c := range clusters {
+		r.WgAdd(1)
 		go func(c string) {
 			defer r.WgDone()
 			r.StopCluster(c)
@@ -95,8 +90,8 @@ func (r *Rockpool) Down(clusters []string) {
 	if len(clusters) == 0 {
 		clusters = r.allClusters()
 	}
-	r.WgAdd(len(clusters))
 	for _, c := range clusters {
+		r.WgAdd(1)
 		go r.DeleteCluster(c)
 	}
 	r.WgWait()
@@ -104,11 +99,9 @@ func (r *Rockpool) Down(clusters []string) {
 
 func (r *Rockpool) CreateClusters(clusters []string) {
 	r.FetchClusters()
-	r.WgAdd(len(clusters))
 	for _, c := range clusters {
-		go r.CreateCluster(c)
+		r.CreateCluster(c)
 	}
-	r.WgWait()
 	r.FetchClusters()
 }
 
@@ -134,9 +127,9 @@ func (r *Rockpool) SetupLagoonController() {
 func (r *Rockpool) SetupLagoonTarget(cn string) {
 	defer r.WgDone()
 	r.GetClusterKubeConfigPath(cn)
-	r.ConfigureTargetCoreDNS(cn)
 
 	r.HelmList(cn)
+	r.ConfigureTargetCoreDNS(cn)
 	r.InstallLagoonRemote(cn)
 
 	r.GetLagoonApiClient()

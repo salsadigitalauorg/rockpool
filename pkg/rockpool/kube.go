@@ -61,7 +61,7 @@ func (r *Rockpool) KubeExecNoProgress(cn string, ns string, deploy string, cmdSt
 
 func (r *Rockpool) KubeExec(cn string, ns string, deploy string, cmdStr string) ([]byte, error) {
 	cmd := r.KubeExecNoProgress(cn, ns, deploy, cmdStr)
-	fmt.Println("kube exec command: ", cmd)
+	fmt.Printf("[%s] kube exec command: %s\n", cn, cmd)
 	return cmd.Output()
 }
 
@@ -74,13 +74,13 @@ func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field stri
 	}
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("error when getting secret %s: %s", secret, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error when getting secret %s: %s", cn, secret, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	if field != "" {
 		out = []byte(strings.Trim(string(out), "'"))
 		if decoded, err := base64.URLEncoding.DecodeString(string(out)); err != nil {
-			fmt.Printf("error when decoding secret %s: %#v", secret, internal.GetCmdStdErr(err))
+			fmt.Printf("[%s] error when decoding secret %s: %#v", cn, secret, internal.GetCmdStdErr(err))
 			os.Exit(1)
 		} else {
 			return nil, string(decoded)
@@ -96,7 +96,7 @@ func (r *Rockpool) KubeGetConfigMap(cn string, ns string, name string) []byte {
 	)
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("error when getting configmap %s: %s", name, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error when getting configmap %s: %s", cn, name, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	return out
@@ -119,7 +119,7 @@ func (r *Rockpool) KubeReplace(cn string, ns string, name string, content string
 	writer.Close()
 
 	if err := replace.Wait(); err != nil {
-		fmt.Printf("error replacing config %s: %s", name, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error replacing config %s: %s", cn, name, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	io.Copy(os.Stdout, &replaceOut)
@@ -131,7 +131,7 @@ func (r *Rockpool) KubePatch(cn string, ns string, kind string, name string, fn 
 	dryRun.Args = append(dryRun.Args, "--dry-run=server")
 	out, err := dryRun.Output()
 	if err != nil {
-		fmt.Println("error executing dry-run patch:", internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] error executing dry-run patch: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	if strings.Contains(string(out), "(no change)") {

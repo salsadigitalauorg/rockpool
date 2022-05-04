@@ -77,7 +77,6 @@ func (r *Rockpool) CreateRegistry() {
 }
 
 func (r *Rockpool) CreateCluster(cn string) {
-	defer r.WgDone()
 	if exists, cs := r.State.Clusters.ClusterExists(cn); exists && cs.IsRunning() {
 		fmt.Printf("%s cluster already exists\n", cn)
 		return
