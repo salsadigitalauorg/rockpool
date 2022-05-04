@@ -41,7 +41,10 @@ func (r *Rockpool) Up(clusters []string) {
 	if setupController {
 		r.SetupLagoonController()
 	}
+	r.State.KeycloakUrl = fmt.Sprintf("http://keycloak.%s/auth", r.Config.LagoonBaseUrl)
 
+	r.GetLagoonApiClient()
+	r.LagoonApiGetRemotes()
 	if len(setupTargets) > 0 {
 		r.WgAdd(len(setupTargets))
 		for _, c := range setupTargets {
@@ -128,6 +131,9 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 
 	r.HelmList(cn)
 	r.InstallLagoonRemote(cn)
+
+	r.GetLagoonApiClient()
+	r.RegisterLagoonRemote(cn)
 
 	r.InstallHarborCerts(cn)
 }
@@ -228,6 +234,14 @@ set -e
 
 /opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
   -s smtpServer.from="lagoon@k3d-rockpool" --config /tmp/kcadm.config
+
+# Allow direct access grants so we can grab a token by using a POST request.
+client=$(/opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon/clients \
+	--fields 'id,clientId' --config /tmp/kcadm.config \
+	--format csv|grep "lagoon-ui")
+client_id=$(echo ${client%,*} | sed 's/"//g')
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon/clients/${client_id} \
+	-s directAccessGrantsEnabled=true --config /tmp/kcadm.config
 `,
 	).Output()
 	if err != nil {

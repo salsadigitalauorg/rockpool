@@ -221,8 +221,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 		"RABBITMQ_PASSWORD",
 	)
 
-	cnParts := strings.Split(cn, "-")
-	cm["TargetId"] = cnParts[len(cnParts)-1]
+	cm["TargetId"] = fmt.Sprint(internal.GetTargetIdFromCn(cn))
 
 	values, err := internal.RenderTemplate(
 		"lagoon-remote-values.yml.tmpl",
@@ -242,4 +241,32 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 		fmt.Println("unable to install lagoon-remote: ", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
+}
+
+func (r *Rockpool) RegisterLagoonRemote(cn string) {
+	cId := internal.GetTargetIdFromCn(cn)
+	rName := "rockpool" + fmt.Sprint(cId)
+	re := Remote{
+		Id:            cId,
+		Name:          rName,
+		ConsoleUrl:    fmt.Sprintf("https://%s:6443", r.TargetIP(cn)),
+		RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, r.Hostname),
+	}
+	for _, existingRe := range r.State.Remotes {
+		if existingRe.Id == re.Id && existingRe.Name == re.Name {
+			fmt.Println("Lagoon remote already exists for", re.Name)
+			return
+		}
+	}
+	b64Token, err := r.KubeCtl(cn, "lagoon", "get", "secret", "-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
+	if err != nil {
+		fmt.Println("error when fetching lagoon remote token: ", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	token, err := base64.URLEncoding.DecodeString(strings.Trim(string(b64Token), "'"))
+	if err != nil {
+		fmt.Printf("error when decoding lagoon remote token for %s: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	r.LagoonApiAddRemote(re, string(token))
 }

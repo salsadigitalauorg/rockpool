@@ -84,6 +84,7 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "View the status of the clusters",
 	Run: func(cmd *cobra.Command, args []string) {
+		r.UpdateState()
 	},
 }
 

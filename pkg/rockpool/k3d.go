@@ -76,20 +76,6 @@ func (r *Rockpool) CreateRegistry() {
 	fmt.Println("created registry")
 }
 
-func (r *Rockpool) FetchClusters() {
-	var allK3dCl ClusterList
-	allK3dCl.Get()
-	for _, c := range allK3dCl {
-		if !strings.HasPrefix(c.Name, r.ClusterName) {
-			continue
-		}
-		if exists, _ := r.Clusters.ClusterExists(c.Name); exists {
-			continue
-		}
-		r.Clusters = append(r.Clusters, c)
-	}
-}
-
 func (r *Rockpool) CreateCluster(cn string) {
 	defer r.WgDone()
 	if exists, cs := r.State.Clusters.ClusterExists(cn); exists && cs.IsRunning() {

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/briandowns/spinner"
+	"github.com/shurcooL/graphql"
 )
 
 type Registry struct {
@@ -48,6 +49,13 @@ type HelmRelease struct {
 	AppVersion string `json:"app_version"`
 }
 
+type Remote struct {
+	Id            int    `json:"id"`
+	Name          string `json:"name"`
+	ConsoleUrl    string `json:"consoleUrl"`
+	RouterPattern string `json:"routerPattern"`
+}
+
 type State struct {
 	Spinner     spinner.Spinner
 	Clusters    ClusterList
@@ -56,7 +64,9 @@ type State struct {
 	// List of Helm releases per cluster.
 	HelmReleases map[string][]HelmRelease
 	// Kubeconfig per cluster.
-	Kubeconfig map[string]string
+	Kubeconfig  map[string]string
+	Remotes     []Remote
+	KeycloakUrl string
 }
 
 type Config struct {
@@ -73,7 +83,8 @@ type Config struct {
 type Rockpool struct {
 	State
 	Config
-	wg *sync.WaitGroup
+	wg        *sync.WaitGroup
+	GqlClient *graphql.Client
 }
 
 type DockerContainer struct {

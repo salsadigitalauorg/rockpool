@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -63,4 +64,15 @@ func GetCmdStdErr(err error) string {
 		return string(exitError.Stderr)
 	}
 	return err.Error()
+}
+
+func GetTargetIdFromCn(cn string) int {
+	cnParts := strings.Split(cn, "-")
+	idStr := cnParts[len(cnParts)-1]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		fmt.Println("invalid cluster id: ", idStr)
+		os.Exit(1)
+	}
+	return id
 }

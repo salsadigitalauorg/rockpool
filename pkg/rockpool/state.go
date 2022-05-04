@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 )
 
@@ -57,9 +58,26 @@ func (r *Rockpool) WgDone() {
 	}
 }
 
+func (r *Rockpool) FetchClusters() {
+	var allK3dCl ClusterList
+	allK3dCl.Get()
+	for _, c := range allK3dCl {
+		if !strings.HasPrefix(c.Name, r.ClusterName) {
+			continue
+		}
+		if exists, _ := r.Clusters.ClusterExists(c.Name); exists {
+			continue
+		}
+		r.Clusters = append(r.Clusters, c)
+	}
+}
+
 func (r *Rockpool) UpdateState() {
 	r.VerifyReqs(false)
 	r.FetchClusters()
+	r.State.KeycloakUrl = fmt.Sprintf("http://keycloak.%s/auth", r.Config.LagoonBaseUrl)
+	r.GetLagoonApiClient()
+	r.LagoonApiGetRemotes()
 }
 
 func (r *Rockpool) TotalClusterNum() int {
@@ -73,12 +91,29 @@ func (r *Rockpool) ControllerIP() string {
 		}
 
 		for _, n := range c.Nodes {
-			if n.Role != "loadbalancer" {
+			if n.Role == "loadbalancer" {
 				return n.IP.IP
 			}
 		}
 	}
 	fmt.Println("unable to get controller ip")
+	os.Exit(1)
+	return ""
+}
+
+func (r *Rockpool) TargetIP(cn string) string {
+	for _, c := range r.Clusters {
+		if c.Name != cn {
+			continue
+		}
+
+		for _, n := range c.Nodes {
+			if n.Role == "loadbalancer" {
+				return n.IP.IP
+			}
+		}
+	}
+	fmt.Println("unable to get target ip")
 	os.Exit(1)
 	return ""
 }
