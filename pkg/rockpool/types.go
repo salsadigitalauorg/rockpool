@@ -73,7 +73,6 @@ type Config struct {
 	ClusterName           string
 	Hostname              string
 	LagoonBaseUrl         string
-	HarborPass            string
 	Arch                  string
 	RenderedTemplatesPath string
 	UpgradeComponents     []string

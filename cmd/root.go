@@ -36,8 +36,7 @@ var upCmd = &cobra.Command{
 	Use:   "up [cluster-name...]",
 	Short: "Create and/or start the clusters",
 	Long: `up is for creating or starting all the clusters, or the ones
-specified in the arguments as a comma-separated list,
-e.g, 'rockpool up controller target-1'`,
+specified in the arguments, e.g, 'rockpool up controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.Up(fullClusterNamesFromArgs(args))
 	},
@@ -47,8 +46,7 @@ var startCmd = &cobra.Command{
 	Use:   "start [cluster-name...]",
 	Short: "Start the clusters",
 	Long: `start is for starting all the clusters, or the ones
-specified in the arguments as a comma-separated list,
-e.g, 'rockpool start controller target-1'`,
+specified in the arguments, e.g, 'rockpool start controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.UpdateState()
 		r.Start(fullClusterNamesFromArgs(args))
@@ -59,8 +57,7 @@ var stopCmd = &cobra.Command{
 	Use:   "stop [cluster-name...]",
 	Short: "Stop the clusters",
 	Long: `stop is for stopping all the clusters, or the ones
-specified in the arguments as a comma-separated list,
-e.g, 'rockpool stop controller target-1'`,
+specified in the arguments, e.g, 'rockpool stop controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.UpdateState()
 		r.Stop(fullClusterNamesFromArgs(args))
@@ -71,8 +68,7 @@ var restartCmd = &cobra.Command{
 	Use:   "restart [cluster-name...]",
 	Short: "Restart the clusters",
 	Long: `restart is for stopping and starting all the clusters, or the ones
-specified in the arguments as a comma-separated list,
-e.g, 'rockpool restart controller target-1'`,
+specified in the arguments, e.g, 'rockpool restart controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.UpdateState()
 		r.Stop(fullClusterNamesFromArgs(args))
@@ -92,8 +88,7 @@ var downCmd = &cobra.Command{
 	Use:   "down [cluster-name...]",
 	Short: "Stop the clusters and delete them",
 	Long: `down is for stopping and deleting all the clusters, or the ones
-specified in the arguments as a comma-separated list,
-e.g, 'rockpool down controller target-1'`,
+specified in the arguments, e.g, 'rockpool down controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.VerifyReqs(false)
 		r.FetchClusters()
@@ -126,7 +121,6 @@ as subdomains of this url, e.g, gitlab.rockpool.k3d.local
 all Lagoon services will be created as subdomains of this url, e.g,
 ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local
 `)
-	upCmd.Flags().StringVar(&r.Config.HarborPass, "harbor-password", "pass", "The Harbor password")
 
 	defaultRenderedPath := path.Join(os.TempDir(), "rockpool", "rendered")
 	upCmd.Flags().StringVar(&r.Config.RenderedTemplatesPath, "rendered-template-path", defaultRenderedPath,

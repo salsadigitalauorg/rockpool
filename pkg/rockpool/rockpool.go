@@ -14,7 +14,6 @@ func (c *Config) ToMap() map[string]string {
 	return map[string]string{
 		"ClusterName":           c.ClusterName,
 		"LagoonBaseUrl":         c.LagoonBaseUrl,
-		"HarborPass":            c.HarborPass,
 		"Arch":                  c.Arch,
 		"RenderedTemplatesPath": c.RenderedTemplatesPath,
 	}
