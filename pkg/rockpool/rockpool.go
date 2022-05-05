@@ -116,6 +116,9 @@ func (r *Rockpool) SetupLagoonController() {
 	// r.InstallGitlab()
 	r.InstallGitea()
 
+	// Create test repo.
+	r.GiteaCreateRepo()
+
 	r.InstallHarbor()
 	r.InstallLagoonCore()
 
