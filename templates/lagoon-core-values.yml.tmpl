@@ -34,7 +34,7 @@ api:
 keycloak:
   {{- if eq .Arch "arm64" }}
   image:
-    repository: ghcr.io/yusufhm/rockpool/lagoon-keycloak-arm
+    repository: ghcr.io/yusufhm/rockpool/lagoon/keycloak
   {{- end }}
   resources:
     requests:
@@ -125,7 +125,7 @@ broker:
   replicaCount: 1
   {{- if eq .Arch "arm64" }}
   image:
-    repository: ghcr.io/yusufhm/rockpool/lagoon-broker
+    repository: ghcr.io/yusufhm/rockpool/lagoon/broker
   {{- end }}
   resources:
     requests:
@@ -175,6 +175,16 @@ webhookHandler:
       - secretName: webhookhandler-tls
         hosts:
           - webhookhandler.{{ .LagoonBaseUrl }} */}}
+
+{{- if eq .Arch "arm64" }}
+autoIdler:
+  image:
+    repository: ghcr.io/yusufhm/rockpool/lagoon/auto-idler
+
+storageCalculator:
+  image:
+    repository: ghcr.io/yusufhm/rockpool/lagoon/storage-calculator
+{{- end }}
 
 logs2webhook:
   replicaCount: 1
