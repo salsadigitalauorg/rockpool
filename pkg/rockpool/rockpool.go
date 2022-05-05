@@ -327,11 +327,11 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("[%s] %s\n", cn, r.KubeReplace(cn, "kube-system", "coredns", string(cm)))
+	fmt.Printf("[%s] %s", cn, r.KubeReplace(cn, "kube-system", "coredns", string(cm)))
 	out, err := r.KubeCtl(cn, "kube-system", "rollout", "restart", "deployment/coredns").Output()
 	if err != nil {
 		fmt.Printf("[%s] CoreDNS restart failed: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	fmt.Printf("[%s] %s\n", cn, string(out))
+	fmt.Printf("[%s] %s", cn, string(out))
 }
