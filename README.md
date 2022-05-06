@@ -42,7 +42,7 @@ rockpool up
     * Gitea - instead of Gitlab, since the latter consumes too much resources, and it was conflicting with one of the Lagoon Core components
     * Harbor
     * Lagoon core
-  * target-1 - simply has Lagoon Remote installed
+  * target-1 - contains Lagoon Remote & [nfs provisioner](https://github.com/kubernetes-sigs/nfs-ganesha-server-and-external-provisioner)
 * Sets up some development defaults:
   * Configures keycloak to use mailhog, as per the [docs](https://docs.lagoon.sh/installing-lagoon/lagoon-core/#configure-keycloak)
   * Adds dns records to the target clusters' coredns config so it can access required services from the controller cluster
