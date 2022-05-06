@@ -8,6 +8,7 @@ KEYCLOAK_VERSION=${KEYCLOAK_VERSION:-7.0.1}
 LAGOON_VERSION=${LAGOON_VERSION:-v2.5.0}
 
 function all () {
+  k3s
   keycloak
   lagoon
   nfs_provisioner
@@ -15,10 +16,7 @@ function all () {
 
 function k3s () {
   pushd ..
-  docker build \
-    --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --tag ${ROCKPOOL_IMAGES_REPO}/k3s:latest . -f Dockerfile.k3s
-  docker push ${ROCKPOOL_IMAGES_REPO}/k3s:latest
+  docker buildx bake k3s --push
   popd
 }
 
