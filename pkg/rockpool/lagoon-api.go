@@ -7,10 +7,22 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 )
+
+var lagoonUserinfo struct {
+	Me struct {
+		Id      graphql.String
+		Email   graphql.String
+		SshKeys []struct {
+			Name           string
+			KeyFingerprint string
+		}
+	}
+}
 
 func (r *Rockpool) lagoonFetchApiToken() string {
 	fmt.Println("[rockpool] fetching lagoon api token...")
@@ -64,6 +76,45 @@ func (r *Rockpool) LagoonApiGetRemotes() {
 		os.Exit(1)
 	}
 	r.State.Remotes = query.AllKubernetes
+}
+
+func (r *Rockpool) LagoonApiFetchUserInfo() {
+	err := r.GqlClient.Query(context.Background(), &lagoonUserinfo, nil)
+	if err != nil {
+		fmt.Println("[rockpool] error fetching Lagoon user info:", err)
+		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) LagoonApiAddSshKey() {
+	keyValue, keyType, keyFingerpint, cmt := r.SshGetPublicKeyFingerprint()
+	r.LagoonApiFetchUserInfo()
+	for _, k := range lagoonUserinfo.Me.SshKeys {
+		if k.KeyFingerprint == keyFingerpint {
+			return
+		}
+	}
+
+	var m struct {
+		AddSshKey struct {
+			Name           string
+			KeyFingerprint string
+		} `graphql:"addSshKey(input: {keyType: $keyType, keyValue: $keyValue, name: $name, user: {email: $userEmail, id: $userId}})"`
+	}
+
+	type SshKeyType string
+	vars := map[string]interface{}{
+		"keyType":   SshKeyType(strings.ReplaceAll(strings.ToUpper(keyType), "-", "_")),
+		"keyValue":  graphql.String(keyValue),
+		"name":      graphql.String(cmt),
+		"userEmail": graphql.String(lagoonUserinfo.Me.Email),
+		"userId":    graphql.String(lagoonUserinfo.Me.Id),
+	}
+	err := r.GqlClient.Mutate(context.Background(), &m, vars)
+	if err != nil {
+		fmt.Printf("[rockpool] error adding Lagoon ssh key %s: %#v\n", cmt, err)
+		os.Exit(1)
+	}
 }
 
 func (r *Rockpool) LagoonApiAddRemote(re Remote, token string) {

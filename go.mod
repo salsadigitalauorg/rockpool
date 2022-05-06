@@ -6,6 +6,7 @@ require (
 	github.com/briandowns/spinner v1.18.1
 	github.com/shurcooL/graphql v0.0.0-20200928012149-18c5c3165e3a
 	github.com/spf13/cobra v1.4.0
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
 )
 

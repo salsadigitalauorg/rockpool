@@ -121,6 +121,7 @@ func (r *Rockpool) SetupLagoonController() {
 
 	r.InstallHarbor()
 	r.InstallLagoonCore()
+	r.LagoonApiAddSshKey()
 
 	// Wait for Keycloak to be installed, then configure it.
 	r.ConfigureKeycloak()

@@ -77,6 +77,7 @@ type Config struct {
 	RenderedTemplatesPath string
 	UpgradeComponents     []string
 	NumTargets            int
+	LagoonSshKey          string
 }
 
 type Rockpool struct {

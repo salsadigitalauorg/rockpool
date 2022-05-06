@@ -131,6 +131,10 @@ ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local
 `)
 	upCmd.Flags().StringSliceVar(&r.Config.UpgradeComponents, "upgrade-components", []string{},
 		"A list of components to upgrade, e.g, ingress-nginx,harbor")
+	upCmd.Flags().StringVarP(&r.Config.LagoonSshKey, "ssh-key", "k", "",
+		`The ssh key to add to the lagoonadmin user. If empty, rockpool tries
+to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.
+`)
 
 	rootCmd.AddCommand(upCmd)
 	rootCmd.AddCommand(startCmd)
