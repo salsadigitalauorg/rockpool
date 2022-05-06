@@ -17,7 +17,11 @@ func RunCmdWithProgress(cmd *exec.Cmd) ([]byte, error) {
 	// Use pipes so we can output progress.
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
-	_ = cmd.Start()
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("[rockpool] failed cmd:", cmd)
+		panic(err)
+	}
 
 	var stdoutBytes []byte
 	scanner := bufio.NewScanner(io.MultiReader(stdout, stderr))

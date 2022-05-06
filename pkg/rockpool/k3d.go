@@ -89,12 +89,12 @@ func (r *Rockpool) CreateCluster(cn string) {
 	k3sArgs := []string{"--k3s-arg", "--disable=traefik@server:0"}
 	cmdArgs := []string{
 		"cluster", "create", "--kubeconfig-update-default=false",
-		"--image=rancher/k3s:v1.21.11-k3s1",
+		"--image=ghcr.io/yusufhm/rockpool/k3s:latest",
 		"--agents", "1", "--network", "k3d-rockpool",
 		"--registry-use", "k3d-rockpool-registry",
 	}
 
-	if strings.HasSuffix(cn, "-controller") {
+	if cn == r.ControllerClusterName() {
 		cmdArgs = append(cmdArgs,
 			"-p", "80:80@loadbalancer",
 			"-p", "443:443@loadbalancer",
@@ -132,6 +132,9 @@ func (r *Rockpool) StartCluster(cn string) {
 	r.FetchClusters()
 	fmt.Printf("[%s] started cluster\n", cn)
 	r.AddHarborHostEntries(cn)
+	if cn != r.ControllerClusterName() {
+		r.ConfigureTargetCoreDNS(cn)
+	}
 }
 
 func (r *Rockpool) StopCluster(cn string) {

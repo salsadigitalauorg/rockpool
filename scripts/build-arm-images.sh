@@ -13,6 +13,15 @@ function all () {
   nfs_provisioner
 }
 
+function k3s () {
+  pushd ..
+  docker build \
+    --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
+    --tag ${ROCKPOOL_IMAGES_REPO}/k3s:latest . -f Dockerfile.k3s
+  docker push ${ROCKPOOL_IMAGES_REPO}/k3s:latest
+  popd
+}
+
 # Build keycloak image.
 function keycloak () {
   [ ! -d "keycloak-containers" ] && git clone https://github.com/keycloak/keycloak-containers.git keycloak-containers

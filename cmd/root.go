@@ -48,7 +48,8 @@ var startCmd = &cobra.Command{
 	Long: `start is for starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool start controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.UpdateState()
+		r.VerifyReqs(false)
+		r.FetchClusters()
 		r.Start(fullClusterNamesFromArgs(args))
 	},
 }
@@ -59,7 +60,8 @@ var stopCmd = &cobra.Command{
 	Long: `stop is for stopping all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool stop controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.UpdateState()
+		r.VerifyReqs(false)
+		r.FetchClusters()
 		r.Stop(fullClusterNamesFromArgs(args))
 	},
 }
@@ -70,7 +72,8 @@ var restartCmd = &cobra.Command{
 	Long: `restart is for stopping and starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool restart controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.UpdateState()
+		r.VerifyReqs(false)
+		r.FetchClusters()
 		r.Stop(fullClusterNamesFromArgs(args))
 		r.Start(fullClusterNamesFromArgs(args))
 	},

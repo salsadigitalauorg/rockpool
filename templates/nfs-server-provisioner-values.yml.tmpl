@@ -1,0 +1,12 @@
+persistence:
+  enabled: true
+  storageClass: local-path
+storageClass:
+  name: bulk
+  mountOptions:
+    - vers=3
+    - nolock
+image:
+  repository: ghcr.io/yusufhm/rockpool/nfs-provisioner
+  tag: latest
+  pullPolicy: Always

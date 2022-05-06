@@ -132,9 +132,11 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 
 	r.HelmList(cn)
 	r.ConfigureTargetCoreDNS(cn)
+	r.InstallNfsProvisioner(cn)
 	r.InstallLagoonRemote(cn)
 	r.RegisterLagoonRemote(cn)
 
+	r.AddHarborHostEntries(cn)
 	r.InstallHarborCerts(cn)
 }
 
@@ -209,7 +211,7 @@ func (r *Rockpool) InstallGitea() {
 	cmd := r.Helm(cn, "", "repo", "add", "gitea-charts", "https://dl.gitea.io/charts/")
 	err := cmd.Run()
 	if err != nil {
-		fmt.Printf("[%s] unable to add harbor repo: %s\n", cn, internal.GetCmdStdErr(err))
+		fmt.Printf("[%s] unable to add gitea repo: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
@@ -225,6 +227,30 @@ func (r *Rockpool) InstallGitea() {
 	)
 	if err != nil {
 		fmt.Printf("[%s] unable to install gitea: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) InstallNfsProvisioner(cn string) {
+	cmd := r.Helm(cn, "", "repo", "add", "nfs-provisioner", "https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/")
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("[%s] unable to add nfs-provisioner repo: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+
+	values, err := internal.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.Config.RenderedTemplatesPath, r.Config, "")
+	if err != nil {
+		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
+		os.Exit(1)
+	}
+	fmt.Printf("[%s] using generated nfs-provisioner values at %s\n", cn, values)
+
+	_, err = r.HelmInstallOrUpgrade(cn, "nfs-provisioner", "nfs", "nfs-provisioner/nfs-server-provisioner",
+		[]string{"--create-namespace", "--wait", "-f", values},
+	)
+	if err != nil {
+		fmt.Printf("[%s] unable to install nfs-provisioner: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
