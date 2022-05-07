@@ -41,7 +41,6 @@ func (r *Rockpool) Up(clusters []string) {
 	if setupController {
 		r.SetupLagoonController()
 	}
-	r.State.KeycloakUrl = fmt.Sprintf("http://keycloak.%s/auth", r.Config.LagoonBaseUrl)
 
 	r.GetLagoonApiClient()
 	r.LagoonApiGetRemotes()
@@ -121,10 +120,11 @@ func (r *Rockpool) SetupLagoonController() {
 
 	r.InstallHarbor()
 	r.InstallLagoonCore()
-	r.LagoonApiAddSshKey()
 
 	// Wait for Keycloak to be installed, then configure it.
 	r.ConfigureKeycloak()
+	r.GetLagoonApiClient()
+	r.LagoonApiAddSshKey()
 }
 
 func (r *Rockpool) SetupLagoonTarget(cn string) {

@@ -75,7 +75,6 @@ func (r *Rockpool) FetchClusters() {
 func (r *Rockpool) UpdateState() {
 	r.VerifyReqs(false)
 	r.FetchClusters()
-	r.State.KeycloakUrl = fmt.Sprintf("http://keycloak.%s/auth", r.Config.LagoonBaseUrl)
 	r.GetLagoonApiClient()
 	r.LagoonApiGetRemotes()
 }
@@ -124,4 +123,8 @@ func (r *Rockpool) ControllerClusterName() string {
 
 func (r *Rockpool) TargetClusterName(targetId int) string {
 	return r.Config.ClusterName + "-target-" + fmt.Sprint(targetId)
+}
+
+func (r *Rockpool) KeycloakUrl() string {
+	return fmt.Sprintf("http://keycloak.%s/auth", r.Config.LagoonBaseUrl)
 }

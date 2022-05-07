@@ -38,7 +38,7 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 		"username":   {"lagoonadmin"},
 		"password":   {password},
 	}
-	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", r.State.KeycloakUrl, "lagoon")
+	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", r.KeycloakUrl(), "lagoon")
 	resp, err := http.PostForm(url, data)
 	if err != nil {
 		fmt.Println("[rockpool] error fetching Lagoon API token:", err)
@@ -46,11 +46,17 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 	}
 
 	var res struct {
-		Token string `json:"access_token"`
+		Token            string `json:"access_token"`
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		fmt.Println("[rockpool] error parsing Lagoon API token:", err)
+		os.Exit(1)
+	}
+	if res.Error != "" {
+		fmt.Printf("[rockpool] error fetching Lagoon API token: %s - %s\n", res.Error, res.ErrorDescription)
 		os.Exit(1)
 	}
 	return res.Token

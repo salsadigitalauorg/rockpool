@@ -1,6 +1,5 @@
 elasticsearchURL: https://none.com
 harborURL: "https://harbor.{{ .LagoonBaseUrl }}"
-harborAdminPassword: pass
 kibanaURL: https://none.com
 logsDBAdminPassword: none
 s3FilesAccessKeyID: none
@@ -16,6 +15,12 @@ registry: "harbor.{{ .LagoonBaseUrl }}"
 keycloakAPIURL: http://keycloak.{{ .LagoonBaseUrl }}/auth
 lagoonAPIURL: http://api.{{ .LagoonBaseUrl }}/graphql
 lagoonUIURL: http://ui.{{ .LagoonBaseUrl }}
+
+harborAdminPassword: pass
+keycloakAdminPassword: pass
+keycloakLagoonAdminPassword: pass
+rabbitMQPassword: pass
+
 api:
   replicaCount: 1
   ingress:
