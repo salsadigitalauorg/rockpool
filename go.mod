@@ -8,6 +8,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 )
 
 require (

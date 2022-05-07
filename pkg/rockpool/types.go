@@ -6,6 +6,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/shurcooL/graphql"
+	"golang.org/x/sync/syncmap"
 )
 
 type Registry struct {
@@ -57,14 +58,17 @@ type Remote struct {
 }
 
 type State struct {
-	Spinner     spinner.Spinner
-	Clusters    ClusterList
-	Registry    Registry
-	BinaryPaths map[string]string
+	Spinner  spinner.Spinner
+	Clusters ClusterList
+	Registry Registry
+	// Use syncmap.Map instead of a regular map for the following so there's no
+	// race conditions during concurrent runs, which was happening before.
+	// See https://stackoverflow.com/a/45585833/351590.
+	BinaryPaths syncmap.Map
 	// List of Helm releases per cluster.
-	HelmReleases map[string][]HelmRelease
+	HelmReleases syncmap.Map
 	// Kubeconfig per cluster.
-	Kubeconfig map[string]string
+	Kubeconfig syncmap.Map
 	Remotes    []Remote
 }
 

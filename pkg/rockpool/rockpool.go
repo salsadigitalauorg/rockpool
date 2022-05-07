@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -89,6 +90,9 @@ func (r *Rockpool) Down(clusters []string) {
 		clusters = r.allClusters()
 	}
 	for _, c := range clusters {
+		if c != r.ControllerClusterName() {
+			r.LagoonCliDeleteConfig()
+		}
 		r.WgAdd(1)
 		go r.DeleteCluster(c)
 	}
@@ -125,6 +129,7 @@ func (r *Rockpool) SetupLagoonController() {
 	r.ConfigureKeycloak()
 	r.GetLagoonApiClient()
 	r.LagoonApiAddSshKey()
+	r.LagoonCliAddConfig()
 }
 
 func (r *Rockpool) SetupLagoonTarget(cn string) {
@@ -363,4 +368,46 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		os.Exit(1)
 	}
 	fmt.Printf("[%s] %s", cn, string(out))
+}
+
+func (r *Rockpool) LagoonCliAddConfig() {
+	graphql := fmt.Sprintf("http://api.%s/graphql", r.LagoonBaseUrl)
+	ssh := fmt.Sprintf("ssh.%s", r.LagoonBaseUrl)
+	ui := fmt.Sprintf("http://ui.%s", r.LagoonBaseUrl)
+
+	// Get list of existing configs.
+	cmd := exec.Command("lagoon", "config", "list", "--output-json")
+	out, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+	var configs struct {
+		Data []struct {
+			GraphQl     string `json:"graphql"`
+			Ui          string `json:"ui-url"`
+			SshHostname string `json:"ssh-hostname"`
+		}
+	}
+	err = json.Unmarshal(out, &configs)
+	if err != nil {
+		panic(err)
+	}
+
+	// Add the config.
+	fmt.Println("[rockpool] adding lagoon config")
+	cmd = exec.Command("lagoon", "config", "add", "--lagoon", r.ClusterName,
+		"--graphql", graphql, "--ui", ui, "--hostname", ssh, "--port", "2022")
+	_, err = cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (r *Rockpool) LagoonCliDeleteConfig() {
+	// Get list of existing configs.
+	cmd := exec.Command("lagoon", "config", "delete", "--lagoon", "rockpool", "--force")
+	_, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
 }

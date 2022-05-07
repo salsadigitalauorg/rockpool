@@ -105,7 +105,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 
 	cmdArgs = append(cmdArgs, k3sArgs...)
 	cmdArgs = append(cmdArgs, cn)
-	cmd := exec.Command(r.State.BinaryPaths["k3d"], cmdArgs...)
+	cmd := exec.Command(r.GetBinaryPath("k3d"), cmdArgs...)
 
 	fmt.Printf("[%s] creating cluster: %s\n", cn, cmd)
 
@@ -124,7 +124,7 @@ func (r *Rockpool) StartCluster(cn string) {
 	}
 	fmt.Printf("[%s] starting cluster\n", cn)
 	// _, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn).Output()
-	_, err := internal.RunCmdWithProgress(exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn))
+	_, err := internal.RunCmdWithProgress(exec.Command(r.GetBinaryPath("k3d"), "cluster", "start", cn))
 	if err != nil {
 		fmt.Printf("[%s] unable to start cluster: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -143,7 +143,7 @@ func (r *Rockpool) StopCluster(cn string) {
 		return
 	}
 	fmt.Printf("[%s] stopping cluster\n", cn)
-	_, err := internal.RunCmdWithProgress(exec.Command(r.State.BinaryPaths["k3d"], "cluster", "stop", cn))
+	_, err := internal.RunCmdWithProgress(exec.Command(r.GetBinaryPath("k3d"), "cluster", "stop", cn))
 	if err != nil {
 		fmt.Printf("[%s] unable to stop cluster: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -164,7 +164,7 @@ func (r *Rockpool) DeleteCluster(cn string) {
 	}
 	r.StopCluster(cn)
 	fmt.Printf("[%s] deleting cluster\n", cn)
-	_, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "delete", cn).Output()
+	_, err := exec.Command(r.GetBinaryPath("k3d"), "cluster", "delete", cn).Output()
 	if err != nil {
 		fmt.Printf("[%s] unable to delete cluster: %s\n", cn, err)
 		os.Exit(1)
@@ -174,12 +174,12 @@ func (r *Rockpool) DeleteCluster(cn string) {
 }
 
 func (r *Rockpool) GetClusterKubeConfigPath(cn string) {
-	out, err := exec.Command(r.State.BinaryPaths["k3d"], "kubeconfig", "write", cn).CombinedOutput()
+	out, err := exec.Command(r.GetBinaryPath("k3d"), "kubeconfig", "write", cn).CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
 		fmt.Printf("[%s] unable to get kubeconfig: %s\n", cn, err)
 	}
-	r.State.Kubeconfig[cn] = strings.Trim(string(out), "\n")
+	r.State.Kubeconfig.Store(cn, strings.Trim(string(out), "\n"))
 }
 
 func (r *Rockpool) ClusterVersion(cn string) {

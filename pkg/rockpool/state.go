@@ -11,14 +11,14 @@ import (
 func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
 	missing := []string{}
-	r.State.BinaryPaths = map[string]string{}
+	r.State.BinaryPaths = sync.Map{}
 	for _, b := range binaries {
 		path, err := exec.LookPath(b)
 		if err != nil {
 			missing = append(missing, fmt.Sprintf("[rockpool] could not find %s; please ensure it is installed and can be found in the $PATH", b))
 			continue
 		}
-		r.State.BinaryPaths[b] = path
+		r.State.BinaryPaths.Store(b, path)
 	}
 	if failOnMissing {
 		for _, m := range missing {
@@ -36,6 +36,34 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.Config.RenderedTemplatesPath, err)
 		os.Exit(1)
 	}
+}
+
+func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
+	valueIfc, ok := m.Load(key)
+	if !ok {
+		panic(fmt.Sprint("value not found for ", key))
+	}
+	val, ok := valueIfc.(string)
+	if !ok {
+		panic(fmt.Sprint("unable to convert interface{} value to string for ", valueIfc))
+	}
+	return val
+}
+
+func (r *Rockpool) GetHelmReleases(key string) []HelmRelease {
+	valueIfc, ok := r.HelmReleases.Load(key)
+	if !ok {
+		panic(fmt.Sprint("releases not found for ", key))
+	}
+	val, ok := valueIfc.([]HelmRelease)
+	if !ok {
+		panic(fmt.Sprint("unable to convert binpath to string for ", valueIfc))
+	}
+	return val
+}
+
+func (r *Rockpool) GetBinaryPath(bin string) string {
+	return r.MapStringGet(&r.State.BinaryPaths, bin)
 }
 
 func (r *Rockpool) WgAdd(delta int) {

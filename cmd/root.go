@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -17,9 +18,9 @@ var r = rockpool.Rockpool{
 	State: rockpool.State{
 		Spinner:      *spinner.New(spinner.CharSets[14], 100*time.Millisecond),
 		Clusters:     rockpool.ClusterList{},
-		BinaryPaths:  map[string]string{},
-		HelmReleases: map[string][]rockpool.HelmRelease{},
-		Kubeconfig:   map[string]string{},
+		BinaryPaths:  sync.Map{},
+		HelmReleases: sync.Map{},
+		Kubeconfig:   sync.Map{},
 	},
 	Config: rockpool.Config{},
 }

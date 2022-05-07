@@ -10,7 +10,7 @@ import (
 )
 
 func (r *Rockpool) Helm(cn string, ns string, args ...string) *exec.Cmd {
-	cmd := exec.Command("helm", "--kubeconfig", r.State.Kubeconfig[cn])
+	cmd := exec.Command("helm", "--kubeconfig", r.MapStringGet(&r.State.Kubeconfig, cn))
 	if ns != "" {
 		cmd.Args = append(cmd.Args, "--namespace", ns)
 	}
@@ -32,7 +32,7 @@ func (r *Rockpool) HelmList(cn string) {
 		fmt.Printf("[%s] unable to parse helm releases: %s\n", cn, err)
 		os.Exit(1)
 	}
-	r.State.HelmReleases[cn] = releases
+	r.State.HelmReleases.Store(cn, releases)
 }
 
 func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) ([]byte, error) {
@@ -44,7 +44,7 @@ func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string
 		}
 	}
 	if !upgrade {
-		for _, r := range r.State.HelmReleases[cn] {
+		for _, r := range r.GetHelmReleases(cn) {
 			if r.Name == releaseName {
 				fmt.Printf("[%s] helm release %s is already installed\n", cn, releaseName)
 				return nil, nil
