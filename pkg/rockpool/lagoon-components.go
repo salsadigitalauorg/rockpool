@@ -162,7 +162,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 
 		hostsContent, _ := r.DockerExec(n.Name, "cat /etc/hosts")
 		if !strings.Contains(string(hostsContent), entry) {
-			fmt.Printf("[%s] adding harbor host entries...\n", n.Name)
+			fmt.Printf("[%s] adding harbor host entries\n", n.Name)
 			_, err := r.DockerExec(n.Name, entryCmdStr)
 			if err != nil {
 				fmt.Printf("[%s] error adding harbor host entry: %s\n", cn, internal.GetCmdStdErr(err))

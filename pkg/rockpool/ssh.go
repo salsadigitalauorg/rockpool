@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -30,10 +31,9 @@ func (r *Rockpool) SshGetPublicKey() []byte {
 
 func (r *Rockpool) SshGetPublicKeyFingerprint() (string, string, string, string) {
 	key := r.SshGetPublicKey()
-
 	pk, comment, _, _, err := ssh.ParseAuthorizedKey(key)
 	if err != nil {
 		panic(err)
 	}
-	return string(key), pk.Type(), ssh.FingerprintSHA256(pk), comment
+	return strings.Split(string(key), " ")[1], pk.Type(), ssh.FingerprintSHA256(pk), comment
 }

@@ -25,7 +25,7 @@ var lagoonUserinfo struct {
 }
 
 func (r *Rockpool) lagoonFetchApiToken() string {
-	fmt.Println("[rockpool] fetching lagoon api token...")
+	fmt.Println("[rockpool] fetching lagoon api token")
 	_, password := r.KubeGetSecret(r.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-keycloak",
@@ -97,6 +97,7 @@ func (r *Rockpool) LagoonApiAddSshKey() {
 	r.LagoonApiFetchUserInfo()
 	for _, k := range lagoonUserinfo.Me.SshKeys {
 		if k.KeyFingerprint == keyFingerpint {
+			fmt.Println("[rockpool] lagoon ssh key had already been added")
 			return
 		}
 	}
@@ -116,6 +117,7 @@ func (r *Rockpool) LagoonApiAddSshKey() {
 		"userEmail": graphql.String(lagoonUserinfo.Me.Email),
 		"userId":    graphql.String(lagoonUserinfo.Me.Id),
 	}
+	fmt.Println("[rockpool] adding lagoon ssh key")
 	err := r.GqlClient.Mutate(context.Background(), &m, vars)
 	if err != nil {
 		fmt.Printf("[rockpool] error adding Lagoon ssh key %s: %#v\n", cmt, err)
