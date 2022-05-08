@@ -46,6 +46,7 @@ func (r *Rockpool) Up(clusters []string) {
 	r.GetLagoonApiClient()
 	r.LagoonApiGetRemotes()
 	if len(setupTargets) > 0 {
+		r.FetchHarborCerts()
 		for _, c := range setupTargets {
 			r.WgAdd(1)
 			go r.SetupLagoonTarget(c)
@@ -108,8 +109,6 @@ func (r *Rockpool) CreateClusters(clusters []string) {
 }
 
 func (r *Rockpool) SetupLagoonController() {
-	r.GetClusterKubeConfigPath(r.ControllerClusterName())
-
 	r.InstallMailHog()
 
 	r.HelmList(r.ControllerClusterName())
@@ -134,7 +133,6 @@ func (r *Rockpool) SetupLagoonController() {
 
 func (r *Rockpool) SetupLagoonTarget(cn string) {
 	defer r.WgDone()
-	r.GetClusterKubeConfigPath(cn)
 
 	r.HelmList(cn)
 	r.ConfigureTargetCoreDNS(cn)

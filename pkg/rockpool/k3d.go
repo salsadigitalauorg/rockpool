@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/yusufhm/rockpool/internal"
 )
@@ -115,6 +114,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 		os.Exit(1)
 	}
 	fmt.Printf("[%s] created cluster\n", cn)
+	r.WriteKubeConfig(r.ControllerClusterName())
 }
 
 func (r *Rockpool) StartCluster(cn string) {
@@ -173,13 +173,12 @@ func (r *Rockpool) DeleteCluster(cn string) {
 	fmt.Printf("[%s] deleted cluster\n", cn)
 }
 
-func (r *Rockpool) GetClusterKubeConfigPath(cn string) {
-	out, err := exec.Command(r.GetBinaryPath("k3d"), "kubeconfig", "write", cn).CombinedOutput()
+func (r *Rockpool) WriteKubeConfig(cn string) {
+	fmt.Printf("[%s] writing kubeconfig\n", cn)
+	_, err := exec.Command(r.GetBinaryPath("k3d"), "kubeconfig", "write", cn).CombinedOutput()
 	if err != nil {
-		fmt.Println(string(out))
-		fmt.Printf("[%s] unable to get kubeconfig: %s\n", cn, err)
+		panic(fmt.Sprintln("unable to write kubeconfig:", err))
 	}
-	r.State.Kubeconfig.Store(cn, strings.Trim(string(out), "\n"))
 }
 
 func (r *Rockpool) ClusterVersion(cn string) {

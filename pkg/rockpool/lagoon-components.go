@@ -54,7 +54,7 @@ func (r *Rockpool) InstallHarbor() {
 	}
 }
 
-func (r *Rockpool) FetchHarborCerts() (string, string) {
+func (r *Rockpool) FetchHarborCerts() {
 	cn := r.ControllerClusterName()
 	certBytes, _ := r.KubeGetSecret(cn, "harbor", "harbor-harbor-ingress", "")
 	certData := struct {
@@ -82,7 +82,8 @@ func (r *Rockpool) FetchHarborCerts() (string, string) {
 	}
 	fmt.Printf("[%s] generated harbor ca.crt at %s\n", cn, caCrtFile)
 
-	return secretManifest, caCrtFile
+	r.State.HarborSecretManifest = secretManifest
+	r.State.HarborCaCrtFile = caCrtFile
 }
 
 func (r *Rockpool) InstallHarborCerts(cn string) {
@@ -96,8 +97,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 		return
 	}
 
-	secretManifest, caCrtFile := r.FetchHarborCerts()
-	if _, err := r.KubeApply(cn, "lagoon", secretManifest, true); err != nil {
+	if _, err := r.KubeApply(cn, "lagoon", r.State.HarborSecretManifest, true); err != nil {
 		fmt.Printf("[%s] error creating ca.crt: %s\n", cn, err)
 		os.Exit(1)
 	}
@@ -116,7 +116,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 
 		// Add harbor's ca.crt to the target.
 		destCaCrt := fmt.Sprintf("%s:/etc/ssl/certs/harbor-cert.crt", n.Name)
-		_, err := r.DockerCp(caCrtFile, destCaCrt)
+		_, err := r.DockerCp(r.State.HarborCaCrtFile, destCaCrt)
 		if err != nil {
 			fmt.Printf("[%s] error copying ca.crt: %s\n", cn, internal.GetCmdStdErr(err))
 			os.Exit(1)

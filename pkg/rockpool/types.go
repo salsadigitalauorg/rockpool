@@ -66,10 +66,10 @@ type State struct {
 	// See https://stackoverflow.com/a/45585833/351590.
 	BinaryPaths syncmap.Map
 	// List of Helm releases per cluster.
-	HelmReleases syncmap.Map
-	// Kubeconfig per cluster.
-	Kubeconfig syncmap.Map
-	Remotes    []Remote
+	HelmReleases         syncmap.Map
+	Remotes              []Remote
+	HarborSecretManifest string
+	HarborCaCrtFile      string
 }
 
 type Config struct {

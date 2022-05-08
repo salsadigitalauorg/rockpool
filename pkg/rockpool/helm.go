@@ -10,7 +10,7 @@ import (
 )
 
 func (r *Rockpool) Helm(cn string, ns string, args ...string) *exec.Cmd {
-	cmd := exec.Command("helm", "--kubeconfig", r.MapStringGet(&r.State.Kubeconfig, cn))
+	cmd := exec.Command("helm", "--kubeconfig", r.Kubeconfig(cn))
 	if ns != "" {
 		cmd.Args = append(cmd.Args, "--namespace", ns)
 	}

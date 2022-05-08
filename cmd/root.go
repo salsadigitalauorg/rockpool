@@ -20,7 +20,6 @@ var r = rockpool.Rockpool{
 		Clusters:     rockpool.ClusterList{},
 		BinaryPaths:  sync.Map{},
 		HelmReleases: sync.Map{},
-		Kubeconfig:   sync.Map{},
 	},
 	Config: rockpool.Config{},
 }

@@ -38,6 +38,14 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 	}
 }
 
+func (r *Rockpool) Kubeconfig(cn string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(fmt.Sprintln("unable to get user home directory:", err))
+	}
+	return fmt.Sprintf("%s/.k3d/kubeconfig-%s.yaml", home, cn)
+}
+
 func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
 	valueIfc, ok := m.Load(key)
 	if !ok {
