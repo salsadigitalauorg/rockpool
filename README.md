@@ -35,7 +35,7 @@ rockpool up
 ```
 
 ### Create a Lagoon project
-The `rockpool up` command creates a test project in gitea at `http://gitea.rockpool.k3d.local/rockpool/test.git` and a config for the Lagoon CLI. The test project can therefore be added to Lagoon using the following:
+The `rockpool up` command creates a test repository in gitea at `http://gitea.rockpool.k3d.local/rockpool/test.git` and a config for the Lagoon CLI. The test project can therefore be added to Lagoon using the following:
 
 ```sh
 lagoon --lagoon rockpool add project \
@@ -44,6 +44,14 @@ lagoon --lagoon rockpool add project \
   --productionEnvironment main \
   --branches "^(main|develop)$" \
   --project rockpool-test
+```
+
+Push some code to the test repository:
+```sh
+git clone https://github.com/lagoon-examples/drupal9-base.git rockpool-test && cd $_
+git remote remove origin
+git remote add origin http://gitea.rockpool.k3d.local/rockpool/test.git
+git push -u origin main
 ```
 
 Deploy the `main` environment:
