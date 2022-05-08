@@ -38,6 +38,8 @@ var upCmd = &cobra.Command{
 	Long: `up is for creating or starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool up controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
+		r.VerifyReqs(true)
+		r.FetchClusters()
 		r.Up(fullClusterNamesFromArgs(args))
 	},
 }
@@ -113,8 +115,8 @@ func init() {
 	r.Config.Arch = runtime.GOARCH
 
 	rootCmd.PersistentFlags().StringVarP(&r.Config.ClusterName, "cluster-name", "n", "rockpool", "The name of the cluster")
-	rootCmd.PersistentFlags().IntVarP(&r.Config.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
 
+	upCmd.Flags().IntVarP(&r.Config.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
 	upCmd.Flags().StringVarP(&r.Config.Hostname, "url", "u", "rockpool.k3d.local",
 		`The base url of rockpool; ancillary services will be created
 as subdomains of this url, e.g, gitlab.rockpool.k3d.local

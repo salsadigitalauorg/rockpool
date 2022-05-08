@@ -22,10 +22,15 @@ func (c *Config) ToMap() map[string]string {
 
 func (r *Rockpool) Up(clusters []string) {
 	if len(clusters) == 0 {
-		clusters = r.allClusters()
+		if len(r.State.Clusters) > 0 {
+			clusters = r.allClusters()
+		} else {
+			clusters = append(clusters, r.ControllerClusterName())
+			for i := 1; i <= r.Config.NumTargets; i++ {
+				clusters = append(clusters, r.TargetClusterName(i))
+			}
+		}
 	}
-	r.VerifyReqs(true)
-	r.FetchClusters()
 	r.CreateRegistry()
 	r.CreateClusters(clusters)
 
@@ -56,9 +61,9 @@ func (r *Rockpool) Up(clusters []string) {
 }
 
 func (r *Rockpool) allClusters() []string {
-	cls := []string{r.ControllerClusterName()}
-	for i := 1; i <= r.Config.NumTargets; i++ {
-		cls = append(cls, r.TargetClusterName(i))
+	cls := []string{}
+	for _, c := range r.State.Clusters {
+		cls = append(cls, c.Name)
 	}
 	return cls
 }
