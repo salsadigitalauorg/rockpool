@@ -28,12 +28,42 @@ mv rockpool /usr/local/bin/rockpool
 
 ## Usage
 
+### Set up the platform
+
 ```sh
 rockpool up
 ```
 
-### What it does
+### Create a Lagoon project
+The `rockpool up` command creates a test project in gitea at `http://gitea.rockpool.k3d.local/rockpool/test.git` and a config for the Lagoon CLI. The test project can therefore be added to Lagoon using the following:
 
+```sh
+lagoon --lagoon rockpool add project \
+  --gitUrl http://gitea.rockpool.k3d.local/rockpool/test.git \
+  --openshift 1 \
+  --productionEnvironment main \
+  --branches "^(main|develop)$" \
+  --project rockpool-test
+```
+
+Deploy the `main` environment:
+
+```sh
+lagoon --lagoon rockpool deploy branch \
+  --project rockpool-test \
+  --branch main
+```
+
+You can follow the progress of the deployment using the following:
+```sh
+kubectl --kubeconfig ~/.k3d/kubeconfig-rockpool-target-1.yaml \
+  -n rockpool-test-main \
+  logs -f -l lagoon.sh/jobType=build
+```
+
+## How it works
+
+The `rockpool up` command:
 * Creates two clusters:
   * controller - contains most of the components of the platform:
     * mailhog
@@ -50,7 +80,7 @@ rockpool up
   * Creates a self-signed certificate for Harbor on the controller and installs it on the target clusters
 
 
-### Further usage
+## Further usage
 
 A number of flags can be used when creating the pool, as can be seen in the help:
 ```
