@@ -121,7 +121,6 @@ func (r *Rockpool) Status() {
 			fmt.Println("    ", r.Kubeconfig(c.Name))
 		}
 	}
-	fmt.Println()
 
 	fmt.Println("Gitea:")
 	fmt.Printf("  http://gitea.%s\n", r.Hostname)

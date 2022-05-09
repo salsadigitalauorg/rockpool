@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"os"
+	"time"
 )
 
 func (r *Rockpool) GiteaApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
@@ -54,19 +56,37 @@ func (r *Rockpool) GiteaTokenApiCall(method string, data []byte, delete bool) (*
 }
 
 func (r *Rockpool) GiteaHasToken() (string, error) {
-	resp, err := r.GiteaTokenApiCall("GET", nil, false)
-	if err != nil {
-		return "", err
-	}
-
-	var res []struct {
+	var tokens []struct {
 		Id   json.Number `json:"id"`
 		Name string      `json:"name"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return "", err
+
+	// Retry the token API call for 1 minute to allow for resource creation to
+	// finish.
+	done := false
+	retries := 12
+	var err error
+	for !done && retries > 0 {
+		resp, err := r.GiteaTokenApiCall("GET", nil, false)
+		if err != nil {
+			return "", fmt.Errorf("error calling gitea token endpoint: %s", err)
+		}
+		dump, _ := httputil.DumpResponse(resp, true)
+
+		if err = json.NewDecoder(resp.Body).Decode(&tokens); err != nil {
+			if err.Error() == "invalid character '<' looking for beginning of value" {
+				time.Sleep(5 * time.Second)
+				retries--
+				continue
+			}
+			return "", fmt.Errorf("error decoding gitea token: %s. response: %s", err, string(dump))
+		}
+		done = true
 	}
-	for _, t := range res {
+	if !done {
+		return "", fmt.Errorf("error decoding gitea token: %s", err)
+	}
+	for _, t := range tokens {
 		if t.Name == "test" {
 			return t.Id.String(), nil
 		}
@@ -76,7 +96,7 @@ func (r *Rockpool) GiteaHasToken() (string, error) {
 
 func (r *Rockpool) GiteaCreateToken() (string, error) {
 	if id, err := r.GiteaHasToken(); err != nil {
-		return "", err
+		return "", fmt.Errorf("error checking gitea token: %s", err)
 	} else if id != "" {
 		_, err := r.GiteaTokenApiCall("DELETE", []byte(id), true)
 		if err != nil {
@@ -127,12 +147,12 @@ func (r *Rockpool) GiteaHasTestRepo(token string) (bool, error) {
 func (r *Rockpool) GiteaCreateRepo() {
 	token, err := r.GiteaCreateToken()
 	if err != nil {
-		fmt.Println("[rockpool] error when fetching gitea token:", err)
+		fmt.Println("[rockpool] error creating gitea token:", err)
 		os.Exit(1)
 	}
 
 	if has, err := r.GiteaHasTestRepo(token); err != nil {
-		fmt.Println("[rockpool] error when looking up gitea test repo:", err)
+		fmt.Println("[rockpool] error looking up gitea test repo:", err)
 		os.Exit(1)
 	} else if has {
 		fmt.Println("[rockpool] gitea test repo already exists")

@@ -59,8 +59,15 @@ func (r *Rockpool) Up(clusters []string) {
 			go r.SetupLagoonTarget(c)
 		}
 		r.WgWait()
-	}
 
+		// Do the following serially so as not to run into
+		// race conditions while doing the restarts.
+		for _, c := range setupTargets {
+			r.AddHarborHostEntries(c)
+			r.InstallHarborCerts(c)
+		}
+	}
+	fmt.Println()
 	r.Status()
 }
 
@@ -153,9 +160,6 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 	r.InstallNfsProvisioner(cn)
 	r.InstallLagoonRemote(cn)
 	r.RegisterLagoonRemote(cn)
-
-	r.AddHarborHostEntries(cn)
-	r.InstallHarborCerts(cn)
 }
 
 func (r *Rockpool) InstallMailHog() {
