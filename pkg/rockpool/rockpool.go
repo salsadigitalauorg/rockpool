@@ -15,10 +15,9 @@ import (
 
 func (c *Config) ToMap() map[string]string {
 	return map[string]string{
-		"ClusterName":           c.ClusterName,
-		"LagoonBaseUrl":         c.LagoonBaseUrl,
-		"Arch":                  c.Arch,
-		"RenderedTemplatesPath": c.RenderedTemplatesPath,
+		"ClusterName":   c.ClusterName,
+		"LagoonBaseUrl": c.LagoonBaseUrl,
+		"Arch":          c.Arch,
 	}
 }
 
@@ -237,7 +236,7 @@ func (r *Rockpool) InstallGitea() {
 		os.Exit(1)
 	}
 
-	values, err := internal.RenderTemplate("gitea-values.yml.tmpl", r.Config.RenderedTemplatesPath, r.Config, "")
+	values, err := internal.RenderTemplate("gitea-values.yml.tmpl", r.RenderedTemplatesPath(), r.Config, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
 		os.Exit(1)
@@ -261,7 +260,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 		os.Exit(1)
 	}
 
-	values, err := internal.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.Config.RenderedTemplatesPath, r.Config, "")
+	values, err := internal.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.RenderedTemplatesPath(), r.Config, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
 		os.Exit(1)
@@ -434,7 +433,6 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 
 func (r *Rockpool) LagoonCliAddConfig() {
 	graphql := fmt.Sprintf("http://api.%s/graphql", r.LagoonBaseUrl)
-	ssh := fmt.Sprintf("ssh.%s", r.LagoonBaseUrl)
 	ui := fmt.Sprintf("http://ui.%s", r.LagoonBaseUrl)
 
 	// Get list of existing configs.
@@ -458,7 +456,7 @@ func (r *Rockpool) LagoonCliAddConfig() {
 	// Add the config.
 	fmt.Println("[rockpool] adding lagoon config")
 	cmd = exec.Command("lagoon", "config", "add", "--lagoon", r.ClusterName,
-		"--graphql", graphql, "--ui", ui, "--hostname", ssh, "--port", "2022")
+		"--graphql", graphql, "--ui", ui, "--hostname", "127.0.0.1", "--port", "2022")
 	_, err = cmd.Output()
 	if err != nil {
 		panic(err)

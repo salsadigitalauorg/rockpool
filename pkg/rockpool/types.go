@@ -73,14 +73,14 @@ type State struct {
 }
 
 type Config struct {
-	ClusterName           string
-	Hostname              string
-	LagoonBaseUrl         string
-	Arch                  string
-	RenderedTemplatesPath string
-	UpgradeComponents     []string
-	NumTargets            int
-	LagoonSshKey          string
+	ConfigDir         string
+	ClusterName       string
+	Hostname          string
+	LagoonBaseUrl     string
+	Arch              string
+	UpgradeComponents []string
+	NumTargets        int
+	LagoonSshKey      string
 }
 
 type Rockpool struct {

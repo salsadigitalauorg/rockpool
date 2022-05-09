@@ -98,6 +98,8 @@ func (r *Rockpool) CreateCluster(cn string) {
 			"-p", "80:80@loadbalancer",
 			"-p", "443:443@loadbalancer",
 			"-p", "2022:22@loadbalancer",
+			// Required for cross-cluster amqp.
+			"-p", "5672:5672@loadbalancer",
 			"-p", "6153:6153/udp@loadbalancer",
 			"-p", "6153:6153/tcp@loadbalancer",
 		)

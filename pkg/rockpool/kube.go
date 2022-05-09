@@ -46,7 +46,7 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byt
 }
 
 func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) ([]byte, error) {
-	f, err := internal.RenderTemplate(fn, r.Config.RenderedTemplatesPath, r.Config, "")
+	f, err := internal.RenderTemplate(fn, r.RenderedTemplatesPath(), r.Config, "")
 	if err != nil {
 		return nil, err
 	}

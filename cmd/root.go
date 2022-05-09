@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -13,7 +13,6 @@ import (
 	"github.com/yusufhm/rockpool/pkg/rockpool"
 )
 
-// var configDir string
 var r = rockpool.Rockpool{
 	State: rockpool.State{
 		Spinner:      *spinner.New(spinner.CharSets[14], 100*time.Millisecond),
@@ -110,7 +109,7 @@ func fullClusterNamesFromArgs(argClusters []string) []string {
 }
 
 func init() {
-	// determineConfigDir()
+	determineConfigDir()
 	r.Spinner.Color("red", "bold")
 	r.Config.Arch = runtime.GOARCH
 
@@ -125,11 +124,6 @@ as subdomains of this url, e.g, gitlab.rockpool.k3d.local
 		`The base Lagoon url of the cluster;
 all Lagoon services will be created as subdomains of this url, e.g,
 ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local
-`)
-
-	defaultRenderedPath := path.Join(os.TempDir(), "rockpool", "rendered")
-	upCmd.Flags().StringVar(&r.Config.RenderedTemplatesPath, "rendered-template-path", defaultRenderedPath,
-		`The directory where rendered template files are placed
 `)
 	upCmd.Flags().StringSliceVar(&r.Config.UpgradeComponents, "upgrade-components", []string{},
 		"A list of components to upgrade, e.g, ingress-nginx,harbor")
@@ -146,15 +140,14 @@ to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.
 	rootCmd.AddCommand(statusCmd)
 }
 
-// func determineConfigDir() {
-// 	var err error
-// 	userConfigDir, err := os.UserConfigDir()
-// 	if err != nil {
-// 		fmt.Fprintln(os.Stderr, "unable to get user config dir: ", err)
-// 		os.Exit(1)
-// 	}
-// 	configDir = filepath.Join(userConfigDir, "rockpool")
-// }
+func determineConfigDir() {
+	var err error
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	r.Config.ConfigDir = filepath.Join(userHomeDir, ".rockpool")
+}
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {

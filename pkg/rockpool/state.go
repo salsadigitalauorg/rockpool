@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"sync"
 )
@@ -30,10 +31,10 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 		os.Exit(1)
 	}
 
-	// Create temporary directory for rendered templates.
-	err := os.MkdirAll(r.Config.RenderedTemplatesPath, os.ModePerm)
+	// Create directory for rendered templates.
+	err := os.MkdirAll(r.RenderedTemplatesPath(), os.ModePerm)
 	if err != nil {
-		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.Config.RenderedTemplatesPath, err)
+		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.RenderedTemplatesPath(), err)
 		os.Exit(1)
 	}
 }
@@ -127,6 +128,11 @@ func (r *Rockpool) Status() {
 	fmt.Println("  User: rockpool")
 	fmt.Println("  Pass: pass")
 
+	fmt.Println("Keycloak:")
+	fmt.Printf("  %s/admin\n", r.KeycloakUrl())
+	fmt.Println("  User: admin")
+	fmt.Println("  Pass: pass")
+
 	fmt.Printf("Lagoon UI: http://ui.lagoon.%s\n", r.Hostname)
 	fmt.Println("  User: lagoonadmin")
 	fmt.Println("  Pass: pass")
@@ -181,6 +187,10 @@ func (r *Rockpool) ControllerClusterName() string {
 
 func (r *Rockpool) TargetClusterName(targetId int) string {
 	return r.Config.ClusterName + "-target-" + fmt.Sprint(targetId)
+}
+
+func (r *Rockpool) RenderedTemplatesPath() string {
+	return path.Join(r.Config.ConfigDir, "rendered", r.Config.ClusterName)
 }
 
 func (r *Rockpool) KeycloakUrl() string {
