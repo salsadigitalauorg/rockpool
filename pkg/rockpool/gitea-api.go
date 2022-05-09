@@ -132,13 +132,14 @@ func (r *Rockpool) GiteaCreateRepo() {
 	}
 
 	if has, err := r.GiteaHasTestRepo(token); err != nil {
-		fmt.Println("[rockpool] error when looking up test repo:", err)
+		fmt.Println("[rockpool] error when looking up gitea test repo:", err)
 		os.Exit(1)
 	} else if has {
-		fmt.Println("[rockpool] test repo already exists")
+		fmt.Println("[rockpool] gitea test repo already exists")
 		return
 	}
 
+	fmt.Println("[rockpool] creating gitea test repo")
 	data, _ := json.Marshal(map[string]string{"name": "test"})
 	_, err = r.GiteaApiCall("POST", "user/repos", token, data)
 	if err != nil {

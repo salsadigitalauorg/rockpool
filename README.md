@@ -33,6 +33,11 @@ mv rockpool /usr/local/bin/rockpool
 ```sh
 rockpool up
 ```
+If there are failures, the same command can be run over and over again until it all succeeds. Failures could currently occur for a number of reasons, such as
+
+- Waiting for ingress to be created
+- Waiting for a certificate to be created
+- Pods not yet ready
 
 ### Create a Lagoon project
 The `rockpool up` command creates a test repository in gitea at `http://gitea.rockpool.k3d.local/rockpool/test.git` and a config for the Lagoon CLI. The test project can therefore be added to Lagoon using the following:

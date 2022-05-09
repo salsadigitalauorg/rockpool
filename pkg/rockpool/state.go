@@ -108,11 +108,34 @@ func (r *Rockpool) FetchClusters() {
 	}
 }
 
-func (r *Rockpool) UpdateState() {
-	r.VerifyReqs(false)
+func (r *Rockpool) Status() {
 	r.FetchClusters()
-	r.GetLagoonApiClient()
-	r.LagoonApiGetRemotes()
+	fmt.Println("Kubeconfig:")
+	fmt.Println("  Controller:", r.Kubeconfig(r.ControllerClusterName()))
+	if len(r.State.Clusters) > 2 {
+		fmt.Println("  Targets:")
+		for _, c := range r.State.Clusters {
+			if c.Name == r.ControllerClusterName() {
+				continue
+			}
+			fmt.Println("    ", r.Kubeconfig(c.Name))
+		}
+	}
+	fmt.Println()
+
+	fmt.Println("Gitea:")
+	fmt.Printf("  http://gitea.%s\n", r.Hostname)
+	fmt.Println("  User: rockpool")
+	fmt.Println("  Pass: pass")
+
+	fmt.Printf("Lagoon UI: http://ui.lagoon.%s\n", r.Hostname)
+	fmt.Println("  User: lagoonadmin")
+	fmt.Println("  Pass: pass")
+
+	fmt.Printf("Lagoon GraphQL: http://api.lagoon.%s/graphql\n", r.Hostname)
+	fmt.Println("Lagoon SSH: ssh -p 2022 lagoon@localhost")
+
+	fmt.Println()
 }
 
 func (r *Rockpool) TotalClusterNum() int {

@@ -115,7 +115,6 @@ func (r *Rockpool) CreateCluster(cn string) {
 		os.Exit(1)
 	}
 	fmt.Printf("[%s] created cluster\n", cn)
-	r.WriteKubeConfig(r.ControllerClusterName())
 }
 
 func (r *Rockpool) StartCluster(cn string) {

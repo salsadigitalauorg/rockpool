@@ -60,6 +60,8 @@ func (r *Rockpool) Up(clusters []string) {
 		}
 		r.WgWait()
 	}
+
+	r.Status()
 }
 
 func (r *Rockpool) allClusters() []string {
@@ -112,6 +114,7 @@ func (r *Rockpool) CreateClusters(clusters []string) {
 	r.FetchClusters()
 	for _, c := range clusters {
 		r.CreateCluster(c)
+		r.WriteKubeConfig(c)
 	}
 	r.FetchClusters()
 }
@@ -289,17 +292,23 @@ port 6153
 	var tmpFile *os.File
 	var err error
 
+	if _, err := os.Stat(dest); err == nil {
+		fmt.Println("[rockpool] resolver file already exists")
+		return
+	}
+
+	fmt.Println("[rockpool] creating resolver file")
 	if tmpFile, err = ioutil.TempFile("", "rockpool-resolver-"); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 	if err = os.Chmod(tmpFile.Name(), 0777); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 	if _, err = tmpFile.WriteString(data); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 	if _, err = exec.Command("mv", tmpFile.Name(), dest).Output(); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }
 
