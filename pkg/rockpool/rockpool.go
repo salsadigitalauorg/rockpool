@@ -3,8 +3,10 @@ package rockpool
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -96,8 +98,9 @@ func (r *Rockpool) Down(clusters []string) {
 		clusters = r.allClusters()
 	}
 	for _, c := range clusters {
-		if c != r.ControllerClusterName() {
+		if c == r.ControllerClusterName() {
 			r.LagoonCliDeleteConfig()
+			r.RemoveResolver()
 		}
 		r.WgAdd(1)
 		go r.DeleteCluster(c)
@@ -119,6 +122,9 @@ func (r *Rockpool) SetupLagoonController() {
 	r.HelmList(r.ControllerClusterName())
 	r.InstallIngressNginx()
 	r.InstallCertManager()
+
+	r.InstallDnsmasq()
+	r.InstallResolver()
 
 	// r.InstallGitlab()
 	r.InstallGitea()
@@ -261,6 +267,46 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 	if err != nil {
 		fmt.Printf("[%s] unable to install nfs-provisioner: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) InstallDnsmasq() {
+	cn := r.ControllerClusterName()
+	_, err := r.KubeApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true)
+	if err != nil {
+		fmt.Printf("[%s] unable to install dnsmasq: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) InstallResolver() {
+	dest := filepath.Join("/etc/resolver", r.Hostname)
+	data := `
+nameserver 127.0.0.1
+port 6153
+`
+
+	var tmpFile *os.File
+	var err error
+
+	if tmpFile, err = ioutil.TempFile("", "rockpool-resolver-"); err != nil {
+		fmt.Println(err)
+	}
+	if err = os.Chmod(tmpFile.Name(), 0777); err != nil {
+		fmt.Println(err)
+	}
+	if _, err = tmpFile.WriteString(data); err != nil {
+		fmt.Println(err)
+	}
+	if _, err = exec.Command("mv", tmpFile.Name(), dest).Output(); err != nil {
+		fmt.Println(err)
+	}
+}
+
+func (r *Rockpool) RemoveResolver() {
+	dest := filepath.Join("/etc/resolver", r.Hostname)
+	if _, err := exec.Command("rm", "-f", dest).Output(); err != nil {
+		fmt.Println(err)
 	}
 }
 
