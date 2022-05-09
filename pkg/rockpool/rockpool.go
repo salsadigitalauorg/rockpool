@@ -15,7 +15,7 @@ import (
 
 func (c *Config) ToMap() map[string]string {
 	return map[string]string{
-		"ClusterName":   c.ClusterName,
+		"Name":          c.Name,
 		"LagoonBaseUrl": c.LagoonBaseUrl,
 		"Arch":          c.Arch,
 	}
@@ -455,7 +455,7 @@ func (r *Rockpool) LagoonCliAddConfig() {
 
 	// Add the config.
 	fmt.Println("[rockpool] adding lagoon config")
-	cmd = exec.Command("lagoon", "config", "add", "--lagoon", r.ClusterName,
+	cmd = exec.Command("lagoon", "config", "add", "--lagoon", r.Name,
 		"--graphql", graphql, "--ui", ui, "--hostname", "127.0.0.1", "--port", "2022")
 	_, err = cmd.Output()
 	if err != nil {

@@ -18,7 +18,7 @@ lagoon-build-deploy:
   rabbitMQUsername: lagoon
   rabbitMQPassword: {{ .RabbitMQPassword }}
   rabbitMQHostname: broker.{{ .LagoonBaseUrl }}
-  lagoonTargetName: {{ .ClusterName }}{{ .TargetId}}
+  lagoonTargetName: {{ .Name }}{{ .TargetId}}
   taskSSHHost: ssh.{{ .LagoonBaseUrl }}
   taskSSHPort: "22"
   taskAPIHost: "api.{{ .LagoonBaseUrl }}"

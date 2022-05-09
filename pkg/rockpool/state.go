@@ -99,7 +99,7 @@ func (r *Rockpool) FetchClusters() {
 	var allK3dCl ClusterList
 	allK3dCl.Get()
 	for _, c := range allK3dCl {
-		if !strings.HasPrefix(c.Name, r.ClusterName) {
+		if !strings.HasPrefix(c.Name, r.Name) {
 			continue
 		}
 		if exists, _ := r.Clusters.ClusterExists(c.Name); exists {
@@ -182,15 +182,15 @@ func (r *Rockpool) TargetIP(cn string) string {
 }
 
 func (r *Rockpool) ControllerClusterName() string {
-	return r.Config.ClusterName + "-controller"
+	return r.Config.Name + "-controller"
 }
 
 func (r *Rockpool) TargetClusterName(targetId int) string {
-	return r.Config.ClusterName + "-target-" + fmt.Sprint(targetId)
+	return r.Config.Name + "-target-" + fmt.Sprint(targetId)
 }
 
 func (r *Rockpool) RenderedTemplatesPath() string {
-	return path.Join(r.Config.ConfigDir, "rendered", r.Config.ClusterName)
+	return path.Join(r.Config.ConfigDir, "rendered", r.Config.Name)
 }
 
 func (r *Rockpool) KeycloakUrl() string {

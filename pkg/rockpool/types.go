@@ -74,7 +74,7 @@ type State struct {
 
 type Config struct {
 	ConfigDir         string
-	ClusterName       string
+	Name              string
 	Hostname          string
 	LagoonBaseUrl     string
 	Arch              string

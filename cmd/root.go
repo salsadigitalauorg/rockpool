@@ -103,7 +103,7 @@ specified in the arguments, e.g, 'rockpool down controller target-1'`,
 func fullClusterNamesFromArgs(argClusters []string) []string {
 	clusters := []string{}
 	for _, c := range argClusters {
-		clusters = append(clusters, r.ClusterName+"-"+c)
+		clusters = append(clusters, r.Config.Name+"-"+c)
 	}
 	return clusters
 }
@@ -113,7 +113,7 @@ func init() {
 	r.Spinner.Color("red", "bold")
 	r.Config.Arch = runtime.GOARCH
 
-	rootCmd.PersistentFlags().StringVarP(&r.Config.ClusterName, "cluster-name", "n", "rockpool", "The name of the cluster")
+	rootCmd.PersistentFlags().StringVarP(&r.Config.Name, "cluster-name", "n", "rockpool", "The name of the cluster")
 
 	upCmd.Flags().IntVarP(&r.Config.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
 	upCmd.Flags().StringVarP(&r.Config.Hostname, "url", "u", "rockpool.k3d.local",
