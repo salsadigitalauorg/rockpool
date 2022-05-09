@@ -10,14 +10,15 @@ import (
 )
 
 func (r *Rockpool) Docker(args ...string) *exec.Cmd {
-	cmd := exec.Command("docker")
-	cmd.Args = append(cmd.Args, args...)
-	return cmd
+	return exec.Command("docker", args...)
 }
 
 func (r *Rockpool) DockerExec(n string, cmdStr string) ([]byte, error) {
-	cmd := r.Docker("exec", n, "ash", "-c", cmdStr)
-	return cmd.Output()
+	return r.Docker("exec", n, "ash", "-c", cmdStr).Output()
+}
+
+func (r *Rockpool) DockerRestart(n string) ([]byte, error) {
+	return r.Docker("restart", n).Output()
 }
 
 func (r *Rockpool) DockerInspect(cn string) []DockerContainer {
@@ -38,6 +39,5 @@ func (r *Rockpool) DockerInspect(cn string) []DockerContainer {
 }
 
 func (r *Rockpool) DockerCp(src string, dest string) ([]byte, error) {
-	cmd := r.Docker("cp", src, dest)
-	return cmd.Output()
+	return r.Docker("cp", src, dest).Output()
 }

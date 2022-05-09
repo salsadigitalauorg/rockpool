@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/yusufhm/rockpool/internal"
 )
@@ -61,18 +63,56 @@ func (r *Rockpool) FetchRegistry() {
 
 func (r *Rockpool) CreateRegistry() {
 	r.FetchRegistry()
-	if r.Registry.Name == "k3d-rockpool-registry" {
+	regName := "k3d-rockpool-registry"
+	if r.Registry.Name == regName {
 		fmt.Println("[rockpool] registry already exists")
 		return
 	}
 
 	fmt.Println("[rockpool] creating registry")
-	_, err := exec.Command("k3d", "registry", "create", "rockpool-registry").Output()
+	_, err := exec.Command("k3d", "registry", "create", "rockpool-registry", "--port", "5111").Output()
 	if err != nil {
 		fmt.Println("[rockpool] unable to create registry: ", err)
 		os.Exit(1)
 	}
-	fmt.Println("[rockpool] created registry")
+
+	// Configure registry to enable proxy.
+	regCfgFile := "/etc/docker/registry/config.yml"
+	proxyLine := "proxy:\n  remoteurl: https://registry-1.docker.io"
+	proxyLineCmdStr := fmt.Sprintf("echo '%s' >> "+regCfgFile, proxyLine)
+
+	var registryConfig []byte
+	done := false
+	retries := 12
+	for !done && retries > 0 {
+		registryConfig, err = r.DockerExec(regName, "cat "+regCfgFile)
+		if err != nil {
+			fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
+			time.Sleep(5 * time.Second)
+			retries--
+			continue
+		}
+		done = true
+	}
+	if err != nil {
+		fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
+	}
+
+	if !strings.Contains(string(registryConfig), proxyLine) {
+		fmt.Println("[rockpool] adding registry proxy config")
+		_, err := r.DockerExec(regName, proxyLineCmdStr)
+		if err != nil {
+			fmt.Println("[rockpool] error adding registry proxy config:", internal.GetCmdStdErr(err))
+			os.Exit(1)
+		}
+		r.DockerRestart(regName)
+	}
+
+	_, err = internal.RenderTemplate("registries.yaml", r.RenderedTemplatesPath(), nil, "")
+	if err != nil {
+		fmt.Println("[rockpool] error rendering registries.yaml:", err)
+		os.Exit(1)
+	}
 }
 
 func (r *Rockpool) CreateCluster(cn string) {
@@ -90,7 +130,8 @@ func (r *Rockpool) CreateCluster(cn string) {
 		"cluster", "create", "--kubeconfig-update-default=false",
 		"--image=ghcr.io/yusufhm/rockpool/k3s:latest",
 		"--agents", "1", "--network", "k3d-rockpool",
-		"--registry-use", "k3d-rockpool-registry",
+		"--registry-use", "k3d-rockpool-registry:5000",
+		"--registry-config", fmt.Sprintf("%s/registries.yaml", r.RenderedTemplatesPath()),
 	}
 
 	if cn == r.ControllerClusterName() {
@@ -113,7 +154,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 
 	_, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("[%s] unable to create cluster: %s\n", cn, err)
+		fmt.Printf("[%s] unable to create cluster: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 	fmt.Printf("[%s] created cluster\n", cn)

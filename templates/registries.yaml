@@ -1,4 +1,8 @@
 mirrors:
   docker.io:
     endpoint:
-      - "http://127.0.0.1:5120"
+      - "http://k3d-rockpool-registry:5000"
+  k3d-rockpool-registry:5000:
+    endpoint:
+      - "k3d-rockpool-registry:5000"
+
