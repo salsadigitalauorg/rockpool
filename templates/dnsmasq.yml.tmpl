@@ -14,6 +14,22 @@ spec:
       protocol: UDP
       port: 6153
       targetPort: 53
+  selector:
+    app.kubernetes.io/instance: rockpool-dnsmasq
+    app.kubernetes.io/name: dnsmasq
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dnsmasq-tcp
+  labels:
+    app.kubernetes.io/managed-by: Rockpool
+    app.kubernetes.io/instance: rockpool-dnsmasq
+    app.kubernetes.io/name: dnsmasq
+spec:
+  type: LoadBalancer
+  ports:
     - name: dns-tcp
       targetPort: 53
       protocol: TCP
