@@ -68,7 +68,7 @@ func (r *Rockpool) GetLagoonApiClient() {
 	}
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: r.lagoonFetchApiToken()})
 	httpClient := oauth2.NewClient(context.Background(), src)
-	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.%s/graphql", r.Config.LagoonBaseUrl), httpClient)
+	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", r.Config.Hostname), httpClient)
 }
 
 func (r *Rockpool) LagoonApiGetRemotes() {

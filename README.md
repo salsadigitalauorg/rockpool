@@ -102,24 +102,21 @@ up is for creating or starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool up controller target-1'
 
 Usage:
-  rockpool up [cluster-name...] [flags]
+  rockpool up [name...] [flags]
 
 Flags:
-  -h, --help                            help for up
-  -l, --lagoon-base-url string          The base Lagoon url of the cluster;
-                                        all Lagoon services will be created as subdomains of this url, e.g,
-                                        ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local
-                                         (default "lagoon.rockpool.k3d.local")
-      --rendered-template-path string   The directory where rendered template files are placed
-                                         (default "/var/folders/lq/gql2jg193ndbp64b2z32qp8r0000gn/T/rockpool/rendered")
-      --upgrade-components strings      A list of components to upgrade, e.g, ingress-nginx,harbor
-  -u, --url string                      The base url of rockpool; ancillary services will be created
-                                        as subdomains of this url, e.g, gitlab.rockpool.k3d.local
-                                         (default "rockpool.k3d.local")
+  -h, --help                         help for up
+  -k, --ssh-key string               The ssh key to add to the lagoonadmin user. If empty, rockpool tries
+                                     to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.
+
+  -t, --targets int                  Number of targets (lagoon remotes) to create (default 1)
+      --upgrade-components strings   A list of components to upgrade, e.g, ingress-nginx,harbor
+  -u, --url string                   The base url of rockpool; ancillary services will be created
+                                     as subdomains of this url, e.g, gitlab.rockpool.k3d.local
+                                      (default "rockpool.k3d.local")
 
 Global Flags:
-  -n, --cluster-name string   The name of the cluster (default "rockpool")
-  -t, --targets int           Number of targets (lagoon remotes) to create (default 1)
+  -n, --name string   The name of the platform (default "rockpool")
 ```
 
 There are also other commands for controlling the platform:
@@ -140,9 +137,8 @@ Available Commands:
   up          Create and/or start the clusters
 
 Flags:
-  -n, --cluster-name string   The name of the cluster (default "rockpool")
-  -h, --help                  help for rockpool
-  -t, --targets int           Number of targets (lagoon remotes) to create (default 1)
+  -h, --help          help for rockpool
+  -n, --name string   The name of the platform (default "rockpool")
 
 Use "rockpool [command] --help" for more information about a command.
 ```

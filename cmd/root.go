@@ -32,7 +32,7 @@ var rootCmd = &cobra.Command{
 }
 
 var upCmd = &cobra.Command{
-	Use:   "up [cluster-name...]",
+	Use:   "up [name...]",
 	Short: "Create and/or start the clusters",
 	Long: `up is for creating or starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool up controller target-1'`,
@@ -44,7 +44,7 @@ specified in the arguments, e.g, 'rockpool up controller target-1'`,
 }
 
 var startCmd = &cobra.Command{
-	Use:   "start [cluster-name...]",
+	Use:   "start [name...]",
 	Short: "Start the clusters",
 	Long: `start is for starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool start controller target-1'`,
@@ -56,7 +56,7 @@ specified in the arguments, e.g, 'rockpool start controller target-1'`,
 }
 
 var stopCmd = &cobra.Command{
-	Use:   "stop [cluster-name...]",
+	Use:   "stop [name...]",
 	Short: "Stop the clusters",
 	Long: `stop is for stopping all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool stop controller target-1'`,
@@ -68,7 +68,7 @@ specified in the arguments, e.g, 'rockpool stop controller target-1'`,
 }
 
 var restartCmd = &cobra.Command{
-	Use:   "restart [cluster-name...]",
+	Use:   "restart [name...]",
 	Short: "Restart the clusters",
 	Long: `restart is for stopping and starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool restart controller target-1'`,
@@ -89,7 +89,7 @@ var statusCmd = &cobra.Command{
 }
 
 var downCmd = &cobra.Command{
-	Use:   "down [cluster-name...]",
+	Use:   "down [name...]",
 	Short: "Stop the clusters and delete them",
 	Long: `down is for stopping and deleting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool down controller target-1'`,
@@ -113,17 +113,12 @@ func init() {
 	r.Spinner.Color("red", "bold")
 	r.Config.Arch = runtime.GOARCH
 
-	rootCmd.PersistentFlags().StringVarP(&r.Config.Name, "cluster-name", "n", "rockpool", "The name of the cluster")
+	rootCmd.PersistentFlags().StringVarP(&r.Config.Name, "name", "n", "rockpool", "The name of the platform")
 
 	upCmd.Flags().IntVarP(&r.Config.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
 	upCmd.Flags().StringVarP(&r.Config.Hostname, "url", "u", "rockpool.k3d.local",
 		`The base url of rockpool; ancillary services will be created
 as subdomains of this url, e.g, gitlab.rockpool.k3d.local
-`)
-	upCmd.Flags().StringVarP(&r.Config.LagoonBaseUrl, "lagoon-base-url", "l", "lagoon.rockpool.k3d.local",
-		`The base Lagoon url of the cluster;
-all Lagoon services will be created as subdomains of this url, e.g,
-ui.lagoon.rockpool.k3d.local, harbor.lagoon.rockpool.k3d.local
 `)
 	upCmd.Flags().StringSliceVar(&r.Config.UpgradeComponents, "upgrade-components", []string{},
 		"A list of components to upgrade, e.g, ingress-nginx,harbor")

@@ -12,7 +12,7 @@ import (
 )
 
 func (r *Rockpool) GiteaApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
-	url := fmt.Sprintf("http://gitea.%s/api/v1/%s", r.Hostname, endpoint)
+	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", r.Hostname, endpoint)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
@@ -65,13 +65,15 @@ func (r *Rockpool) GiteaHasToken() (string, error) {
 	// finish.
 	done := false
 	retries := 12
+	var resp *http.Response
 	var err error
+	var dump []byte
 	for !done && retries > 0 {
-		resp, err := r.GiteaTokenApiCall("GET", nil, false)
+		resp, err = r.GiteaTokenApiCall("GET", nil, false)
 		if err != nil {
 			return "", fmt.Errorf("error calling gitea token endpoint: %s", err)
 		}
-		dump, _ := httputil.DumpResponse(resp, true)
+		dump, _ = httputil.DumpResponse(resp, true)
 
 		if err = json.NewDecoder(resp.Body).Decode(&tokens); err != nil {
 			if err.Error() == "invalid character '<' looking for beginning of value" {
@@ -84,7 +86,7 @@ func (r *Rockpool) GiteaHasToken() (string, error) {
 		done = true
 	}
 	if !done {
-		return "", fmt.Errorf("error decoding gitea token: %s", err)
+		return "", fmt.Errorf("error decoding gitea token: %s. response: %s", err, string(dump))
 	}
 	for _, t := range tokens {
 		if t.Name == "test" {

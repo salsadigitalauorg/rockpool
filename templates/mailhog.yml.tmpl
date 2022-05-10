@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/name: mailhog
 spec:
   rules:
-    - host: mailhog.{{ .LagoonBaseUrl }}
+    - host: mailhog.lagoon.{{ .Hostname }}
       http:
         paths:
           - backend:

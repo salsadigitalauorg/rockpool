@@ -4,13 +4,13 @@ expose:
       kubernetes.io/tls-acme: "true"
       cert-manager.io/cluster-issuer: "ca-issuer"
     hosts:
-      core: harbor.{{ .LagoonBaseUrl }}
+      core: harbor.lagoon.{{ .Hostname }}
   tls:
     enabled: true
     certSource: secret
     secret:
       secretName: harbor-harbor-ingress
-externalURL: https://harbor.{{ .LagoonBaseUrl }}
+externalURL: https://harbor.lagoon.{{ .Hostname }}
 harborAdminPassword: pass
 chartmuseum:
   enabled: false

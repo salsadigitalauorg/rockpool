@@ -76,7 +76,6 @@ type Config struct {
 	ConfigDir         string
 	Name              string
 	Hostname          string
-	LagoonBaseUrl     string
 	Arch              string
 	UpgradeComponents []string
 	NumTargets        int

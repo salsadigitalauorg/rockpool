@@ -15,9 +15,9 @@ import (
 
 func (c *Config) ToMap() map[string]string {
 	return map[string]string{
-		"Name":          c.Name,
-		"LagoonBaseUrl": c.LagoonBaseUrl,
-		"Arch":          c.Arch,
+		"Name":     c.Name,
+		"Hostname": c.Hostname,
+		"Arch":     c.Arch,
 	}
 }
 
@@ -410,7 +410,7 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		corednsCm.Data.NodeHosts += gitea_entry
 	}
 	for _, h := range []string{"harbor", "broker", "ssh", "api"} {
-		entry := fmt.Sprintf("%s %s.%s\n", r.ControllerIP(), h, r.LagoonBaseUrl)
+		entry := fmt.Sprintf("%s %s.lagoon.%s\n", r.ControllerIP(), h, r.Hostname)
 		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
 			corednsCm.Data.NodeHosts += entry
 		}
@@ -432,8 +432,8 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 }
 
 func (r *Rockpool) LagoonCliAddConfig() {
-	graphql := fmt.Sprintf("http://api.%s/graphql", r.LagoonBaseUrl)
-	ui := fmt.Sprintf("http://ui.%s", r.LagoonBaseUrl)
+	graphql := fmt.Sprintf("http://api.lagoon.%s/graphql", r.Hostname)
+	ui := fmt.Sprintf("http://ui.lagoon.%s", r.Hostname)
 
 	// Get list of existing configs.
 	cmd := exec.Command("lagoon", "config", "list", "--output-json")

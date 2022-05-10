@@ -12,7 +12,7 @@ metadata:
   name: gitlab
 spec:
   rules:
-    - host: gitlab.{{ .Hostname }}
+    - host: gitlab.lagoon.{{ .Hostname }}
       http:
         paths:
           - backend:

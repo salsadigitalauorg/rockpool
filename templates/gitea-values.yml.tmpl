@@ -12,7 +12,7 @@ gitea:
 ingress:
   enabled: true
   hosts:
-    - host: gitea.{{ .Hostname }}
+    - host: gitea.lagoon.{{ .Hostname }}
       paths:
         - path: /
           pathType: Prefix

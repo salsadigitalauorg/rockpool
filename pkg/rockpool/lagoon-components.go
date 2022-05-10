@@ -153,7 +153,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 		return
 	}
 
-	entry := fmt.Sprintf("%s\tharbor.%s", r.ControllerIP(), r.Config.LagoonBaseUrl)
+	entry := fmt.Sprintf("%s\tharbor.lagoon.%s", r.ControllerIP(), r.Config.Hostname)
 	entryCmdStr := fmt.Sprintf("echo '%s' >> /etc/hosts", entry)
 	for _, n := range c.Nodes {
 		if n.Role == "loadbalancer" {

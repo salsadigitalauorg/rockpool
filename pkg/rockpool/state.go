@@ -124,7 +124,7 @@ func (r *Rockpool) Status() {
 	}
 
 	fmt.Println("Gitea:")
-	fmt.Printf("  http://gitea.%s\n", r.Hostname)
+	fmt.Printf("  http://gitea.lagoon.%s\n", r.Hostname)
 	fmt.Println("  User: rockpool")
 	fmt.Println("  Pass: pass")
 
@@ -194,5 +194,5 @@ func (r *Rockpool) RenderedTemplatesPath() string {
 }
 
 func (r *Rockpool) KeycloakUrl() string {
-	return fmt.Sprintf("http://keycloak.%s/auth", r.Config.LagoonBaseUrl)
+	return fmt.Sprintf("http://keycloak.lagoon.%s/auth", r.Config.Hostname)
 }

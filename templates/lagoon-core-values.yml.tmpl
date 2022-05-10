@@ -1,5 +1,5 @@
 elasticsearchURL: https://none.com
-harborURL: "https://harbor.{{ .LagoonBaseUrl }}"
+harborURL: "https://harbor.lagoon.{{ .Hostname }}"
 kibanaURL: https://none.com
 logsDBAdminPassword: none
 s3FilesAccessKeyID: none
@@ -10,11 +10,11 @@ s3FilesRegion: none
 s3BAASAccessKeyID: none
 s3BAASSecretAccessKey: none
 imageTag: v2.5.0
-registry: "harbor.{{ .LagoonBaseUrl }}"
+registry: "harbor.lagoon.{{ .Hostname }}"
 
-keycloakAPIURL: http://keycloak.{{ .LagoonBaseUrl }}/auth
-lagoonAPIURL: http://api.{{ .LagoonBaseUrl }}/graphql
-lagoonUIURL: http://ui.{{ .LagoonBaseUrl }}
+keycloakAPIURL: http://keycloak.lagoon.{{ .Hostname }}/auth
+lagoonAPIURL: http://api.lagoon.{{ .Hostname }}/graphql
+lagoonUIURL: http://ui.lagoon.{{ .Hostname }}
 
 harborAdminPassword: pass
 keycloakAdminPassword: pass
@@ -28,13 +28,13 @@ api:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-    - host: api.{{ .LagoonBaseUrl }}
+    - host: api.lagoon.{{ .Hostname }}
       paths:
       - /
     {{/* tls:
       - secretName: api-tls
         hosts:
-          - api.{{ .LagoonBaseUrl }} */}}
+          - api.lagoon.{{ .Hostname }} */}}
 
 keycloak:
   {{- if eq .Arch "arm64" }}
@@ -53,13 +53,13 @@ keycloak:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-    - host: keycloak.{{ .LagoonBaseUrl }}
+    - host: keycloak.lagoon.{{ .Hostname }}
       paths:
       - /
     {{/* tls:
       - secretName: keycloak-tls
         hosts:
-          - keycloak.{{ .LagoonBaseUrl }} */}}
+          - keycloak.lagoon.{{ .Hostname }} */}}
 
 webhookHandler:
   ingress:
@@ -67,13 +67,13 @@ webhookHandler:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-    - host: webhookhandler.{{ .LagoonBaseUrl }}
+    - host: webhookhandler.lagoon.{{ .Hostname }}
       paths:
       - /
     {{/* tls:
       - secretName: webhookhandler-tls
         hosts:
-          - webhookhandler.{{ .LagoonBaseUrl }} */}}
+          - webhookhandler.lagoon.{{ .Hostname }} */}}
 
 ui:
   replicaCount: 1
@@ -82,13 +82,13 @@ ui:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-    - host: ui.{{ .LagoonBaseUrl }}
+    - host: ui.lagoon.{{ .Hostname }}
       paths:
       - /
     {{/* tls:
       - secretName: ui-tls
         hosts:
-          - ui.{{ .LagoonBaseUrl }} */}}
+          - ui.lagoon.{{ .Hostname }} */}}
 
 backupHandler:
   enabled: false
@@ -98,13 +98,13 @@ backupHandler:
     annotations:
       kubernetes.io/tls-acme: "true"
     hosts:
-    - host: backuphandler.{{ .LagoonBaseUrl }}
+    - host: backuphandler.lagoon.{{ .Hostname }}
       paths:
       - /
     tls:
       - secretName: backuphandler-tls
         hosts:
-          - backuphandler.{{ .LagoonBaseUrl }} */}}
+          - backuphandler.lagoon.{{ .Hostname }} */}}
 
 drushAlias:
   ingress:
@@ -112,13 +112,13 @@ drushAlias:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-    - host: drushalias.{{ .LagoonBaseUrl }}
+    - host: drushalias.lagoon.{{ .Hostname }}
       paths:
       - /
     {{/* tls:
       - secretName: drushalias-tls
         hosts:
-          - drushalias.{{ .LagoonBaseUrl }} */}}
+          - drushalias.lagoon.{{ .Hostname }} */}}
 
 ssh:
   replicaCount: 1
@@ -149,13 +149,13 @@ broker:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-    - host: broker.{{ .LagoonBaseUrl }}
+    - host: broker.lagoon.{{ .Hostname }}
       paths:
       - /
     {{/* tls:
       - secretName: broker-tls
         hosts:
-          - broker.{{ .LagoonBaseUrl }} */}}
+          - broker.lagoon.{{ .Hostname }} */}}
 
 authServer:
   replicaCount: 1
@@ -173,13 +173,13 @@ webhookHandler:
     {{/* annotations:
       kubernetes.io/tls-acme: "true" */}}
     hosts:
-    - host: webhookhandler.{{ .LagoonBaseUrl }}
+    - host: webhookhandler.lagoon.{{ .Hostname }}
       paths:
       - /
     {{/* tls:
       - secretName: webhookhandler-tls
         hosts:
-          - webhookhandler.{{ .LagoonBaseUrl }} */}}
+          - webhookhandler.lagoon.{{ .Hostname }} */}}
 
 {{- if eq .Arch "arm64" }}
 autoIdler:

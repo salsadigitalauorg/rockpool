@@ -16,7 +16,7 @@ spec:
   isCA: true
   commonName: {{ .Hostname }}
   dnsNames:
-    - harbor.{{ .LagoonBaseUrl }}
+    - harbor.lagoon.{{ .Hostname }}
   secretName: rockpool-root-secret
   subject:
     organizations:
