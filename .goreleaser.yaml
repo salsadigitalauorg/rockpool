@@ -3,10 +3,18 @@ before:
     - go mod tidy
 
 builds:
-  - env:
+  - id: linux
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
+    goarch:
+      - amd64
+      - arm64
+  - id: darwin
+    env:
+      - CGO_ENABLED=1
+    goos:
       - darwin
     goarch:
       - amd64
@@ -14,19 +22,34 @@ builds:
 
 archives:
   - id: targz
+    builds:
+      - linux
     replacements:
-      darwin: Darwin
       linux: Linux
       amd64: x86_64
       arm64: aarch64
     name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-  - id: binaries
-    format: binary
+  - id: targz_darwin
+    builds:
+      - darwin
     replacements:
       darwin: Darwin
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+  - id: binaries
+    format: binary
+    builds:
+      - linux
+    replacements:
       linux: Linux
       amd64: x86_64
       arm64: aarch64
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+  - id: binaries_darwin
+    format: binary
+    builds:
+      - darwin
+    replacements:
+      darwin: Darwin
     name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
 
 checksum:

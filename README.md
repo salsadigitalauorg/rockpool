@@ -40,6 +40,22 @@ If there are failures, the same command can be run over and over again until it 
 - Pods not yet ready
 
 ### Create a Lagoon project
+**NOTE** on using Lagoon CLI:
+> Currently the Lagoon CLI is built with `CGO_ENABLED=0`, which means that DNS lookups do not use the MacOs `/etc/resolver/*` files - see [here](https://github.com/golang/go/issues/12524#issuecomment-1006174901) - which means that `lagoon` commands interacting with the local instance will fail with an error similar to the following:
+>
+> ```Error: Post "http://api.lagoon.rockpool.k3d.local/graphql": dial tcp: lookup api.lagoon.rockpool.k3d.local on x.x.x.x:53: no such host```
+>
+> To get around that, the current option is to build the Lagoon CLI locally on MacOs with `CGO_ENABLED=1`:
+> ```
+> git clone git@github.com:uselagoon/lagoon-cli.git ~/go/src/github.com/uselagoon/lagoon-cli
+> cd ~/go/src/github.com/uselagoon/lagoon-cli
+> GO111MODULE=on CGO_ENABLED=1 go build -ldflags="-s -w" -o ~/go/bin/lagoon -v
+> ```
+> The built binary can now be used with rockpool:
+> ```
+> ~/go/bin/lagoon --lagoon rockpool list projects
+> ```
+
 The `rockpool up` command creates a test repository in gitea at `http://gitea.rockpool.k3d.local/rockpool/test.git` and a config for the Lagoon CLI. The test project can therefore be added to Lagoon using the following:
 
 ```sh
