@@ -25,9 +25,6 @@ jobs:
     - name: Build
       run: go build -ldflags="-s -w" -o build/rockpool . && ls -lh build/rockpool
 
-    - name: GCC multilib
-      run: sudo apt-get install -y gcc-x86-64-linux-gnu gcc-multilib g++-multilib
-
     - name: GoReleaser dry-run
       uses: goreleaser/goreleaser-action@v2
       with:
