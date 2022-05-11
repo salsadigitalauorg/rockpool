@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -38,12 +39,23 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 		"username":   {"lagoonadmin"},
 		"password":   {password},
 	}
-	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", r.KeycloakUrl(), "lagoon")
-	resp, err := http.PostForm(url, data)
+	url := fmt.Sprintf("http://keycloak.lagoon.%s/auth/realms/lagoon/protocol/openid-connect/token", r.Hostname)
+	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(data.Encode()))
 	if err != nil {
-		fmt.Println("[rockpool] error fetching Lagoon API token:", err)
-		os.Exit(1)
+		panic(err)
 	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	dump, _ := httputil.DumpRequest(req, true)
+
+	client := &http.Client{
+		Transport: Interceptor{http.DefaultTransport},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("request:", string(dump))
+		panic(err)
+	}
+	dump, _ = httputil.DumpResponse(resp, true)
 
 	var res struct {
 		Token            string `json:"access_token"`
@@ -52,6 +64,7 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 	}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
+		fmt.Println("response:", string(dump))
 		fmt.Println("[rockpool] error parsing Lagoon API token:", err)
 		os.Exit(1)
 	}
@@ -67,7 +80,12 @@ func (r *Rockpool) GetLagoonApiClient() {
 		return
 	}
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: r.lagoonFetchApiToken()})
-	httpClient := oauth2.NewClient(context.Background(), src)
+	httpClient := &http.Client{
+		Transport: &oauth2.Transport{
+			Base:   Interceptor{http.DefaultTransport},
+			Source: oauth2.ReuseTokenSource(nil, src),
+		},
+	}
 	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", r.Config.Hostname), httpClient)
 }
 

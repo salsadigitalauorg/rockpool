@@ -28,7 +28,9 @@ func (r *Rockpool) GiteaApiCall(method string, endpoint string, token string, da
 	}
 	req.Header.Add("Authorization", "token "+token)
 
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: Interceptor{http.DefaultTransport},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -47,7 +49,9 @@ func (r *Rockpool) GiteaTokenApiCall(method string, data []byte, delete bool) (*
 	}
 	req.SetBasicAuth("rockpool", "pass")
 
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: Interceptor{http.DefaultTransport},
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

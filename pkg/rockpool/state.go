@@ -113,7 +113,7 @@ func (r *Rockpool) Status() {
 	r.FetchClusters()
 	fmt.Println("Kubeconfig:")
 	fmt.Println("  Controller:", r.Kubeconfig(r.ControllerClusterName()))
-	if len(r.State.Clusters) > 2 {
+	if len(r.State.Clusters) > 1 {
 		fmt.Println("  Targets:")
 		for _, c := range r.State.Clusters {
 			if c.Name == r.ControllerClusterName() {
@@ -129,7 +129,7 @@ func (r *Rockpool) Status() {
 	fmt.Println("  Pass: pass")
 
 	fmt.Println("Keycloak:")
-	fmt.Printf("  %s/admin\n", r.KeycloakUrl())
+	fmt.Printf("  http://keycloak.lagoon.%s/auth/admin\n", r.Hostname)
 	fmt.Println("  User: admin")
 	fmt.Println("  Pass: pass")
 
@@ -191,8 +191,4 @@ func (r *Rockpool) TargetClusterName(targetId int) string {
 
 func (r *Rockpool) RenderedTemplatesPath() string {
 	return path.Join(r.Config.ConfigDir, "rendered", r.Config.Name)
-}
-
-func (r *Rockpool) KeycloakUrl() string {
-	return fmt.Sprintf("http://keycloak.lagoon.%s/auth", r.Config.Hostname)
 }
