@@ -15,11 +15,6 @@ The following tools are needed for rockpool to work:
 ## Install
 
 ```sh
-# Mac Intel
-curl -L -o rockpool https://github.com/yusufhm/rockpool/releases/latest/download/rockpool-Darwin-x86_64
-# Mac M1
-curl -L -o rockpool https://github.com/yusufhm/rockpool/releases/latest/download/rockpool-Darwin-aarch64
-# Linux
 curl -L -o rockpool https://github.com/yusufhm/rockpool/releases/latest/download/rockpool-$(uname -s)-$(uname -m)
 
 chmod +x rockpool
