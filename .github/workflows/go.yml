@@ -23,13 +23,7 @@ jobs:
       run: go vet ./...
 
     - name: Build
-      run: go build -ldflags="-s -w" -o build/rockpool . && ls -lh build/rockpool
-
-    - name: GoReleaser dry-run
-      uses: goreleaser/goreleaser-action@v2
-      with:
-        version: latest
-        args: release --rm-dist --snapshot
+      run: CGO_ENABLED=0 go build -ldflags="-s -w" -o build/rockpool . && ls -lh build/rockpool
 
   publish-binary:
     needs: test-build
