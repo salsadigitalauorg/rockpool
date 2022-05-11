@@ -343,8 +343,8 @@ port 6153
 	if _, err = tmpFile.WriteString(data); err != nil {
 		panic(err)
 	}
-	if _, err = exec.Command("mv", tmpFile.Name(), dest).Output(); err != nil {
-		panic(err)
+	if _, err = exec.Command("sudo", "mv", tmpFile.Name(), dest).Output(); err != nil {
+		panic(internal.GetCmdStdErr(err))
 	}
 }
 
