@@ -235,7 +235,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 
 func (r *Rockpool) RegisterLagoonRemote(cn string) {
 	cId := internal.GetTargetIdFromCn(cn)
-	rName := "rockpool" + fmt.Sprint(cId)
+	rName := r.Name + fmt.Sprint(cId)
 	re := Remote{
 		Id:            cId,
 		Name:          rName,

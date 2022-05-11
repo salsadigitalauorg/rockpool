@@ -499,7 +499,7 @@ func (r *Rockpool) LagoonCliAddConfig() {
 
 func (r *Rockpool) LagoonCliDeleteConfig() {
 	// Get list of existing configs.
-	cmd := exec.Command("lagoon", "config", "delete", "--lagoon", "rockpool", "--force")
+	cmd := exec.Command("lagoon", "config", "delete", "--lagoon", r.Name, "--force")
 	_, err := cmd.Output()
 	if err != nil {
 		panic(err)
