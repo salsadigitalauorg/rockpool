@@ -72,7 +72,6 @@ func (r *Rockpool) Up(clusters []string) {
 	r.CreateRegistry()
 	r.RenderRegistryFile()
 	r.CreateClusters(clusters)
-	r.InstallResolver()
 
 	setupController := false
 	setupTargets := []string{}
@@ -105,6 +104,7 @@ func (r *Rockpool) Up(clusters []string) {
 			r.InstallHarborCerts(c)
 		}
 	}
+	r.InstallResolver()
 	fmt.Println()
 	r.Status()
 }
