@@ -12,7 +12,7 @@ import (
 )
 
 func (r *Rockpool) GiteaApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
-	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", r.Hostname, endpoint)
+	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", r.Hostname(), endpoint)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err

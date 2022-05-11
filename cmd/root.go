@@ -116,12 +116,12 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&r.Config.Name, "name", "n", "rockpool", "The name of the platform")
 
 	upCmd.Flags().IntVarP(&r.Config.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
-	upCmd.Flags().StringVarP(&r.Config.Hostname, "url", "u", "rockpool.k3d.local",
-		`The base url of rockpool; ancillary services will be created
-as subdomains of this url, e.g, gitlab.rockpool.k3d.local
+	upCmd.Flags().StringVarP(&r.Config.Domain, "domain", "d", "k3d.local",
+		`The base domain of the platform; ancillary services will be created as its
+subdomains using the provided 'name', e.g, rockpool.k3d.local, lagoon.rockpool.k3d.local
 `)
 	upCmd.Flags().StringSliceVar(&r.Config.UpgradeComponents, "upgrade-components", []string{},
-		"A list of components to upgrade, e.g, ingress-nginx,harbor")
+		"A list of components to upgrade, e.g, all or ingress-nginx,harbor")
 	upCmd.Flags().StringVarP(&r.Config.LagoonSshKey, "ssh-key", "k", "",
 		`The ssh key to add to the lagoonadmin user. If empty, rockpool tries
 to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.

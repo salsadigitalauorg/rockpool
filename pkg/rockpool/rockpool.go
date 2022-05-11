@@ -21,7 +21,8 @@ var templates embed.FS
 func (c *Config) ToMap() map[string]string {
 	return map[string]string{
 		"Name":     c.Name,
-		"Hostname": c.Hostname,
+		"Domain":   c.Domain,
+		"Hostname": fmt.Sprintf("%s.%s", c.Name, c.Domain),
 		"Arch":     c.Arch,
 	}
 }
@@ -32,7 +33,10 @@ func (r *Rockpool) RenderTemplate(tn string, config interface{}, destName string
 	t := template.Must(template.ParseFS(templates, "templates/"+tn))
 
 	var rendered string
-	path := r.RenderedTemplatesPath()
+	path := r.RenderedTemplatesPath(true)
+	if tn == "registries.yaml" {
+		path = r.RenderedTemplatesPath(false)
+	}
 	if destName != "" {
 		rendered = filepath.Join(path, destName)
 	} else if filepath.Ext(tn) == ".tmpl" {
@@ -66,13 +70,14 @@ func (r *Rockpool) Up(clusters []string) {
 		}
 	}
 	r.CreateRegistry()
+	r.RenderRegistryFile()
 	r.CreateClusters(clusters)
 	r.InstallResolver()
 
 	setupController := false
 	setupTargets := []string{}
 	for _, c := range clusters {
-		if c == "rockpool-controller" {
+		if c == r.ControllerClusterName() {
 			setupController = true
 			continue
 		}
@@ -269,7 +274,7 @@ func (r *Rockpool) InstallGitea() {
 		os.Exit(1)
 	}
 
-	values, err := r.RenderTemplate("gitea-values.yml.tmpl", r.Config, "")
+	values, err := r.RenderTemplate("gitea-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
 		os.Exit(1)
@@ -293,7 +298,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 		os.Exit(1)
 	}
 
-	values, err := r.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.Config, "")
+	values, err := r.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
 		os.Exit(1)
@@ -319,7 +324,7 @@ func (r *Rockpool) InstallDnsmasq() {
 }
 
 func (r *Rockpool) InstallResolver() {
-	dest := filepath.Join("/etc/resolver", r.Hostname)
+	dest := filepath.Join("/etc/resolver", r.Hostname())
 	data := `
 nameserver 127.0.0.1
 port 6153
@@ -349,7 +354,7 @@ port 6153
 }
 
 func (r *Rockpool) RemoveResolver() {
-	dest := filepath.Join("/etc/resolver", r.Hostname)
+	dest := filepath.Join("/etc/resolver", r.Hostname())
 	if _, err := exec.Command("rm", "-f", dest).Output(); err != nil {
 		fmt.Println(err)
 	}
@@ -439,7 +444,7 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		os.Exit(1)
 	}
 	for _, h := range []string{"harbor", "broker", "ssh", "api", "gitea"} {
-		entry := fmt.Sprintf("%s %s.lagoon.%s\n", r.ControllerIP(), h, r.Hostname)
+		entry := fmt.Sprintf("%s %s.lagoon.%s\n", r.ControllerIP(), h, r.Hostname())
 		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
 			corednsCm.Data.NodeHosts += entry
 		}
@@ -461,8 +466,8 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 }
 
 func (r *Rockpool) LagoonCliAddConfig() {
-	graphql := fmt.Sprintf("http://api.lagoon.%s/graphql", r.Hostname)
-	ui := fmt.Sprintf("http://ui.lagoon.%s", r.Hostname)
+	graphql := fmt.Sprintf("http://api.lagoon.%s/graphql", r.Hostname())
+	ui := fmt.Sprintf("http://ui.lagoon.%s", r.Hostname())
 
 	// Get list of existing configs.
 	cmd := exec.Command("lagoon", "config", "list", "--output-json")

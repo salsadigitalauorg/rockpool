@@ -107,11 +107,12 @@ func (r *Rockpool) CreateRegistry() {
 		}
 		r.DockerRestart(regName)
 	}
+}
 
-	_, err = r.RenderTemplate("registries.yaml", nil, "")
+func (r *Rockpool) RenderRegistryFile() {
+	_, err := r.RenderTemplate("registries.yaml", nil, "")
 	if err != nil {
-		fmt.Println("[rockpool] error rendering registries.yaml:", err)
-		os.Exit(1)
+		panic(err)
 	}
 }
 
@@ -131,7 +132,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 		"--image=ghcr.io/yusufhm/rockpool/k3s:latest",
 		"--agents", "1", "--network", "k3d-rockpool",
 		"--registry-use", "k3d-rockpool-registry:5000",
-		"--registry-config", fmt.Sprintf("%s/registries.yaml", r.RenderedTemplatesPath()),
+		"--registry-config", fmt.Sprintf("%s/registries.yaml", r.RenderedTemplatesPath(false)),
 	}
 
 	if cn == r.ControllerClusterName() {

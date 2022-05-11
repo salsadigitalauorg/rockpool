@@ -75,7 +75,7 @@ type State struct {
 type Config struct {
 	ConfigDir         string
 	Name              string
-	Hostname          string
+	Domain            string
 	Arch              string
 	UpgradeComponents []string
 	NumTargets        int

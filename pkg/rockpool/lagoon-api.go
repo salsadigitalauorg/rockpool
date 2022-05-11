@@ -39,7 +39,7 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 		"username":   {"lagoonadmin"},
 		"password":   {password},
 	}
-	url := fmt.Sprintf("http://keycloak.lagoon.%s/auth/realms/lagoon/protocol/openid-connect/token", r.Hostname)
+	url := fmt.Sprintf("http://keycloak.lagoon.%s/auth/realms/lagoon/protocol/openid-connect/token", r.Hostname())
 	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(data.Encode()))
 	if err != nil {
 		panic(err)
@@ -86,7 +86,7 @@ func (r *Rockpool) GetLagoonApiClient() {
 			Source: oauth2.ReuseTokenSource(nil, src),
 		},
 	}
-	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", r.Config.Hostname), httpClient)
+	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", r.Hostname()), httpClient)
 }
 
 func (r *Rockpool) LagoonApiGetRemotes() {

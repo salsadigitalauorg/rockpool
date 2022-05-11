@@ -34,7 +34,7 @@ func (r *Rockpool) InstallHarbor() {
 		os.Exit(1)
 	}
 
-	values, err := r.RenderTemplate("harbor-values.yml.tmpl", r.Config, "")
+	values, err := r.RenderTemplate("harbor-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor values template: %s\n", cn, err)
 		os.Exit(1)
@@ -87,7 +87,7 @@ func (r *Rockpool) FetchHarborCerts() {
 }
 
 func (r *Rockpool) InstallHarborCerts(cn string) {
-	if cn == "rockpool-controller" {
+	if cn == r.ControllerClusterName() {
 		return
 	}
 
@@ -143,7 +143,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 
 // AddHarborHostEntries adds host entries to the target nodes.
 func (r *Rockpool) AddHarborHostEntries(cn string) {
-	if cn == "rockpool-controller" {
+	if cn == r.ControllerClusterName() {
 		return
 	}
 
@@ -153,7 +153,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 		return
 	}
 
-	entry := fmt.Sprintf("%s\tharbor.lagoon.%s", r.ControllerIP(), r.Config.Hostname)
+	entry := fmt.Sprintf("%s\tharbor.lagoon.%s", r.ControllerIP(), r.Hostname())
 	entryCmdStr := fmt.Sprintf("echo '%s' >> /etc/hosts", entry)
 	for _, n := range c.Nodes {
 		if n.Role == "loadbalancer" {
@@ -186,7 +186,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	cn := r.ControllerClusterName()
 	r.AddLagoonRepo(cn)
 
-	values, err := r.RenderTemplate("lagoon-core-values.yml.tmpl", r.Config, "")
+	values, err := r.RenderTemplate("lagoon-core-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
 		os.Exit(1)
@@ -240,7 +240,7 @@ func (r *Rockpool) RegisterLagoonRemote(cn string) {
 		Id:            cId,
 		Name:          rName,
 		ConsoleUrl:    fmt.Sprintf("https://%s:6443", r.TargetIP(cn)),
-		RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, r.Hostname),
+		RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, r.Hostname()),
 	}
 	for _, existingRe := range r.State.Remotes {
 		if existingRe.Id == re.Id && existingRe.Name == re.Name {

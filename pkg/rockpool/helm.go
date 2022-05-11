@@ -38,7 +38,7 @@ func (r *Rockpool) HelmList(cn string) {
 func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) ([]byte, error) {
 	upgrade := false
 	for _, u := range r.Config.UpgradeComponents {
-		if u == releaseName {
+		if u == "all" || u == releaseName {
 			upgrade = true
 			break
 		}

@@ -32,9 +32,9 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 	}
 
 	// Create directory for rendered templates.
-	err := os.MkdirAll(r.RenderedTemplatesPath(), os.ModePerm)
+	err := os.MkdirAll(r.RenderedTemplatesPath(true), os.ModePerm)
 	if err != nil {
-		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.RenderedTemplatesPath(), err)
+		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.RenderedTemplatesPath(true), err)
 		os.Exit(1)
 	}
 }
@@ -124,20 +124,20 @@ func (r *Rockpool) Status() {
 	}
 
 	fmt.Println("Gitea:")
-	fmt.Printf("  http://gitea.lagoon.%s\n", r.Hostname)
+	fmt.Printf("  http://gitea.lagoon.%s\n", r.Hostname())
 	fmt.Println("  User: rockpool")
 	fmt.Println("  Pass: pass")
 
 	fmt.Println("Keycloak:")
-	fmt.Printf("  http://keycloak.lagoon.%s/auth/admin\n", r.Hostname)
+	fmt.Printf("  http://keycloak.lagoon.%s/auth/admin\n", r.Hostname())
 	fmt.Println("  User: admin")
 	fmt.Println("  Pass: pass")
 
-	fmt.Printf("Lagoon UI: http://ui.lagoon.%s\n", r.Hostname)
+	fmt.Printf("Lagoon UI: http://ui.lagoon.%s\n", r.Hostname())
 	fmt.Println("  User: lagoonadmin")
 	fmt.Println("  Pass: pass")
 
-	fmt.Printf("Lagoon GraphQL: http://api.lagoon.%s/graphql\n", r.Hostname)
+	fmt.Printf("Lagoon GraphQL: http://api.lagoon.%s/graphql\n", r.Hostname())
 	fmt.Println("Lagoon SSH: ssh -p 2022 lagoon@localhost")
 
 	fmt.Println()
@@ -145,6 +145,10 @@ func (r *Rockpool) Status() {
 
 func (r *Rockpool) TotalClusterNum() int {
 	return r.Config.NumTargets + 1
+}
+
+func (r *Rockpool) Hostname() string {
+	return fmt.Sprintf("%s.%s", r.Name, r.Domain)
 }
 
 func (r *Rockpool) ControllerIP() string {
@@ -189,6 +193,10 @@ func (r *Rockpool) TargetClusterName(targetId int) string {
 	return r.Config.Name + "-target-" + fmt.Sprint(targetId)
 }
 
-func (r *Rockpool) RenderedTemplatesPath() string {
-	return path.Join(r.Config.ConfigDir, "rendered", r.Config.Name)
+func (r *Rockpool) RenderedTemplatesPath(withName bool) string {
+	p := path.Join(r.Config.ConfigDir, "rendered")
+	if withName {
+		p = path.Join(p, r.Config.Name)
+	}
+	return p
 }
