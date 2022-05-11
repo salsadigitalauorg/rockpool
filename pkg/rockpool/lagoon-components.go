@@ -34,7 +34,7 @@ func (r *Rockpool) InstallHarbor() {
 		os.Exit(1)
 	}
 
-	values, err := internal.RenderTemplate("harbor-values.yml.tmpl", r.RenderedTemplatesPath(), r.Config, "")
+	values, err := r.RenderTemplate("harbor-values.yml.tmpl", r.Config, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor values template: %s\n", cn, err)
 		os.Exit(1)
@@ -62,7 +62,7 @@ func (r *Rockpool) FetchHarborCerts() {
 	}{}
 	json.Unmarshal(certBytes, &certData)
 
-	secretManifest, err := internal.RenderTemplate("harbor-cert.yml.tmpl", r.RenderedTemplatesPath(), certData, "")
+	secretManifest, err := r.RenderTemplate("harbor-cert.yml.tmpl", certData, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor cert template: %s\n", cn, err)
 		os.Exit(1)
@@ -75,7 +75,7 @@ func (r *Rockpool) FetchHarborCerts() {
 		fmt.Printf("[%s] error when decoding ca.crt: %#v\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	caCrtFile, err := internal.RenderTemplate("harbor-ca.crt.tmpl", r.RenderedTemplatesPath(), string(decoded), "")
+	caCrtFile, err := r.RenderTemplate("harbor-ca.crt.tmpl", string(decoded), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor ca.crt template: %s\n", cn, err)
 		os.Exit(1)
@@ -129,7 +129,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 	}
 
 	// Patch lagoon-remote-lagoon-build-deploy to add the cert secret.
-	patchFile, err := internal.RenderTemplate("patch-lagoon-remote-lagoon-build-deploy.yaml", r.RenderedTemplatesPath(), nil, "")
+	patchFile, err := r.RenderTemplate("patch-lagoon-remote-lagoon-build-deploy.yaml", nil, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering the build deploy patch file: %s\n", cn, err)
 		os.Exit(1)
@@ -186,10 +186,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	cn := r.ControllerClusterName()
 	r.AddLagoonRepo(cn)
 
-	values, err := internal.RenderTemplate(
-		"lagoon-core-values.yml.tmpl",
-		r.RenderedTemplatesPath(), r.Config, "",
-	)
+	values, err := r.RenderTemplate("lagoon-core-values.yml.tmpl", r.Config, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
 		os.Exit(1)
@@ -220,11 +217,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 
 	cm["TargetId"] = fmt.Sprint(internal.GetTargetIdFromCn(cn))
 
-	values, err := internal.RenderTemplate(
-		"lagoon-remote-values.yml.tmpl",
-		r.RenderedTemplatesPath(), cm,
-		cn+"-lagoon-remote-values.yml",
-	)
+	values, err := r.RenderTemplate("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-remote values template: %s\n", cn, err)
 		os.Exit(1)

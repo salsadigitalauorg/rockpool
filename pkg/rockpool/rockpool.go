@@ -1,6 +1,7 @@
 package rockpool
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,10 +9,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/yusufhm/rockpool/internal"
 )
+
+//go:embed templates
+var templates embed.FS
 
 func (c *Config) ToMap() map[string]string {
 	return map[string]string{
@@ -19,6 +24,34 @@ func (c *Config) ToMap() map[string]string {
 		"Hostname": c.Hostname,
 		"Arch":     c.Arch,
 	}
+}
+
+// RenderTemplate executes a given template file and returns the path to its
+// rendered version.
+func (r *Rockpool) RenderTemplate(tn string, config interface{}, destName string) (string, error) {
+	t := template.Must(template.ParseFS(templates, "templates/"+tn))
+
+	var rendered string
+	path := r.RenderedTemplatesPath()
+	if destName != "" {
+		rendered = filepath.Join(path, destName)
+	} else if filepath.Ext(tn) == ".tmpl" {
+		rendered = filepath.Join(path, strings.TrimSuffix(tn, ".tmpl"))
+	} else {
+		rendered = filepath.Join(path, tn)
+	}
+
+	f, err := os.Create(rendered)
+	if err != nil {
+		return "", err
+	}
+
+	err = t.Execute(f, config)
+	f.Close()
+	if err != nil {
+		return "", err
+	}
+	return rendered, nil
 }
 
 func (r *Rockpool) Up(clusters []string) {
@@ -236,7 +269,7 @@ func (r *Rockpool) InstallGitea() {
 		os.Exit(1)
 	}
 
-	values, err := internal.RenderTemplate("gitea-values.yml.tmpl", r.RenderedTemplatesPath(), r.Config, "")
+	values, err := r.RenderTemplate("gitea-values.yml.tmpl", r.Config, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
 		os.Exit(1)
@@ -260,7 +293,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 		os.Exit(1)
 	}
 
-	values, err := internal.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.RenderedTemplatesPath(), r.Config, "")
+	values, err := r.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.Config, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
 		os.Exit(1)

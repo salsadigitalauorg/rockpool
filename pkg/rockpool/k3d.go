@@ -108,7 +108,7 @@ func (r *Rockpool) CreateRegistry() {
 		r.DockerRestart(regName)
 	}
 
-	_, err = internal.RenderTemplate("registries.yaml", r.RenderedTemplatesPath(), nil, "")
+	_, err = r.RenderTemplate("registries.yaml", nil, "")
 	if err != nil {
 		fmt.Println("[rockpool] error rendering registries.yaml:", err)
 		os.Exit(1)
