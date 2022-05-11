@@ -438,11 +438,7 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		fmt.Printf("[%s] error parsing CoreDNS configmap: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	gitea_entry := fmt.Sprintf("%s %s.%s\n", r.ControllerIP(), "gitea", r.Hostname)
-	if !strings.Contains(corednsCm.Data.NodeHosts, gitea_entry) {
-		corednsCm.Data.NodeHosts += gitea_entry
-	}
-	for _, h := range []string{"harbor", "broker", "ssh", "api"} {
+	for _, h := range []string{"harbor", "broker", "ssh", "api", "gitea"} {
 		entry := fmt.Sprintf("%s %s.lagoon.%s\n", r.ControllerIP(), h, r.Hostname)
 		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
 			corednsCm.Data.NodeHosts += entry
