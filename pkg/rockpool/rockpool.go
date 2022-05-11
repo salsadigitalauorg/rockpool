@@ -67,6 +67,7 @@ func (r *Rockpool) Up(clusters []string) {
 	}
 	r.CreateRegistry()
 	r.CreateClusters(clusters)
+	r.InstallResolver()
 
 	setupController := false
 	setupTargets := []string{}
@@ -166,7 +167,6 @@ func (r *Rockpool) SetupLagoonController() {
 	r.InstallCertManager()
 
 	r.InstallDnsmasq()
-	r.InstallResolver()
 
 	// r.InstallGitlab()
 	r.InstallGitea()
