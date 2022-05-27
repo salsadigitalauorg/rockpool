@@ -171,15 +171,8 @@ function lagoon () {
 
 # Build nfs-provisioner image.
 function nfs_provisioner () {
-  [ ! -d "nfs-provisioner" ] && git clone https://github.com/kubernetes-sigs/nfs-ganesha-server-and-external-provisioner.git nfs-provisioner
-  pushd nfs-provisioner && git checkout -- . && git clean -fd .
-  pushd cmd/nfs-provisioner
-  GOOS=linux GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o ../../nfs-provisioner .
-  popd
-  docker build \
-    --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --tag ${ROCKPOOL_IMAGES_REPO}/nfs-provisioner:latest .
-  docker push ${ROCKPOOL_IMAGES_REPO}/nfs-provisioner:latest
+  pushd ..
+  docker buildx bake nfs-provisioner --push
   popd
 }
 

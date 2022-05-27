@@ -19,3 +19,10 @@ target "k3s" {
         K3S_VERSION = "${K3S_VERSION}"
     }
 }
+
+target "nfs-provisioner" {
+    dockerfile = "Dockerfile.nfs-provisioner"
+    tags = ["ghcr.io/yusufhm/rockpool/nfs-provisioner:latest"]
+    labels = {"org.opencontainers.image.source": "${ROCKPOOL_REPO}"}
+    platforms = ["linux/amd64", "linux/arm64"]
+}
