@@ -24,23 +24,26 @@ lagoon-build-deploy:
   taskAPIHost: "api.lagoon.{{ .Hostname }}"
 
 dbaas-operator:
-  enabled: false
+  enabled: true
+  enableMariaDBProviders: true
+  enableMongoDBProviders: false
+  enablePostreSQLProviders: false
 
   mariadbProviders:
     production:
       environment: production
-      hostname: 172.17.0.1.nip.io
+      hostname: production.mariadb.svc.cluster.local
       readReplicaHostnames:
-      - 172.17.0.1.nip.io
-      password: password
+      - production.mariadb.svc.cluster.local
+      password: mariadbpass
       port: '3306'
       user: root
 
-    development:
+    {{/* development:
       environment: development
-      hostname: 172.17.0.1.nip.io
+      hostname: development.mariadb.svc.cluster.local
       readReplicaHostnames:
-      - 172.17.0.1.nip.io
-      password: password
+      - development.mariadb.svc.cluster.local
+      password: mariadbpass
       port: '3306'
-      user: root
+      user: root */}}

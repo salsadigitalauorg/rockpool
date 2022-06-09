@@ -17,6 +17,7 @@ func (r *Rockpool) InstallIngressNginx() {
 		[]string{
 			"--create-namespace", "--wait",
 			"--set", "controller.config.ssl-redirect=false",
+			"--set", "controller.config.proxy-body-size=8m",
 		},
 	)
 	if err != nil {

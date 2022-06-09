@@ -195,6 +195,7 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 	r.HelmList(cn)
 	r.ConfigureTargetCoreDNS(cn)
 	r.InstallNfsProvisioner(cn)
+	r.InstallMariaDB(cn)
 	r.InstallLagoonRemote(cn)
 	r.RegisterLagoonRemote(cn)
 }
@@ -310,6 +311,46 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 	)
 	if err != nil {
 		fmt.Printf("[%s] unable to install nfs-provisioner: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) InstallMariaDB(cn string) {
+	cmd := r.Helm(cn, "", "repo", "add", "nicholaswilde", "https://nicholaswilde.github.io/helm-charts/")
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("[%s] unable to add nicholaswilde repo: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+
+	_, err = r.KubeApply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml", true)
+	if err != nil {
+		fmt.Printf("[%s] unable to install mariadb crds: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+
+	_, err = r.KubeApply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml", true)
+	if err != nil {
+		fmt.Printf("[%s] unable to install mongodb crds: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+
+	_, err = r.KubeApply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml", true)
+	if err != nil {
+		fmt.Printf("[%s] unable to install postgres crds: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+
+	_, err = r.HelmInstallOrUpgrade(cn, "mariadb", "mariadb-production", "nicholaswilde/mariadb",
+		[]string{
+			"--create-namespace", "--wait",
+			"--set", "fullnameOverride=production",
+			"--set", "secret.MYSQL_ROOT_PASSWORD=mariadbpass",
+			"--set", "persistence.config.enabled=true",
+		},
+	)
+	if err != nil {
+		fmt.Printf("[%s] unable to install mariadb-production: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
