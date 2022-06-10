@@ -9,12 +9,25 @@ import (
 	"golang.org/x/sync/syncmap"
 )
 
+type K3d struct {
+	Registries []Registry
+	Registry
+	*Docker
+	*Templates
+}
+
 type Registry struct {
 	Name  string `json:"name"`
 	State struct {
 		Running bool
 		Status  string
 	}
+}
+
+type Docker struct{}
+
+type Templates struct {
+	*Config
 }
 
 type ClusterNode struct {
@@ -83,6 +96,9 @@ type Config struct {
 }
 
 type Rockpool struct {
+	*K3d
+	*Docker
+	*Templates
 	State
 	Config
 	wg        *sync.WaitGroup

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"sync"
 )
@@ -32,9 +31,9 @@ func (r *Rockpool) VerifyReqs(failOnMissing bool) {
 	}
 
 	// Create directory for rendered templates.
-	err := os.MkdirAll(r.RenderedTemplatesPath(true), os.ModePerm)
+	err := os.MkdirAll(r.Templates.RenderedPath(true), os.ModePerm)
 	if err != nil {
-		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.RenderedTemplatesPath(true), err)
+		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.Templates.RenderedPath(true), err)
 		os.Exit(1)
 	}
 }
@@ -191,12 +190,4 @@ func (r *Rockpool) ControllerClusterName() string {
 
 func (r *Rockpool) TargetClusterName(targetId int) string {
 	return r.Config.Name + "-target-" + fmt.Sprint(targetId)
-}
-
-func (r *Rockpool) RenderedTemplatesPath(withName bool) string {
-	p := path.Join(r.Config.ConfigDir, "rendered")
-	if withName {
-		p = path.Join(p, r.Config.Name)
-	}
-	return p
 }

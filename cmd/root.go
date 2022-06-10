@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
@@ -110,8 +109,7 @@ func fullClusterNamesFromArgs(argClusters []string) []string {
 
 func init() {
 	determineConfigDir()
-	r.Spinner.Color("red", "bold")
-	r.Config.Arch = runtime.GOARCH
+	r.Initialise()
 
 	rootCmd.PersistentFlags().StringVarP(&r.Config.Name, "name", "n", "rockpool", "The name of the platform")
 

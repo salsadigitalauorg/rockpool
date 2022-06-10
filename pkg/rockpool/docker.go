@@ -9,20 +9,24 @@ import (
 	"github.com/yusufhm/rockpool/internal"
 )
 
-func (r *Rockpool) Docker(args ...string) *exec.Cmd {
-	return exec.Command("docker", args...)
+func (d *Docker) Exec(n string, cmdStr string) ([]byte, error) {
+	return exec.Command("docker", "exec", n, "ash", "-c", cmdStr).Output()
 }
 
-func (r *Rockpool) DockerExec(n string, cmdStr string) ([]byte, error) {
-	return r.Docker("exec", n, "ash", "-c", cmdStr).Output()
+func (d *Docker) Stop(n string) ([]byte, error) {
+	return exec.Command("docker", "stop", n).Output()
 }
 
-func (r *Rockpool) DockerRestart(n string) ([]byte, error) {
-	return r.Docker("restart", n).Output()
+func (d *Docker) Start(n string) ([]byte, error) {
+	return exec.Command("docker", "start", n).Output()
 }
 
-func (r *Rockpool) DockerInspect(cn string) []DockerContainer {
-	cmd := r.Docker("inspect", cn)
+func (d *Docker) Restart(n string) ([]byte, error) {
+	return exec.Command("docker", "restart", n).Output()
+}
+
+func (d *Docker) Inspect(cn string) []DockerContainer {
+	cmd := exec.Command("docker", "inspect", cn)
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println(string(out))
@@ -38,6 +42,6 @@ func (r *Rockpool) DockerInspect(cn string) []DockerContainer {
 	return containers
 }
 
-func (r *Rockpool) DockerCp(src string, dest string) ([]byte, error) {
-	return r.Docker("cp", src, dest).Output()
+func (d *Docker) Cp(src string, dest string) ([]byte, error) {
+	return exec.Command("docker", "cp", src, dest).Output()
 }

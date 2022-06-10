@@ -11,6 +11,126 @@ import (
 	"github.com/yusufhm/rockpool/internal"
 )
 
+var registryName = "rockpool-registry"
+var registryNameFull = "k3d-rockpool-registry"
+
+func (k3 *K3d) RegistryList() {
+	k3.Registries = []Registry{}
+	res, err := exec.Command("k3d", "registry", "list", "-o", "json").Output()
+	if err != nil {
+		fmt.Printf("[rockpool] unable to get registry list: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = json.Unmarshal(res, &k3.Registries)
+	if err != nil {
+		fmt.Printf("[rockpool] unable to parse registry list: %s\n", err)
+		os.Exit(1)
+	}
+}
+
+func (k3 *K3d) RegistryGet() {
+	k3.RegistryList()
+	for _, reg := range k3.Registries {
+		if reg.Name == registryNameFull {
+			k3.Registry = reg
+			break
+		}
+	}
+}
+
+func (k3 *K3d) RegistryCreate() {
+	k3.RegistryGet()
+	if k3.Registry.Name == registryNameFull {
+		fmt.Println("[rockpool] registry already exists")
+		return
+	}
+
+	fmt.Println("[rockpool] creating registry")
+	_, err := exec.Command("k3d", "registry", "create", registryName, "--port", "5111").Output()
+	if err != nil {
+		fmt.Println("[rockpool] unable to create registry: ", err)
+		os.Exit(1)
+	}
+
+	// Configure registry to enable proxy.
+	regCfgFile := "/etc/docker/registry/config.yml"
+	proxyLine := "proxy:\n  remoteurl: https://registry-1.docker.io"
+	proxyLineCmdStr := fmt.Sprintf("echo '%s' >> "+regCfgFile, proxyLine)
+
+	var registryConfig []byte
+	done := false
+	retries := 12
+	for !done && retries > 0 {
+		registryConfig, err = k3.Docker.Exec(registryNameFull, "cat "+regCfgFile)
+		if err != nil {
+			fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
+			time.Sleep(5 * time.Second)
+			retries--
+			continue
+		}
+		done = true
+	}
+	if err != nil {
+		fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
+	}
+
+	if !strings.Contains(string(registryConfig), proxyLine) {
+		fmt.Println("[rockpool] adding registry proxy config")
+		_, err := k3.Docker.Exec(registryNameFull, proxyLineCmdStr)
+		if err != nil {
+			fmt.Println("[rockpool] error adding registry proxy config:", internal.GetCmdStdErr(err))
+			os.Exit(1)
+		}
+		k3.Docker.Restart(registryNameFull)
+	}
+}
+
+func (k3 *K3d) RegistryRenderConfig() {
+	_, err := k3.Templates.Render("registries.yaml", nil, "")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (k3 *K3d) RegistryStop() {
+	k3.RegistryGet()
+	if k3.Registry.Name != registryNameFull {
+		return
+	}
+	fmt.Println("[rockpool] stopping registry")
+	_, err := k3.Docker.Stop(k3.Registry.Name)
+	if err != nil {
+		fmt.Println("[rockpool] error stopping registry:", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	fmt.Println("[rockpool] stopped registry")
+}
+
+func (k3 *K3d) RegistryStart() {
+	fmt.Println("[rockpool] starting registry")
+	_, err := k3.Docker.Start(registryNameFull)
+	if err != nil {
+		fmt.Println("[rockpool] error starting registry:", internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+	fmt.Println("[rockpool] started registry")
+}
+
+func (k3 *K3d) RegistryDelete() {
+	k3.RegistryGet()
+	if k3.Registry.Name != registryNameFull {
+		return
+	}
+	fmt.Println("[rockpool] deleting registry")
+	_, err := exec.Command("k3d", "registry", "delete", k3.Registry.Name).Output()
+	if err != nil {
+		fmt.Println("[rockpool] unable to delete registry: ", err)
+		os.Exit(1)
+	}
+	fmt.Println("[rockpool] deleted registry")
+}
+
 func (cr *Cluster) IsRunning() bool {
 	return cr.AgentsCount == cr.AgentsRunning && cr.ServersCount == cr.ServersRunning
 }
@@ -38,84 +158,6 @@ func (cl *ClusterList) ClusterExists(cn string) (bool, Cluster) {
 	return false, Cluster{}
 }
 
-func (r *Rockpool) FetchRegistry() {
-	var allRegistries []Registry
-	res, err := exec.Command("k3d", "registry", "list", "-o", "json").Output()
-	if err != nil {
-		fmt.Printf("[rockpool] unable to get registry list: %s\n", err)
-		os.Exit(1)
-	}
-
-	err = json.Unmarshal(res, &allRegistries)
-	if err != nil {
-		fmt.Printf("[rockpool] unable to parse registry list: %s\n", err)
-		os.Exit(1)
-	}
-
-	for _, reg := range allRegistries {
-		if reg.Name == "k3d-rockpool-registry" {
-			r.Registry = reg
-			break
-		}
-	}
-
-}
-
-func (r *Rockpool) CreateRegistry() {
-	r.FetchRegistry()
-	regName := "k3d-rockpool-registry"
-	if r.Registry.Name == regName {
-		fmt.Println("[rockpool] registry already exists")
-		return
-	}
-
-	fmt.Println("[rockpool] creating registry")
-	_, err := exec.Command("k3d", "registry", "create", "rockpool-registry", "--port", "5111").Output()
-	if err != nil {
-		fmt.Println("[rockpool] unable to create registry: ", err)
-		os.Exit(1)
-	}
-
-	// Configure registry to enable proxy.
-	regCfgFile := "/etc/docker/registry/config.yml"
-	proxyLine := "proxy:\n  remoteurl: https://registry-1.docker.io"
-	proxyLineCmdStr := fmt.Sprintf("echo '%s' >> "+regCfgFile, proxyLine)
-
-	var registryConfig []byte
-	done := false
-	retries := 12
-	for !done && retries > 0 {
-		registryConfig, err = r.DockerExec(regName, "cat "+regCfgFile)
-		if err != nil {
-			fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
-			time.Sleep(5 * time.Second)
-			retries--
-			continue
-		}
-		done = true
-	}
-	if err != nil {
-		fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
-	}
-
-	if !strings.Contains(string(registryConfig), proxyLine) {
-		fmt.Println("[rockpool] adding registry proxy config")
-		_, err := r.DockerExec(regName, proxyLineCmdStr)
-		if err != nil {
-			fmt.Println("[rockpool] error adding registry proxy config:", internal.GetCmdStdErr(err))
-			os.Exit(1)
-		}
-		r.DockerRestart(regName)
-	}
-}
-
-func (r *Rockpool) RenderRegistryFile() {
-	_, err := r.RenderTemplate("registries.yaml", nil, "")
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (r *Rockpool) CreateCluster(cn string) {
 	if exists, cs := r.State.Clusters.ClusterExists(cn); exists && cs.IsRunning() {
 		fmt.Printf("[%s] cluster already exists\n", cn)
@@ -131,8 +173,8 @@ func (r *Rockpool) CreateCluster(cn string) {
 		"cluster", "create", "--kubeconfig-update-default=false",
 		"--image=ghcr.io/yusufhm/rockpool/k3s:latest",
 		"--agents", "1", "--network", "k3d-rockpool",
-		"--registry-use", "k3d-rockpool-registry:5000",
-		"--registry-config", fmt.Sprintf("%s/registries.yaml", r.RenderedTemplatesPath(false)),
+		"--registry-use", registryName + ":5000",
+		"--registry-config", fmt.Sprintf("%s/registries.yaml", r.Templates.RenderedPath(false)),
 	}
 
 	if cn == r.ControllerClusterName() {

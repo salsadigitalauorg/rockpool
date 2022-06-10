@@ -35,7 +35,7 @@ func (r *Rockpool) InstallHarbor() {
 		os.Exit(1)
 	}
 
-	values, err := r.RenderTemplate("harbor-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := r.Templates.Render("harbor-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor values template: %s\n", cn, err)
 		os.Exit(1)
@@ -63,7 +63,7 @@ func (r *Rockpool) FetchHarborCerts() {
 	}{}
 	json.Unmarshal(certBytes, &certData)
 
-	secretManifest, err := r.RenderTemplate("harbor-cert.yml.tmpl", certData, "")
+	secretManifest, err := r.Templates.Render("harbor-cert.yml.tmpl", certData, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor cert template: %s\n", cn, err)
 		os.Exit(1)
@@ -76,7 +76,7 @@ func (r *Rockpool) FetchHarborCerts() {
 		fmt.Printf("[%s] error when decoding ca.crt: %#v\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	caCrtFile, err := r.RenderTemplate("harbor-ca.crt.tmpl", string(decoded), "")
+	caCrtFile, err := r.Templates.Render("harbor-ca.crt.tmpl", string(decoded), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor ca.crt template: %s\n", cn, err)
 		os.Exit(1)
@@ -110,14 +110,14 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 			continue
 		}
 
-		caCrtFileOut, _ := r.DockerExec(n.Name, "ls /etc/ssl/certs/harbor-cert.crt")
+		caCrtFileOut, _ := r.Docker.Exec(n.Name, "ls /etc/ssl/certs/harbor-cert.crt")
 		if strings.Trim(string(caCrtFileOut), "\n") == "/etc/ssl/certs/harbor-cert.crt" {
 			continue
 		}
 
 		// Add harbor's ca.crt to the target.
 		destCaCrt := fmt.Sprintf("%s:/etc/ssl/certs/harbor-cert.crt", n.Name)
-		_, err := r.DockerCp(r.State.HarborCaCrtFile, destCaCrt)
+		_, err := r.Docker.Cp(r.State.HarborCaCrtFile, destCaCrt)
 		if err != nil {
 			fmt.Printf("[%s] error copying ca.crt: %s\n", cn, internal.GetCmdStdErr(err))
 			os.Exit(1)
@@ -130,7 +130,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 	}
 
 	// Patch lagoon-remote-lagoon-build-deploy to add the cert secret.
-	patchFile, err := r.RenderTemplate("patch-lagoon-remote-lagoon-build-deploy.yaml", nil, "")
+	patchFile, err := r.Templates.Render("patch-lagoon-remote-lagoon-build-deploy.yaml", nil, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering the build deploy patch file: %s\n", cn, err)
 		os.Exit(1)
@@ -161,10 +161,10 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 			continue
 		}
 
-		hostsContent, _ := r.DockerExec(n.Name, "cat /etc/hosts")
+		hostsContent, _ := r.Docker.Exec(n.Name, "cat /etc/hosts")
 		if !strings.Contains(string(hostsContent), entry) {
 			fmt.Printf("[%s] adding harbor host entries\n", n.Name)
-			_, err := r.DockerExec(n.Name, entryCmdStr)
+			_, err := r.Docker.Exec(n.Name, entryCmdStr)
 			if err != nil {
 				fmt.Printf("[%s] error adding harbor host entry: %s\n", cn, internal.GetCmdStdErr(err))
 				os.Exit(1)
@@ -187,7 +187,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	cn := r.ControllerClusterName()
 	r.AddLagoonRepo(cn)
 
-	values, err := r.RenderTemplate("lagoon-core-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := r.Templates.Render("lagoon-core-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
 		os.Exit(1)
@@ -218,7 +218,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 
 	cm["TargetId"] = fmt.Sprint(internal.GetTargetIdFromCn(cn))
 
-	values, err := r.RenderTemplate("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
+	values, err := r.Templates.Render("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-remote values template: %s\n", cn, err)
 		os.Exit(1)

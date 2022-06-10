@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/yusufhm/rockpool/internal"
@@ -27,35 +27,21 @@ func (c *Config) ToMap() map[string]string {
 	}
 }
 
-// RenderTemplate executes a given template file and returns the path to its
-// rendered version.
-func (r *Rockpool) RenderTemplate(tn string, config interface{}, destName string) (string, error) {
-	t := template.Must(template.ParseFS(templates, "templates/"+tn))
+func (r *Rockpool) Initialise() {
+	ts := Templates{Config: &r.Config}
+	r.Templates = &ts
 
-	var rendered string
-	path := r.RenderedTemplatesPath(true)
-	if tn == "registries.yaml" {
-		path = r.RenderedTemplatesPath(false)
-	}
-	if destName != "" {
-		rendered = filepath.Join(path, destName)
-	} else if filepath.Ext(tn) == ".tmpl" {
-		rendered = filepath.Join(path, strings.TrimSuffix(tn, ".tmpl"))
-	} else {
-		rendered = filepath.Join(path, tn)
-	}
+	d := Docker{}
+	r.Docker = &d
 
-	f, err := os.Create(rendered)
-	if err != nil {
-		return "", err
+	k3 := K3d{
+		Docker:    r.Docker,
+		Templates: r.Templates,
 	}
+	r.K3d = &k3
 
-	err = t.Execute(f, config)
-	f.Close()
-	if err != nil {
-		return "", err
-	}
-	return rendered, nil
+	r.Spinner.Color("red", "bold")
+	r.Config.Arch = runtime.GOARCH
 }
 
 func (r *Rockpool) Up(clusters []string) {
@@ -69,8 +55,8 @@ func (r *Rockpool) Up(clusters []string) {
 			}
 		}
 	}
-	r.CreateRegistry()
-	r.RenderRegistryFile()
+	r.K3d.RegistryCreate()
+	r.K3d.RegistryRenderConfig()
 	r.CreateClusters(clusters)
 
 	setupController := false
@@ -120,6 +106,7 @@ func (r *Rockpool) allClusters() []string {
 }
 
 func (r *Rockpool) Start(clusters []string) {
+	r.K3d.RegistryStart()
 	if len(clusters) == 0 {
 		clusters = r.allClusters()
 	}
@@ -140,6 +127,7 @@ func (r *Rockpool) Stop(clusters []string) {
 		}(c)
 	}
 	r.WgWait()
+	r.K3d.RegistryStop()
 }
 
 func (r *Rockpool) Down(clusters []string) {
@@ -155,6 +143,7 @@ func (r *Rockpool) Down(clusters []string) {
 		go r.DeleteCluster(c)
 	}
 	r.WgWait()
+	r.K3d.RegistryDelete()
 }
 
 func (r *Rockpool) CreateClusters(clusters []string) {
@@ -225,7 +214,7 @@ func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
 	}
 	cm["Targets"] = targets
 
-	patchFile, err := r.RenderTemplate("ingress-nginx-values.yml.tmpl", cm, "")
+	patchFile, err := r.Templates.Render("ingress-nginx-values.yml.tmpl", cm, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering ingress nginx patch template: %s\n", cn, err)
 		os.Exit(1)
@@ -305,7 +294,7 @@ func (r *Rockpool) InstallGitea() {
 		os.Exit(1)
 	}
 
-	values, err := r.RenderTemplate("gitea-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := r.Templates.Render("gitea-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
 		os.Exit(1)
@@ -329,7 +318,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 		os.Exit(1)
 	}
 
-	values, err := r.RenderTemplate("nfs-server-provisioner-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := r.Templates.Render("nfs-server-provisioner-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
 		os.Exit(1)
