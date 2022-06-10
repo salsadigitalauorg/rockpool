@@ -10,14 +10,14 @@ import (
 	"github.com/yusufhm/rockpool/internal"
 )
 
-func (r *Rockpool) InstallIngressNginx() {
-	cn := r.ControllerClusterName()
+func (r *Rockpool) InstallIngressNginx(cn string) {
 	_, err := r.HelmInstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
 			"--create-namespace", "--wait",
 			"--set", "controller.config.ssl-redirect=false",
 			"--set", "controller.config.proxy-body-size=8m",
+			"--set", "server-name-hash-bucket-size=128",
 		},
 	)
 	if err != nil {

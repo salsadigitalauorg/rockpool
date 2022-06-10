@@ -137,13 +137,19 @@ func (r *Rockpool) CreateCluster(cn string) {
 
 	if cn == r.ControllerClusterName() {
 		cmdArgs = append(cmdArgs,
-			"-p", "80:80@loadbalancer",
-			"-p", "443:443@loadbalancer",
-			"-p", "2022:22@loadbalancer",
+			"--port", "80:80@loadbalancer",
+			"--port", "443:443@loadbalancer",
+			"--port", "2022:22@loadbalancer",
 			// Required for cross-cluster amqp.
-			"-p", "5672:5672@loadbalancer",
-			"-p", "6153:6153/udp@loadbalancer",
-			"-p", "6153:6153/tcp@loadbalancer",
+			"--port", "5672:5672@loadbalancer",
+			"--port", "6153:6153/udp@loadbalancer",
+			"--port", "6153:6153/tcp@loadbalancer",
+		)
+	} else { // Target cluster exposed ports.
+		cmdArgs = append(cmdArgs,
+			// Expose arbitrary ports for ingress-nginx.
+			"--port", "80@loadbalancer",
+			"--port", "443@loadbalancer",
 		)
 	}
 

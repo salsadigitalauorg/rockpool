@@ -97,6 +97,8 @@ func (r *Rockpool) Up(clusters []string) {
 		}
 		r.WgWait()
 
+		r.SetupNginxReverseProxyForRemotes()
+
 		// Do the following serially so as not to run into
 		// race conditions while doing the restarts.
 		for _, c := range setupTargets {
@@ -168,7 +170,7 @@ func (r *Rockpool) SetupLagoonController() {
 	r.InstallMailHog()
 
 	r.HelmList(r.ControllerClusterName())
-	r.InstallIngressNginx()
+	r.InstallIngressNginx(r.ControllerClusterName())
 	r.InstallCertManager()
 
 	r.InstallDnsmasq()
@@ -194,6 +196,7 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 
 	r.HelmList(cn)
 	r.ConfigureTargetCoreDNS(cn)
+	r.InstallIngressNginx(cn)
 	r.InstallNfsProvisioner(cn)
 	r.InstallMariaDB(cn)
 	r.InstallLagoonRemote(cn)
@@ -205,6 +208,33 @@ func (r *Rockpool) InstallMailHog() {
 	_, err := r.KubeApplyTemplate(cn, "default", "mailhog.yml.tmpl", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install mailhog: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
+}
+
+func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
+	cn := r.ControllerClusterName()
+
+	cm := map[string]interface{}{
+		"Name":   r.Config.Name,
+		"Domain": r.Config.Domain,
+	}
+	targets := map[int]string{}
+	for i := 0; i < r.Config.NumTargets; i++ {
+		targets[i+1] = r.TargetIP(r.TargetClusterName(i + 1))
+	}
+	cm["Targets"] = targets
+
+	patchFile, err := r.RenderTemplate("ingress-nginx-values.yml.tmpl", cm, "")
+	if err != nil {
+		fmt.Printf("[%s] error rendering ingress nginx patch template: %s\n", cn, err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("[%s] using generated manifest at %s\n", cn, patchFile)
+	_, err = r.KubeApply(cn, "ingress-nginx", patchFile, true)
+	if err != nil {
+		fmt.Printf("[%s] unable to setup nginx reverse proxy: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 }
