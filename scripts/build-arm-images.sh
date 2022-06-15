@@ -28,7 +28,8 @@ function keycloak () {
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
     --tag ${ROCKPOOL_IMAGES_REPO}/keycloak:${KEYCLOAK_VERSION} .
   docker push ${ROCKPOOL_IMAGES_REPO}/keycloak:${KEYCLOAK_VERSION}
-  popd +2
+  popd
+  popd
 }
 
 function lagoon_clone () {
