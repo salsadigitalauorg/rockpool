@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yusufhm/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/internal"
 )
 
 var registryName = "rockpool-registry"
@@ -171,7 +171,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 	k3sArgs := []string{"--k3s-arg", "--disable=traefik@server:0"}
 	cmdArgs := []string{
 		"cluster", "create", "--kubeconfig-update-default=false",
-		"--image=ghcr.io/yusufhm/rockpool/k3s:latest",
+		"--image=ghcr.io/salsadigitalauorg/rockpool/k3s:latest",
 		"--agents", "1", "--network", "k3d-rockpool",
 		"--registry-use", registryName + ":5000",
 		"--registry-config", fmt.Sprintf("%s/registries.yaml", r.Templates.RenderedPath(false)),

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yusufhm/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/internal"
 )
 
 //go:embed templates

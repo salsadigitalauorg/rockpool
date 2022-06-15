@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yusufhm/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/internal"
 )
 
 func (r *Rockpool) InstallIngressNginx(cn string) {

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/salsadigitalauorg/rockpool/pkg/rockpool"
 	"github.com/spf13/cobra"
-	"github.com/yusufhm/rockpool/pkg/rockpool"
 )
 
 var r = rockpool.Rockpool{

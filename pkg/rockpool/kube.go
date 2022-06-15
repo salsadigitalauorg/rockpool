@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/yusufhm/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/internal"
 )
 
 func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {

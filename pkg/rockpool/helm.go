@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/yusufhm/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/internal"
 )
 
 func (r *Rockpool) Helm(cn string, ns string, args ...string) *exec.Cmd {

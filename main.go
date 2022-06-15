@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/yusufhm/rockpool/cmd"
+	"github.com/salsadigitalauorg/rockpool/cmd"
 )
 
 func main() {

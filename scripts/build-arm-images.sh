@@ -2,8 +2,8 @@
 
 set -ex
 
-ROCKPOOL_REPO=${ROCKPOOL_REPO:-https://github.com/yusufhm/rockpool}
-ROCKPOOL_IMAGES_REPO=${ROCKPOOL_IMAGES_REPO:-ghcr.io/yusufhm/rockpool}
+ROCKPOOL_REPO=${ROCKPOOL_REPO:-https://github.com/salsadigitalauorg/rockpool}
+ROCKPOOL_IMAGES_REPO=${ROCKPOOL_IMAGES_REPO:-ghcr.io/salsadigitalauorg/rockpool}
 KEYCLOAK_VERSION=${KEYCLOAK_VERSION:-7.0.1}
 LAGOON_VERSION=${LAGOON_VERSION:-v2.5.0}
 
@@ -44,7 +44,7 @@ function lagoon_keycloak () {
     lagoon_clone
   fi
   pushd services/keycloak
-  sed -i .bak 's/jboss\/keycloak\:7\.0\.1/ghcr\.io\/yusufhm\/rockpool\/keycloak\:7\.0\.1/g' Dockerfile
+  sed -i .bak 's/jboss\/keycloak\:7\.0\.1/ghcr\.io\/salsadigitalauorg\/rockpool\/keycloak\:7\.0\.1/g' Dockerfile
   sed -i .bak 's/${TINI_VERSION}\/tini/${TINI_VERSION}\/tini\-arm64/g' Dockerfile
   sed -i .bak 's/\/var\/cache\/yum/\/var\/cache\/yum \&\& ln -s \/usr\/bin\/python2 \/usr\/bin\/python/g' Dockerfile
   docker build \

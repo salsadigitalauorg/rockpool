@@ -1,5 +1,5 @@
 # rockpool
-[![Release](https://img.shields.io/github/v/release/yusufhm/rockpool)](https://github.com/yusufhm/rockpool/releases/latest)
+[![Release](https://img.shields.io/github/v/release/salsadigitalauorg/rockpool)](https://github.com/salsadigitalauorg/rockpool/releases/latest)
 
 rockpool is a CLI tool aiming to set up a local [Lagoon](https://github.com/uselagoon/lagoon) instance as painlessly as possible.
 
@@ -15,7 +15,7 @@ The following tools are needed for rockpool to work:
 ## Install
 
 ```sh
-curl -L -o rockpool https://github.com/yusufhm/rockpool/releases/latest/download/rockpool-$(uname -s)-$(uname -m)
+curl -L -o rockpool https://github.com/salsadigitalauorg/rockpool/releases/latest/download/rockpool-$(uname -s)-$(uname -m)
 
 chmod +x rockpool
 mv rockpool /usr/local/bin/rockpool

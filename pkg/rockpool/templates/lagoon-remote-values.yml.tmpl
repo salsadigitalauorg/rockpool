@@ -3,7 +3,7 @@ imageTag: v2.5.0
 {{- if eq .Arch "arm64" }}
 dockerHost:
   image:
-    repository: ghcr.io/yusufhm/rockpool/lagoon/docker-host
+    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/docker-host
   registry: harbor.lagoon.{{ .Hostname }}
 {{- end }}
 

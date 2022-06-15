@@ -68,10 +68,10 @@ changelog:
 # brews:
 #   - name: rockpool
 #     tap:
-#       owner: "yusufhm"
+#       owner: "salsadigitalauorg"
 #       name: homebrew-rockpool
 #       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-#     homepage: "https://github.com/yusufhm/rockpool"
+#     homepage: "https://github.com/salsadigitalauorg/rockpool"
 #     description: "Simple tool to set up a Lagoon instance locally"
 #     skip_upload: "false"
 #     test: system "#{bin}/rockpool version"

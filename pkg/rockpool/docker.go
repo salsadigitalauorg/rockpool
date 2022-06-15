@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/yusufhm/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/internal"
 )
 
 func (d *Docker) Exec(n string, cmdStr string) ([]byte, error) {

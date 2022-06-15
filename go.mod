@@ -1,4 +1,4 @@
-module github.com/yusufhm/rockpool
+module github.com/salsadigitalauorg/rockpool
 
 go 1.17
 
