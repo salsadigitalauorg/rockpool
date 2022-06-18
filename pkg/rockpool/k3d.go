@@ -131,40 +131,63 @@ func (k3 *K3d) RegistryDelete() {
 	fmt.Println("[rockpool] deleted registry")
 }
 
-func (cr *Cluster) IsRunning() bool {
-	return cr.AgentsCount == cr.AgentsRunning && cr.ServersCount == cr.ServersRunning
-}
-
-func (cl *ClusterList) Get() {
+func (k3 *K3d) ClusterFetchAll() ClusterList {
+	var cl ClusterList
 	res, err := exec.Command("k3d", "cluster", "list", "-o", "json").Output()
 	if err != nil {
-		fmt.Printf("[rockpool] unable to get cluster list: %s\n", err)
+		fmt.Printf("[rockpool] unable to get cluster list: %s\n", internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
-	err = json.Unmarshal(res, cl)
+	err = json.Unmarshal(res, &cl)
 	if err != nil {
 		fmt.Printf("[rockpool] unable to parse cluster list: %s\n", err)
 		os.Exit(1)
 	}
+	return cl
 }
 
-func (cl *ClusterList) ClusterExists(cn string) (bool, Cluster) {
-	for _, c := range *cl {
-		if c.Name == cn {
+func (k3 *K3d) ClusterExists(clusterName string) (bool, Cluster) {
+	for _, c := range k3.Clusters {
+		if c.Name == clusterName {
 			return true, c
 		}
 	}
 	return false, Cluster{}
 }
 
-func (r *Rockpool) CreateCluster(cn string) {
-	if exists, cs := r.State.Clusters.ClusterExists(cn); exists && cs.IsRunning() {
+func (k3 *K3d) ClusterFetch() {
+	for _, c := range k3.ClusterFetchAll() {
+		if !strings.HasPrefix(c.Name, k3.PlatformName) {
+			continue
+		}
+		// Skip if already present.
+		if exists, _ := k3.ClusterExists(c.Name); exists {
+			continue
+		}
+		k3.Clusters = append(k3.Clusters, c)
+	}
+}
+
+func (k3 *K3d) ClusterIsRunning(clusterName string) bool {
+	k3.ClusterFetch()
+	for _, c := range k3.Clusters {
+		if c.Name != clusterName {
+			continue
+		}
+		return c.AgentsCount == c.AgentsRunning && c.ServersCount == c.ServersRunning
+	}
+	return false
+}
+
+func (k3 *K3d) ClusterCreate(cn string, isController bool) {
+	k3.ClusterFetch()
+	if exists, _ := k3.ClusterExists(cn); exists && k3.ClusterIsRunning(cn) {
 		fmt.Printf("[%s] cluster already exists\n", cn)
 		return
 	} else if exists {
 		fmt.Printf("[%s] cluster already exists, but is stopped; starting now\n", cn)
-		r.StartCluster(cn)
+		k3.ClusterStart(cn)
 		return
 	}
 
@@ -174,10 +197,10 @@ func (r *Rockpool) CreateCluster(cn string) {
 		"--image=ghcr.io/salsadigitalauorg/rockpool/k3s:latest",
 		"--agents", "1", "--network", "k3d-rockpool",
 		"--registry-use", registryName + ":5000",
-		"--registry-config", fmt.Sprintf("%s/registries.yaml", r.Templates.RenderedPath(false)),
+		"--registry-config", fmt.Sprintf("%s/registries.yaml", k3.Templates.RenderedPath(false)),
 	}
 
-	if cn == r.ControllerClusterName() {
+	if isController {
 		cmdArgs = append(cmdArgs,
 			"--port", "80:80@loadbalancer",
 			"--port", "443:443@loadbalancer",
@@ -197,7 +220,7 @@ func (r *Rockpool) CreateCluster(cn string) {
 
 	cmdArgs = append(cmdArgs, k3sArgs...)
 	cmdArgs = append(cmdArgs, cn)
-	cmd := exec.Command(r.GetBinaryPath("k3d"), cmdArgs...)
+	cmd := exec.Command("k3d", cmdArgs...)
 
 	fmt.Printf("[%s] creating cluster: %s\n", cn, cmd)
 
@@ -207,67 +230,64 @@ func (r *Rockpool) CreateCluster(cn string) {
 		os.Exit(1)
 	}
 	fmt.Printf("[%s] created cluster\n", cn)
+	k3.ClusterFetch()
 }
 
-func (r *Rockpool) StartCluster(cn string) {
-	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
+func (k3 *K3d) ClusterStart(cn string) {
+	if exists, _ := k3.ClusterExists(cn); !exists {
 		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return
 	}
 	fmt.Printf("[%s] starting cluster\n", cn)
 	// _, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn).Output()
-	_, err := internal.RunCmdWithProgress(exec.Command(r.GetBinaryPath("k3d"), "cluster", "start", cn))
+	_, err := internal.RunCmdWithProgress(exec.Command("k3d", "cluster", "start", cn))
 	if err != nil {
 		fmt.Printf("[%s] unable to start cluster: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	r.FetchClusters()
+	k3.ClusterFetch()
 	fmt.Printf("[%s] started cluster\n", cn)
-	r.AddHarborHostEntries(cn)
-	if cn != r.ControllerClusterName() {
-		r.ConfigureTargetCoreDNS(cn)
-	}
 }
 
-func (r *Rockpool) StopCluster(cn string) {
-	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
+func (k3 *K3d) ClusterStop(cn string) {
+	if exists, _ := k3.ClusterExists(cn); !exists {
 		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return
 	}
 	fmt.Printf("[%s] stopping cluster\n", cn)
-	_, err := internal.RunCmdWithProgress(exec.Command(r.GetBinaryPath("k3d"), "cluster", "stop", cn))
+	_, err := internal.RunCmdWithProgress(exec.Command("k3d", "cluster", "stop", cn))
 	if err != nil {
 		fmt.Printf("[%s] unable to stop cluster: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	r.FetchClusters()
+	k3.ClusterFetch()
 	fmt.Printf("[%s] stopped cluster\n", cn)
 }
 
-func (r *Rockpool) RestartCluster(cn string) {
-	r.StopCluster(cn)
-	r.StartCluster(cn)
+func (k3 *K3d) ClusterRestart(cn string) {
+	k3.ClusterStop(cn)
+	k3.ClusterStart(cn)
 }
 
-func (r *Rockpool) DeleteCluster(cn string) {
-	defer r.WgDone()
-	if exists, _ := r.State.Clusters.ClusterExists(cn); !exists {
+func (k3 *K3d) ClusterDelete(cn string) {
+	defer k3.WgDone()
+	if exists, _ := k3.ClusterExists(cn); !exists {
 		return
 	}
-	r.StopCluster(cn)
+	k3.ClusterStop(cn)
 	fmt.Printf("[%s] deleting cluster\n", cn)
-	_, err := exec.Command(r.GetBinaryPath("k3d"), "cluster", "delete", cn).Output()
+	_, err := exec.Command("k3d", "cluster", "delete", cn).Output()
 	if err != nil {
 		fmt.Printf("[%s] unable to delete cluster: %s\n", cn, err)
 		os.Exit(1)
 	}
-	r.FetchClusters()
+	k3.ClusterFetch()
 	fmt.Printf("[%s] deleted cluster\n", cn)
 }
 
-func (r *Rockpool) WriteKubeConfig(cn string) {
+func (k3 *K3d) WriteKubeConfig(cn string) {
 	fmt.Printf("[%s] writing kubeconfig\n", cn)
-	_, err := exec.Command(r.GetBinaryPath("k3d"), "kubeconfig", "write", cn).CombinedOutput()
+	_, err := exec.Command("k3d", "kubeconfig", "write", cn).CombinedOutput()
 	if err != nil {
 		panic(fmt.Sprintln("unable to write kubeconfig:", err))
 	}

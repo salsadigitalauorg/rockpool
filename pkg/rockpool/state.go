@@ -3,40 +3,8 @@ package rockpool
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 	"sync"
 )
-
-func (r *Rockpool) VerifyReqs(failOnMissing bool) {
-	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
-	missing := []string{}
-	r.State.BinaryPaths = sync.Map{}
-	for _, b := range binaries {
-		path, err := exec.LookPath(b)
-		if err != nil {
-			missing = append(missing, fmt.Sprintf("[rockpool] could not find %s; please ensure it is installed and can be found in the $PATH", b))
-			continue
-		}
-		r.State.BinaryPaths.Store(b, path)
-	}
-	if failOnMissing {
-		for _, m := range missing {
-			fmt.Println(m)
-		}
-	}
-	if failOnMissing && len(missing) > 0 {
-		fmt.Println("[rockpool] some requirements were not met; please review above")
-		os.Exit(1)
-	}
-
-	// Create directory for rendered templates.
-	err := os.MkdirAll(r.Templates.RenderedPath(true), os.ModePerm)
-	if err != nil {
-		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.Templates.RenderedPath(true), err)
-		os.Exit(1)
-	}
-}
 
 func (r *Rockpool) Kubeconfig(cn string) string {
 	home, err := os.UserHomeDir()
@@ -70,51 +38,36 @@ func (r *Rockpool) GetHelmReleases(key string) []HelmRelease {
 	return val
 }
 
-func (r *Rockpool) GetBinaryPath(bin string) string {
-	return r.MapStringGet(&r.State.BinaryPaths, bin)
-}
-
-func (r *Rockpool) WgAdd(delta int) {
-	if r.wg == nil {
-		r.wg = &sync.WaitGroup{}
-	}
-	r.wg.Add(delta)
-}
-
-func (r *Rockpool) WgWait() {
-	if r.wg != nil {
-		r.wg.Wait()
-		r.wg = nil
-	}
-}
-
-func (r *Rockpool) WgDone() {
-	if r.wg != nil {
-		r.wg.Done()
-	}
-}
-
-func (r *Rockpool) FetchClusters() {
-	var allK3dCl ClusterList
-	allK3dCl.Get()
-	for _, c := range allK3dCl {
-		if !strings.HasPrefix(c.Name, r.Name) {
-			continue
-		}
-		if exists, _ := r.Clusters.ClusterExists(c.Name); exists {
-			continue
-		}
-		r.Clusters = append(r.Clusters, c)
-	}
-}
-
 func (r *Rockpool) Status() {
-	r.FetchClusters()
+	r.K3d.ClusterFetch()
+	if len(r.K3d.Clusters) == 0 {
+		fmt.Printf("No cluster found for '%s'\n", r.Name)
+		return
+	}
+
+	runningClusters := 0
+	fmt.Println("Clusters:")
+	for _, c := range r.K3d.Clusters {
+		isRunning := r.K3d.ClusterIsRunning(c.Name)
+		fmt.Printf("  %s: ", c.Name)
+		if isRunning {
+			fmt.Println("running")
+			runningClusters++
+		} else {
+			fmt.Println("stopped")
+		}
+	}
+
+	if runningClusters == 0 {
+		fmt.Println("No running cluster")
+		return
+	}
+
 	fmt.Println("Kubeconfig:")
 	fmt.Println("  Controller:", r.Kubeconfig(r.ControllerClusterName()))
-	if len(r.State.Clusters) > 1 {
+	if len(r.K3d.Clusters) > 1 {
 		fmt.Println("  Targets:")
-		for _, c := range r.State.Clusters {
+		for _, c := range r.K3d.Clusters {
 			if c.Name == r.ControllerClusterName() {
 				continue
 			}

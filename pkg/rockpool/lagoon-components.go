@@ -92,7 +92,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 		return
 	}
 
-	exists, c := r.Clusters.ClusterExists(cn)
+	exists, c := r.K3d.ClusterExists(cn)
 	if !exists {
 		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return
@@ -126,7 +126,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 	}
 
 	if clusterUpdated {
-		r.RestartCluster(c.Name)
+		r.ClusterRestart(c.Name)
 	}
 
 	// Patch lagoon-remote-lagoon-build-deploy to add the cert secret.
@@ -148,7 +148,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 		return
 	}
 
-	exists, c := r.Clusters.ClusterExists(cn)
+	exists, c := r.K3d.ClusterExists(cn)
 	if !exists {
 		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return

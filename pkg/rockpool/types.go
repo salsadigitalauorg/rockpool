@@ -9,11 +9,18 @@ import (
 	"golang.org/x/sync/syncmap"
 )
 
+type Wg struct {
+	wg *sync.WaitGroup
+}
+
 type K3d struct {
+	PlatformName string
+	Clusters     ClusterList
+	*Docker
 	Registries []Registry
 	Registry
-	*Docker
 	*Templates
+	*Wg
 }
 
 type Registry struct {
@@ -72,12 +79,10 @@ type Remote struct {
 
 type State struct {
 	Spinner  spinner.Spinner
-	Clusters ClusterList
 	Registry Registry
 	// Use syncmap.Map instead of a regular map for the following so there's no
 	// race conditions during concurrent runs, which was happening before.
 	// See https://stackoverflow.com/a/45585833/351590.
-	BinaryPaths syncmap.Map
 	// List of Helm releases per cluster.
 	HelmReleases         syncmap.Map
 	Remotes              []Remote
@@ -101,7 +106,7 @@ type Rockpool struct {
 	*Templates
 	State
 	Config
-	wg        *sync.WaitGroup
+	Wg
 	GqlClient *graphql.Client
 }
 

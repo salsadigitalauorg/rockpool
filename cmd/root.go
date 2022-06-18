@@ -15,8 +15,6 @@ import (
 var r = rockpool.Rockpool{
 	State: rockpool.State{
 		Spinner:      *spinner.New(spinner.CharSets[14], 100*time.Millisecond),
-		Clusters:     rockpool.ClusterList{},
-		BinaryPaths:  sync.Map{},
 		HelmReleases: sync.Map{},
 	},
 	Config: rockpool.Config{},
@@ -25,6 +23,9 @@ var r = rockpool.Rockpool{
 var rootCmd = &cobra.Command{
 	Use:   "rockpool [command]",
 	Short: "Easily create local Lagoon instances.",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		r.Initialise()
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
 	},
@@ -36,8 +37,6 @@ var upCmd = &cobra.Command{
 	Long: `up is for creating or starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool up controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.VerifyReqs(true)
-		r.FetchClusters()
 		r.Up(fullClusterNamesFromArgs(args))
 	},
 }
@@ -48,8 +47,6 @@ var startCmd = &cobra.Command{
 	Long: `start is for starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool start controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.VerifyReqs(false)
-		r.FetchClusters()
 		r.Start(fullClusterNamesFromArgs(args))
 	},
 }
@@ -60,8 +57,6 @@ var stopCmd = &cobra.Command{
 	Long: `stop is for stopping all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool stop controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.VerifyReqs(false)
-		r.FetchClusters()
 		r.Stop(fullClusterNamesFromArgs(args))
 	},
 }
@@ -72,8 +67,6 @@ var restartCmd = &cobra.Command{
 	Long: `restart is for stopping and starting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool restart controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.VerifyReqs(false)
-		r.FetchClusters()
 		r.Stop(fullClusterNamesFromArgs(args))
 		r.Start(fullClusterNamesFromArgs(args))
 	},
@@ -93,8 +86,6 @@ var downCmd = &cobra.Command{
 	Long: `down is for stopping and deleting all the clusters, or the ones
 specified in the arguments, e.g, 'rockpool down controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
-		r.VerifyReqs(false)
-		r.FetchClusters()
 		r.Down(fullClusterNamesFromArgs(args))
 	},
 }
@@ -109,7 +100,6 @@ func fullClusterNamesFromArgs(argClusters []string) []string {
 
 func init() {
 	determineConfigDir()
-	r.Initialise()
 
 	rootCmd.PersistentFlags().StringVarP(&r.Config.Name, "name", "n", "rockpool", "The name of the platform")
 

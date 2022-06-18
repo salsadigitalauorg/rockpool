@@ -18,6 +18,25 @@ import (
 //go:embed templates
 var templates embed.FS
 
+func EnsureBinariesExist() {
+	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
+	missing := []string{}
+	for _, b := range binaries {
+		_, err := exec.LookPath(b)
+		if err != nil {
+			missing = append(missing, fmt.Sprintf("[rockpool] could not find %s; please ensure it is installed and can be found in the $PATH", b))
+			continue
+		}
+	}
+	for _, m := range missing {
+		fmt.Println(m)
+	}
+	if len(missing) > 0 {
+		fmt.Println("[rockpool] some requirements were not met; please review above")
+		os.Exit(1)
+	}
+}
+
 func (c *Config) ToMap() map[string]string {
 	return map[string]string{
 		"Name":     c.Name,
@@ -28,6 +47,7 @@ func (c *Config) ToMap() map[string]string {
 }
 
 func (r *Rockpool) Initialise() {
+	EnsureBinariesExist()
 	ts := Templates{Config: &r.Config}
 	r.Templates = &ts
 
@@ -35,18 +55,29 @@ func (r *Rockpool) Initialise() {
 	r.Docker = &d
 
 	k3 := K3d{
-		Docker:    r.Docker,
-		Templates: r.Templates,
+		PlatformName: r.Name,
+		Docker:       r.Docker,
+		Templates:    r.Templates,
+		Wg:           &r.Wg,
 	}
 	r.K3d = &k3
 
 	r.Spinner.Color("red", "bold")
 	r.Config.Arch = runtime.GOARCH
+
+	// Create directory for rendered templates.
+	err := os.MkdirAll(r.Templates.RenderedPath(true), os.ModePerm)
+	if err != nil {
+		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.Templates.RenderedPath(true), err)
+		os.Exit(1)
+	}
+
+	r.ClusterFetch()
 }
 
 func (r *Rockpool) Up(clusters []string) {
 	if len(clusters) == 0 {
-		if len(r.State.Clusters) > 0 {
+		if len(r.K3d.Clusters) > 0 {
 			clusters = r.allClusters()
 		} else {
 			clusters = append(clusters, r.ControllerClusterName())
@@ -99,7 +130,7 @@ func (r *Rockpool) Up(clusters []string) {
 
 func (r *Rockpool) allClusters() []string {
 	cls := []string{}
-	for _, c := range r.State.Clusters {
+	for _, c := range r.K3d.Clusters {
 		cls = append(cls, c.Name)
 	}
 	return cls
@@ -110,8 +141,12 @@ func (r *Rockpool) Start(clusters []string) {
 	if len(clusters) == 0 {
 		clusters = r.allClusters()
 	}
-	for _, c := range clusters {
-		r.StartCluster(c)
+	for _, cn := range clusters {
+		r.K3d.ClusterStart(cn)
+		r.AddHarborHostEntries(cn)
+		if cn != r.ControllerClusterName() {
+			r.ConfigureTargetCoreDNS(cn)
+		}
 	}
 }
 
@@ -123,7 +158,7 @@ func (r *Rockpool) Stop(clusters []string) {
 		r.WgAdd(1)
 		go func(c string) {
 			defer r.WgDone()
-			r.StopCluster(c)
+			r.ClusterStop(c)
 		}(c)
 	}
 	r.WgWait()
@@ -140,19 +175,17 @@ func (r *Rockpool) Down(clusters []string) {
 			r.RemoveResolver()
 		}
 		r.WgAdd(1)
-		go r.DeleteCluster(c)
+		go r.ClusterDelete(c)
 	}
 	r.WgWait()
-	r.K3d.RegistryDelete()
+	r.K3d.RegistryStop()
 }
 
 func (r *Rockpool) CreateClusters(clusters []string) {
-	r.FetchClusters()
 	for _, c := range clusters {
-		r.CreateCluster(c)
+		r.ClusterCreate(c, c == r.ControllerClusterName())
 		r.WriteKubeConfig(c)
 	}
-	r.FetchClusters()
 }
 
 func (r *Rockpool) SetupLagoonController() {
