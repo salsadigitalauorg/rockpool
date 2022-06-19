@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 )
@@ -48,7 +49,7 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 	dump, _ := httputil.DumpRequest(req, true)
 
 	client := &http.Client{
-		Transport: Interceptor{http.DefaultTransport},
+		Transport: interceptor.New(),
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -82,7 +83,7 @@ func (r *Rockpool) GetLagoonApiClient() {
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: r.lagoonFetchApiToken()})
 	httpClient := &http.Client{
 		Transport: &oauth2.Transport{
-			Base:   Interceptor{http.DefaultTransport},
+			Base:   interceptor.New(),
 			Source: oauth2.ReuseTokenSource(nil, src),
 		},
 	}

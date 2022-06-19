@@ -1,4 +1,4 @@
-package rockpool
+package interceptor
 
 import (
 	"context"
@@ -9,6 +9,10 @@ import (
 // Ref: https://clavinjune.dev/en/blogs/golang-http-client-interceptors/
 type Interceptor struct {
 	core http.RoundTripper
+}
+
+func New() Interceptor {
+	return Interceptor{http.DefaultTransport}
 }
 
 func (Interceptor) modifyRequest(r *http.Request) *http.Request {

@@ -1,4 +1,4 @@
-package rockpool
+package gitea
 
 import (
 	"bytes"
@@ -9,10 +9,14 @@ import (
 	"net/http/httputil"
 	"os"
 	"time"
+
+	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
 )
 
-func (r *Rockpool) GiteaApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
-	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", r.Hostname(), endpoint)
+var Hostname string
+
+func ApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
+	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", Hostname, endpoint)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
@@ -21,15 +25,15 @@ func (r *Rockpool) GiteaApiReq(method string, endpoint string, data []byte) (*ht
 	return req, nil
 }
 
-func (r *Rockpool) GiteaApiCall(method string, endpoint string, token string, data []byte) (*http.Response, error) {
-	req, err := r.GiteaApiReq(method, endpoint, data)
+func ApiCall(method string, endpoint string, token string, data []byte) (*http.Response, error) {
+	req, err := ApiReq(method, endpoint, data)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Authorization", "token "+token)
 
 	client := &http.Client{
-		Transport: Interceptor{http.DefaultTransport},
+		Transport: interceptor.New(),
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -38,19 +42,19 @@ func (r *Rockpool) GiteaApiCall(method string, endpoint string, token string, da
 	return resp, nil
 }
 
-func (r *Rockpool) GiteaTokenApiCall(method string, data []byte, delete bool) (*http.Response, error) {
+func TokenApiCall(method string, data []byte, delete bool) (*http.Response, error) {
 	endpoint := "users/rockpool/tokens"
 	if delete {
 		endpoint += "/" + string(data)
 	}
-	req, err := r.GiteaApiReq(method, endpoint, data)
+	req, err := ApiReq(method, endpoint, data)
 	if err != nil {
 		return nil, err
 	}
 	req.SetBasicAuth("rockpool", "pass")
 
 	client := &http.Client{
-		Transport: Interceptor{http.DefaultTransport},
+		Transport: interceptor.New(),
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -59,7 +63,7 @@ func (r *Rockpool) GiteaTokenApiCall(method string, data []byte, delete bool) (*
 	return resp, nil
 }
 
-func (r *Rockpool) GiteaHasToken() (string, error) {
+func HasToken() (string, error) {
 	var tokens []struct {
 		Id   json.Number `json:"id"`
 		Name string      `json:"name"`
@@ -73,7 +77,7 @@ func (r *Rockpool) GiteaHasToken() (string, error) {
 	var err error
 	var dump []byte
 	for !done && retries > 0 {
-		resp, err = r.GiteaTokenApiCall("GET", nil, false)
+		resp, err = TokenApiCall("GET", nil, false)
 		if err != nil {
 			return "", fmt.Errorf("error calling gitea token endpoint: %s", err)
 		}
@@ -100,18 +104,18 @@ func (r *Rockpool) GiteaHasToken() (string, error) {
 	return "", nil
 }
 
-func (r *Rockpool) GiteaCreateToken() (string, error) {
-	if id, err := r.GiteaHasToken(); err != nil {
+func CreateToken() (string, error) {
+	if id, err := HasToken(); err != nil {
 		return "", fmt.Errorf("error checking gitea token: %s", err)
 	} else if id != "" {
-		_, err := r.GiteaTokenApiCall("DELETE", []byte(id), true)
+		_, err := TokenApiCall("DELETE", []byte(id), true)
 		if err != nil {
 			return "", fmt.Errorf("error when deleting token: %s", err)
 		}
 	}
 
 	data, _ := json.Marshal(map[string]string{"name": "test"})
-	resp, err := r.GiteaTokenApiCall("POST", data, false)
+	resp, err := TokenApiCall("POST", data, false)
 	if err != nil {
 		return "", err
 	}
@@ -131,8 +135,8 @@ func (r *Rockpool) GiteaCreateToken() (string, error) {
 	return res.Token, nil
 }
 
-func (r *Rockpool) GiteaHasTestRepo(token string) (bool, error) {
-	resp, err := r.GiteaApiCall("GET", "user/repos", token, nil)
+func HasTestRepo(token string) (bool, error) {
+	resp, err := ApiCall("GET", "user/repos", token, nil)
 	if err != nil {
 		return false, err
 	}
@@ -150,14 +154,14 @@ func (r *Rockpool) GiteaHasTestRepo(token string) (bool, error) {
 	return false, nil
 }
 
-func (r *Rockpool) GiteaCreateRepo() {
-	token, err := r.GiteaCreateToken()
+func CreateRepo() {
+	token, err := CreateToken()
 	if err != nil {
 		fmt.Println("[rockpool] error creating gitea token:", err)
 		os.Exit(1)
 	}
 
-	if has, err := r.GiteaHasTestRepo(token); err != nil {
+	if has, err := HasTestRepo(token); err != nil {
 		fmt.Println("[rockpool] error looking up gitea test repo:", err)
 		os.Exit(1)
 	} else if has {
@@ -167,7 +171,7 @@ func (r *Rockpool) GiteaCreateRepo() {
 
 	fmt.Println("[rockpool] creating gitea test repo")
 	data, _ := json.Marshal(map[string]string{"name": "test"})
-	_, err = r.GiteaApiCall("POST", "user/repos", token, data)
+	_, err = ApiCall("POST", "user/repos", token, data)
 	if err != nil {
 		fmt.Println("[rockpool] unable to create gitea test repo:", err)
 		os.Exit(1)

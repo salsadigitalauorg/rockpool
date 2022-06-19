@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 )
 
@@ -70,6 +71,7 @@ func (r *Rockpool) Initialise() {
 	}
 
 	r.ClusterFetch()
+	gitea.Hostname = r.Hostname()
 }
 
 func (r *Rockpool) Up(clusters []string) {
@@ -198,7 +200,7 @@ func (r *Rockpool) SetupLagoonController() {
 	r.InstallGitea()
 
 	// Create test repo.
-	r.GiteaCreateRepo()
+	gitea.CreateRepo()
 
 	r.InstallHarbor()
 	r.InstallLagoonCore()
