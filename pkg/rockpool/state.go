@@ -4,15 +4,9 @@ import (
 	"fmt"
 	"os"
 	"sync"
-)
 
-func (r *Rockpool) Kubeconfig(cn string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(fmt.Sprintln("unable to get user home directory:", err))
-	}
-	return fmt.Sprintf("%s/.k3d/kubeconfig-%s.yaml", home, cn)
-}
+	"github.com/salsadigitalauorg/rockpool/internal"
+)
 
 func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
 	valueIfc, ok := m.Load(key)
@@ -22,18 +16,6 @@ func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
 	val, ok := valueIfc.(string)
 	if !ok {
 		panic(fmt.Sprint("unable to convert interface{} value to string for ", valueIfc))
-	}
-	return val
-}
-
-func (r *Rockpool) GetHelmReleases(key string) []HelmRelease {
-	valueIfc, ok := r.HelmReleases.Load(key)
-	if !ok {
-		panic(fmt.Sprint("releases not found for ", key))
-	}
-	val, ok := valueIfc.([]HelmRelease)
-	if !ok {
-		panic(fmt.Sprint("unable to convert binpath to string for ", valueIfc))
 	}
 	return val
 }
@@ -64,14 +46,14 @@ func (r *Rockpool) Status() {
 	}
 
 	fmt.Println("Kubeconfig:")
-	fmt.Println("  Controller:", r.Kubeconfig(r.ControllerClusterName()))
+	fmt.Println("  Controller:", internal.KubeconfigPath(r.ControllerClusterName()))
 	if len(r.K3d.Clusters) > 1 {
 		fmt.Println("  Targets:")
 		for _, c := range r.K3d.Clusters {
 			if c.Name == r.ControllerClusterName() {
 				continue
 			}
-			fmt.Println("    ", r.Kubeconfig(c.Name))
+			fmt.Println("    ", internal.KubeconfigPath(c.Name))
 		}
 	}
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 )
 
 //go:embed templates
@@ -191,7 +192,7 @@ func (r *Rockpool) CreateClusters(clusters []string) {
 func (r *Rockpool) SetupLagoonController() {
 	r.InstallMailHog()
 
-	r.HelmList(r.ControllerClusterName())
+	helm.List(r.ControllerClusterName())
 	r.InstallIngressNginx(r.ControllerClusterName())
 	r.InstallCertManager()
 
@@ -216,7 +217,7 @@ func (r *Rockpool) SetupLagoonController() {
 func (r *Rockpool) SetupLagoonTarget(cn string) {
 	defer r.WgDone()
 
-	r.HelmList(cn)
+	helm.List(cn)
 	r.ConfigureTargetCoreDNS(cn)
 	r.InstallIngressNginx(cn)
 	r.InstallNfsProvisioner(cn)
@@ -320,7 +321,7 @@ func (r *Rockpool) InstallGitlab() {
 
 func (r *Rockpool) InstallGitea() {
 	cn := r.ControllerClusterName()
-	cmd := r.Helm(cn, "", "repo", "add", "gitea-charts", "https://dl.gitea.io/charts/")
+	cmd := helm.Exec(cn, "", "repo", "add", "gitea-charts", "https://dl.gitea.io/charts/")
 	err := cmd.Run()
 	if err != nil {
 		fmt.Printf("[%s] unable to add gitea repo: %s\n", cn, internal.GetCmdStdErr(err))
@@ -334,7 +335,7 @@ func (r *Rockpool) InstallGitea() {
 	}
 	fmt.Printf("[%s] using generated gitea values at %s\n", cn, values)
 
-	_, err = r.HelmInstallOrUpgrade(cn, "gitea", "gitea", "gitea-charts/gitea",
+	_, err = helm.InstallOrUpgrade(cn, "gitea", "gitea", "gitea-charts/gitea",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
@@ -344,7 +345,7 @@ func (r *Rockpool) InstallGitea() {
 }
 
 func (r *Rockpool) InstallNfsProvisioner(cn string) {
-	cmd := r.Helm(cn, "", "repo", "add", "nfs-provisioner", "https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/")
+	cmd := helm.Exec(cn, "", "repo", "add", "nfs-provisioner", "https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/")
 	err := cmd.Run()
 	if err != nil {
 		fmt.Printf("[%s] unable to add nfs-provisioner repo: %s\n", cn, internal.GetCmdStdErr(err))
@@ -358,7 +359,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 	}
 	fmt.Printf("[%s] using generated nfs-provisioner values at %s\n", cn, values)
 
-	_, err = r.HelmInstallOrUpgrade(cn, "nfs-provisioner", "nfs", "nfs-provisioner/nfs-server-provisioner",
+	_, err = helm.InstallOrUpgrade(cn, "nfs-provisioner", "nfs", "nfs-provisioner/nfs-server-provisioner",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
@@ -368,7 +369,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 }
 
 func (r *Rockpool) InstallMariaDB(cn string) {
-	cmd := r.Helm(cn, "", "repo", "add", "nicholaswilde", "https://nicholaswilde.github.io/helm-charts/")
+	cmd := helm.Exec(cn, "", "repo", "add", "nicholaswilde", "https://nicholaswilde.github.io/helm-charts/")
 	err := cmd.Run()
 	if err != nil {
 		fmt.Printf("[%s] unable to add nicholaswilde repo: %s\n", cn, internal.GetCmdStdErr(err))
@@ -393,7 +394,7 @@ func (r *Rockpool) InstallMariaDB(cn string) {
 		os.Exit(1)
 	}
 
-	_, err = r.HelmInstallOrUpgrade(cn, "mariadb", "mariadb-production", "nicholaswilde/mariadb",
+	_, err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-production", "nicholaswilde/mariadb",
 		[]string{
 			"--create-namespace", "--wait",
 			"--set", "fullnameOverride=production",

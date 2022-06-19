@@ -1,4 +1,4 @@
-package rockpool
+package helm
 
 import (
 	"encoding/json"
@@ -7,10 +7,14 @@ import (
 	"os/exec"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"golang.org/x/sync/syncmap"
 )
 
-func (r *Rockpool) Helm(cn string, ns string, args ...string) *exec.Cmd {
-	cmd := exec.Command("helm", "--kubeconfig", r.Kubeconfig(cn))
+var Releases syncmap.Map
+var UpgradeComponents []string
+
+func Exec(cn string, ns string, args ...string) *exec.Cmd {
+	cmd := exec.Command("helm", "--kubeconfig", internal.KubeconfigPath(cn))
 	if ns != "" {
 		cmd.Args = append(cmd.Args, "--namespace", ns)
 	}
@@ -18,8 +22,8 @@ func (r *Rockpool) Helm(cn string, ns string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-func (r *Rockpool) HelmList(cn string) {
-	cmd := r.Helm(cn, "", "list", "--all-namespaces", "--output", "json")
+func List(cn string) {
+	cmd := Exec(cn, "", "list", "--all-namespaces", "--output", "json")
 	out, err := cmd.Output()
 	if err != nil {
 		fmt.Println(string(out))
@@ -32,19 +36,31 @@ func (r *Rockpool) HelmList(cn string) {
 		fmt.Printf("[%s] unable to parse helm releases: %s\n", cn, err)
 		os.Exit(1)
 	}
-	r.State.HelmReleases.Store(cn, releases)
+	Releases.Store(cn, releases)
 }
 
-func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) ([]byte, error) {
+func GetReleases(key string) []HelmRelease {
+	valueIfc, ok := Releases.Load(key)
+	if !ok {
+		panic(fmt.Sprint("releases not found for ", key))
+	}
+	val, ok := valueIfc.([]HelmRelease)
+	if !ok {
+		panic(fmt.Sprint("unable to convert binpath to string for ", valueIfc))
+	}
+	return val
+}
+
+func InstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) ([]byte, error) {
 	upgrade := false
-	for _, u := range r.Config.UpgradeComponents {
+	for _, u := range UpgradeComponents {
 		if u == "all" || u == releaseName {
 			upgrade = true
 			break
 		}
 	}
 	if !upgrade {
-		for _, r := range r.GetHelmReleases(cn) {
+		for _, r := range GetReleases(cn) {
 			if r.Name == releaseName {
 				fmt.Printf("[%s] helm release %s is already installed\n", cn, releaseName)
 				return nil, nil
@@ -59,7 +75,7 @@ func (r *Rockpool) HelmInstallOrUpgrade(cn string, ns string, releaseName string
 		fmt.Printf("[%s] installing helm release %s\n", cn, releaseName)
 	}
 
-	cmd := r.Helm(cn, ns, "upgrade", "--install", releaseName, chartName)
+	cmd := Exec(cn, ns, "upgrade", "--install", releaseName, chartName)
 	cmd.Args = append(cmd.Args, args...)
 	fmt.Printf("[%s] command for %s helm release: %v\n", cn, releaseName, cmd)
 	return cmd.Output()

@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 )
 
 func (r *Rockpool) InstallIngressNginx(cn string) {
-	_, err := r.HelmInstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
+	_, err := helm.InstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
 			"--create-namespace", "--wait",
@@ -28,7 +29,7 @@ func (r *Rockpool) InstallIngressNginx(cn string) {
 
 func (r *Rockpool) InstallHarbor() {
 	cn := r.ControllerClusterName()
-	cmd := r.Helm(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io")
+	cmd := helm.Exec(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io")
 	err := cmd.Run()
 	if err != nil {
 		fmt.Printf("[%s] unable to add harbor repo: %s\n", cn, internal.GetCmdStdErr(err))
@@ -42,7 +43,7 @@ func (r *Rockpool) InstallHarbor() {
 	}
 	fmt.Printf("[%s] using generated harbor values at %s\n", cn, values)
 
-	_, err = r.HelmInstallOrUpgrade(cn,
+	_, err = helm.InstallOrUpgrade(cn,
 		"harbor", "harbor", "harbor/harbor",
 		[]string{
 			"--create-namespace", "--wait",
@@ -175,7 +176,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 }
 
 func (r *Rockpool) AddLagoonRepo(cn string) {
-	cmd := r.Helm(cn, "", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
+	cmd := helm.Exec(cn, "", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
 	err := cmd.Run()
 	if err != nil {
 		fmt.Printf("[%s] unable to add lagoon repo: %s\n", cn, internal.GetCmdStdErr(err))
@@ -194,7 +195,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	}
 	fmt.Printf("[%s] using generated lagoon-core values at %s\n", cn, values)
 
-	_, err = r.HelmInstallOrUpgrade(r.ControllerClusterName(), "lagoon-core",
+	_, err = helm.InstallOrUpgrade(r.ControllerClusterName(), "lagoon-core",
 		"lagoon-core",
 		"lagoon/lagoon-core",
 		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
@@ -224,7 +225,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 		os.Exit(1)
 	}
 
-	_, err = r.HelmInstallOrUpgrade(cn, "lagoon", "lagoon-remote",
+	_, err = helm.InstallOrUpgrade(cn, "lagoon", "lagoon-remote",
 		"lagoon/lagoon-remote",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)

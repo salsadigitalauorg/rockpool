@@ -13,7 +13,7 @@ import (
 )
 
 func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
-	cmd := exec.Command("kubectl", "--kubeconfig", r.Kubeconfig(cn))
+	cmd := exec.Command("kubectl", "--kubeconfig", internal.KubeconfigPath(cn))
 	if ns != "" {
 		cmd.Args = append(cmd.Args, "--namespace", ns)
 	}
