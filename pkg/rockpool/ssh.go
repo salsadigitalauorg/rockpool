@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -14,8 +15,8 @@ func (r *Rockpool) SshGetPublicKey() []byte {
 	var keyFile string
 	idEd25519 := filepath.Join(home, ".ssh", "id_ed25519.pub")
 	idRsa := filepath.Join(home, ".ssh", "id_rsa.pub")
-	if r.LagoonSshKey != "" {
-		keyFile = r.LagoonSshKey
+	if platform.LagoonSshKey != "" {
+		keyFile = platform.LagoonSshKey
 	} else if _, err := os.Stat(idEd25519); err == nil {
 		keyFile = idEd25519
 	} else if _, err := os.Stat(idRsa); err == nil {

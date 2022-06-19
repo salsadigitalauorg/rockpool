@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
+	"github.com/salsadigitalauorg/rockpool/pkg/kube"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 )
@@ -28,7 +30,7 @@ var lagoonUserinfo struct {
 
 func (r *Rockpool) lagoonFetchApiToken() string {
 	fmt.Println("[rockpool] fetching lagoon api token")
-	_, password := r.KubeGetSecret(r.ControllerClusterName(),
+	_, password := kube.GetSecret(r.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-keycloak",
 		"KEYCLOAK_LAGOON_ADMIN_PASSWORD",
@@ -40,7 +42,7 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 		"username":   {"lagoonadmin"},
 		"password":   {password},
 	}
-	url := fmt.Sprintf("http://keycloak.lagoon.%s/auth/realms/lagoon/protocol/openid-connect/token", r.Hostname())
+	url := fmt.Sprintf("http://keycloak.lagoon.%s/auth/realms/lagoon/protocol/openid-connect/token", platform.Hostname())
 	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(data.Encode()))
 	if err != nil {
 		panic(err)
@@ -87,7 +89,7 @@ func (r *Rockpool) GetLagoonApiClient() {
 			Source: oauth2.ReuseTokenSource(nil, src),
 		},
 	}
-	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", r.Hostname()), httpClient)
+	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", platform.Hostname()), httpClient)
 }
 
 func (r *Rockpool) LagoonApiGetRemotes() {

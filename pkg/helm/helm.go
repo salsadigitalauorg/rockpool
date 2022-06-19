@@ -10,6 +10,10 @@ import (
 	"golang.org/x/sync/syncmap"
 )
 
+// Use syncmap.Map instead of a regular map for the following so there's no
+// race conditions during concurrent runs, which was happening before.
+// See https://stackoverflow.com/a/45585833/351590.
+// List of Helm releases per cluster.
 var Releases syncmap.Map
 var UpgradeComponents []string
 

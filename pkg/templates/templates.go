@@ -7,13 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 )
 
 //go:embed templates
 var templates embed.FS
-
-var ConfigDir string
-var PlatformName string
 
 // Render executes a given template file and returns the path to its
 // rendered version.
@@ -47,9 +46,9 @@ func Render(tn string, config interface{}, destName string) (string, error) {
 }
 
 func RenderedPath(withName bool) string {
-	p := path.Join(ConfigDir, "rendered")
+	p := path.Join(platform.ConfigDir, "rendered")
 	if withName {
-		p = path.Join(p, PlatformName)
+		p = path.Join(p, platform.Name)
 	}
 	return p
 }

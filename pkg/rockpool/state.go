@@ -7,6 +7,7 @@ import (
 
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 )
 
 func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
@@ -24,7 +25,7 @@ func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
 func (r *Rockpool) Status() {
 	k3d.ClusterFetch()
 	if len(k3d.Clusters) == 0 {
-		fmt.Printf("No cluster found for '%s'\n", r.Name)
+		fmt.Printf("No cluster found for '%s'\n", platform.Name)
 		return
 	}
 
@@ -59,31 +60,23 @@ func (r *Rockpool) Status() {
 	}
 
 	fmt.Println("Gitea:")
-	fmt.Printf("  http://gitea.lagoon.%s\n", r.Hostname())
+	fmt.Printf("  http://gitea.lagoon.%s\n", platform.Hostname())
 	fmt.Println("  User: rockpool")
 	fmt.Println("  Pass: pass")
 
 	fmt.Println("Keycloak:")
-	fmt.Printf("  http://keycloak.lagoon.%s/auth/admin\n", r.Hostname())
+	fmt.Printf("  http://keycloak.lagoon.%s/auth/admin\n", platform.Hostname())
 	fmt.Println("  User: admin")
 	fmt.Println("  Pass: pass")
 
-	fmt.Printf("Lagoon UI: http://ui.lagoon.%s\n", r.Hostname())
+	fmt.Printf("Lagoon UI: http://ui.lagoon.%s\n", platform.Hostname())
 	fmt.Println("  User: lagoonadmin")
 	fmt.Println("  Pass: pass")
 
-	fmt.Printf("Lagoon GraphQL: http://api.lagoon.%s/graphql\n", r.Hostname())
+	fmt.Printf("Lagoon GraphQL: http://api.lagoon.%s/graphql\n", platform.Hostname())
 	fmt.Println("Lagoon SSH: ssh -p 2022 lagoon@localhost")
 
 	fmt.Println()
-}
-
-func (r *Rockpool) TotalClusterNum() int {
-	return r.Config.NumTargets + 1
-}
-
-func (r *Rockpool) Hostname() string {
-	return fmt.Sprintf("%s.%s", r.Name, r.Domain)
 }
 
 func (r *Rockpool) ControllerIP() string {
@@ -121,9 +114,9 @@ func (r *Rockpool) TargetIP(cn string) string {
 }
 
 func (r *Rockpool) ControllerClusterName() string {
-	return r.Config.Name + "-controller"
+	return platform.Name + "-controller"
 }
 
 func (r *Rockpool) TargetClusterName(targetId int) string {
-	return r.Config.Name + "-target-" + fmt.Sprint(targetId)
+	return platform.Name + "-target-" + fmt.Sprint(targetId)
 }

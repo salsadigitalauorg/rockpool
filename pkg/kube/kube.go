@@ -1,4 +1,4 @@
-package rockpool
+package kube
 
 import (
 	"bytes"
@@ -10,10 +10,11 @@ import (
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 )
 
-func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
+func Cmd(cn string, ns string, args ...string) *exec.Cmd {
 	cmd := exec.Command("kubectl", "--kubeconfig", internal.KubeconfigPath(cn))
 	if ns != "" {
 		cmd.Args = append(cmd.Args, "--namespace", ns)
@@ -22,8 +23,8 @@ func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byte, error) {
-	dryRun := r.KubeCtl(cn, ns, "apply", "-f", fn, "--dry-run=server")
+func Apply(cn string, ns string, fn string, force bool) ([]byte, error) {
+	dryRun := Cmd(cn, ns, "apply", "-f", fn, "--dry-run=server")
 	out, err := dryRun.Output()
 	if err != nil {
 		return nil, err
@@ -39,35 +40,35 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byt
 		return nil, nil
 	}
 
-	cmd := r.KubeCtl(cn, ns, "apply", "-f", fn)
+	cmd := Cmd(cn, ns, "apply", "-f", fn)
 	if force {
 		cmd.Args = append(cmd.Args, "--force=true")
 	}
 	return cmd.Output()
 }
 
-func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) ([]byte, error) {
-	f, err := templates.Render(fn, r.Config.ToMap(), "")
+func ApplyTemplate(cn string, ns string, fn string, force bool) ([]byte, error) {
+	f, err := templates.Render(fn, platform.ToMap(), "")
 	if err != nil {
 		return nil, err
 	}
 	fmt.Printf("[%s] using generated manifest at %s\n", cn, f)
-	return r.KubeApply(cn, ns, f, force)
+	return Apply(cn, ns, f, force)
 }
 
-func (r *Rockpool) KubeExecNoProgress(cn string, ns string, deploy string, cmdStr string) *exec.Cmd {
-	cmd := r.KubeCtl(cn, ns, "exec", "deploy/"+deploy, "--", "bash", "-c", cmdStr)
+func ExecNoProgress(cn string, ns string, deploy string, cmdStr string) *exec.Cmd {
+	cmd := Cmd(cn, ns, "exec", "deploy/"+deploy, "--", "bash", "-c", cmdStr)
 	return cmd
 }
 
-func (r *Rockpool) KubeExec(cn string, ns string, deploy string, cmdStr string) ([]byte, error) {
-	cmd := r.KubeExecNoProgress(cn, ns, deploy, cmdStr)
+func Exec(cn string, ns string, deploy string, cmdStr string) ([]byte, error) {
+	cmd := ExecNoProgress(cn, ns, deploy, cmdStr)
 	fmt.Printf("[%s] kube exec command: %s\n", cn, cmd)
 	return cmd.Output()
 }
 
-func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field string) ([]byte, string) {
-	cmd := r.KubeCtl(cn, ns, "get", "secret", secret, "--output")
+func GetSecret(cn string, ns string, secret string, field string) ([]byte, string) {
+	cmd := Cmd(cn, ns, "get", "secret", secret, "--output")
 	if field != "" {
 		cmd.Args = append(cmd.Args, fmt.Sprintf("jsonpath='{.data.%s}'", field))
 	} else {
@@ -90,8 +91,8 @@ func (r *Rockpool) KubeGetSecret(cn string, ns string, secret string, field stri
 	return out, ""
 }
 
-func (r *Rockpool) KubeGetConfigMap(cn string, ns string, name string) []byte {
-	cmd := r.KubeCtl(
+func GetConfigMap(cn string, ns string, name string) []byte {
+	cmd := Cmd(
 		cn, ns, "get", "configmap", name,
 		"--output", "json",
 	)
@@ -103,9 +104,9 @@ func (r *Rockpool) KubeGetConfigMap(cn string, ns string, name string) []byte {
 	return out
 }
 
-func (r *Rockpool) KubeReplace(cn string, ns string, name string, content string) string {
+func Replace(cn string, ns string, name string, content string) string {
 	cat := exec.Command("echo", content)
-	replace := r.KubeCtl(cn, ns, "replace", "-f", "-")
+	replace := Cmd(cn, ns, "replace", "-f", "-")
 
 	reader, writer := io.Pipe()
 	cat.Stdout = writer
@@ -126,8 +127,8 @@ func (r *Rockpool) KubeReplace(cn string, ns string, name string, content string
 	return replaceOut.String()
 }
 
-func (r *Rockpool) KubePatch(cn string, ns string, kind string, name string, fn string) ([]byte, error) {
-	dryRun := r.KubeCtl(cn, ns, "patch", kind, name, "--patch-file", fn)
+func Patch(cn string, ns string, kind string, name string, fn string) ([]byte, error) {
+	dryRun := Cmd(cn, ns, "patch", kind, name, "--patch-file", fn)
 	dryRun.Args = append(dryRun.Args, "--dry-run=server")
 	out, err := dryRun.Output()
 	if err != nil {
@@ -137,5 +138,5 @@ func (r *Rockpool) KubePatch(cn string, ns string, kind string, name string, fn 
 	if strings.Contains(string(out), "(no change)") {
 		return nil, nil
 	}
-	return r.KubeCtl(cn, ns, "patch", kind, name, "--patch-file", fn).Output()
+	return Cmd(cn, ns, "patch", kind, name, "--patch-file", fn).Output()
 }

@@ -4,21 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
-	"time"
 
-	"github.com/briandowns/spinner"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/rockpool"
 	"github.com/spf13/cobra"
 )
 
-var r = rockpool.Rockpool{
-	State: rockpool.State{
-		Spinner:      *spinner.New(spinner.CharSets[14], 100*time.Millisecond),
-		HelmReleases: sync.Map{},
-	},
-	Config: rockpool.Config{},
-}
+var r rockpool.Rockpool
 
 var rootCmd = &cobra.Command{
 	Use:   "rockpool [command]",
@@ -93,7 +85,7 @@ specified in the arguments, e.g, 'rockpool down controller target-1'`,
 func fullClusterNamesFromArgs(argClusters []string) []string {
 	clusters := []string{}
 	for _, c := range argClusters {
-		clusters = append(clusters, r.Config.Name+"-"+c)
+		clusters = append(clusters, platform.Name+"-"+c)
 	}
 	return clusters
 }
@@ -101,16 +93,16 @@ func fullClusterNamesFromArgs(argClusters []string) []string {
 func init() {
 	determineConfigDir()
 
-	rootCmd.PersistentFlags().StringVarP(&r.Config.Name, "name", "n", "rockpool", "The name of the platform")
+	rootCmd.PersistentFlags().StringVarP(&platform.Name, "name", "n", "rockpool", "The name of the platform")
 
-	upCmd.Flags().IntVarP(&r.Config.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
-	upCmd.Flags().StringVarP(&r.Config.Domain, "domain", "d", "k3d.local",
+	upCmd.Flags().IntVarP(&platform.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
+	upCmd.Flags().StringVarP(&platform.Domain, "domain", "d", "k3d.local",
 		`The base domain of the platform; ancillary services will be created as its
 subdomains using the provided 'name', e.g, rockpool.k3d.local, lagoon.rockpool.k3d.local
 `)
-	upCmd.Flags().StringSliceVar(&r.Config.UpgradeComponents, "upgrade-components", []string{},
+	upCmd.Flags().StringSliceVar(&platform.UpgradeComponents, "upgrade-components", []string{},
 		"A list of components to upgrade, e.g, all or ingress-nginx,harbor")
-	upCmd.Flags().StringVarP(&r.Config.LagoonSshKey, "ssh-key", "k", "",
+	upCmd.Flags().StringVarP(&platform.LagoonSshKey, "ssh-key", "k", "",
 		`The ssh key to add to the lagoonadmin user. If empty, rockpool tries
 to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.
 `)
@@ -129,7 +121,7 @@ func determineConfigDir() {
 	if err != nil {
 		panic(err)
 	}
-	r.Config.ConfigDir = filepath.Join(userHomeDir, ".rockpool")
+	platform.ConfigDir = filepath.Join(userHomeDir, ".rockpool")
 }
 
 func Execute() {

@@ -2,7 +2,6 @@ package k3d
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,11 +10,10 @@ import (
 
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/wg"
 )
-
-var PlatformName string
 
 var registryName = "rockpool-registry"
 var registryNameFull = "k3d-rockpool-registry"
@@ -167,12 +165,8 @@ func ClusterExists(clusterName string) (bool, Cluster) {
 }
 
 func ClusterFetch() {
-	if PlatformName == "" {
-		panic(errors.New("PlatformName is empty"))
-	}
-
 	for _, c := range ClusterFetchAll() {
-		if !strings.HasPrefix(c.Name, PlatformName) {
+		if !strings.HasPrefix(c.Name, platform.Name) {
 			continue
 		}
 		// Skip if already present.

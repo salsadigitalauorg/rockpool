@@ -7,14 +7,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
+	"github.com/salsadigitalauorg/rockpool/pkg/kube"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/wg"
 )
@@ -38,24 +40,13 @@ func EnsureBinariesExist() {
 	}
 }
 
-func (c *Config) ToMap() map[string]string {
-	return map[string]string{
-		"Name":     c.Name,
-		"Domain":   c.Domain,
-		"Hostname": fmt.Sprintf("%s.%s", c.Name, c.Domain),
-		"Arch":     c.Arch,
-	}
-}
-
 func (r *Rockpool) Initialise() {
-	gitea.Hostname = r.Hostname()
-	k3d.PlatformName = r.Config.Name
-	templates.ConfigDir = r.Config.ConfigDir
-	templates.PlatformName = r.Config.Name
+	r.State = State{
+		Spinner: *spinner.New(spinner.CharSets[14], 100*time.Millisecond),
+	}
 
 	EnsureBinariesExist()
 	r.Spinner.Color("red", "bold")
-	r.Config.Arch = runtime.GOARCH
 
 	// Create directory for rendered templates.
 	err := os.MkdirAll(templates.RenderedPath(true), os.ModePerm)
@@ -73,7 +64,7 @@ func (r *Rockpool) Up(clusters []string) {
 			clusters = r.allClusters()
 		} else {
 			clusters = append(clusters, r.ControllerClusterName())
-			for i := 1; i <= r.Config.NumTargets; i++ {
+			for i := 1; i <= platform.NumTargets; i++ {
 				clusters = append(clusters, r.TargetClusterName(i))
 			}
 		}
@@ -219,7 +210,7 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 
 func (r *Rockpool) InstallMailHog() {
 	cn := r.ControllerClusterName()
-	_, err := r.KubeApplyTemplate(cn, "default", "mailhog.yml.tmpl", true)
+	_, err := kube.ApplyTemplate(cn, "default", "mailhog.yml.tmpl", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install mailhog: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -230,11 +221,11 @@ func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
 	cn := r.ControllerClusterName()
 
 	cm := map[string]interface{}{
-		"Name":   r.Config.Name,
-		"Domain": r.Config.Domain,
+		"Name":   platform.Name,
+		"Domain": platform.Domain,
 	}
 	targets := map[int]string{}
-	for i := 0; i < r.Config.NumTargets; i++ {
+	for i := 0; i < platform.NumTargets; i++ {
 		targets[i+1] = r.TargetIP(r.TargetClusterName(i + 1))
 	}
 	cm["Targets"] = targets
@@ -246,7 +237,7 @@ func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
 	}
 
 	fmt.Printf("[%s] using generated manifest at %s\n", cn, patchFile)
-	_, err = r.KubeApply(cn, "ingress-nginx", patchFile, true)
+	_, err = kube.Apply(cn, "ingress-nginx", patchFile, true)
 	if err != nil {
 		fmt.Printf("[%s] unable to setup nginx reverse proxy: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -255,7 +246,7 @@ func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
 
 func (r *Rockpool) InstallCertManager() {
 	cn := r.ControllerClusterName()
-	_, err := r.KubeApplyTemplate(cn, "", "cert-manager.yaml", true)
+	_, err := kube.ApplyTemplate(cn, "", "cert-manager.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install cert-manager: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -266,7 +257,7 @@ func (r *Rockpool) InstallCertManager() {
 	var failedErr error
 	for deployNotFound && retries > 0 {
 		failedErr = nil
-		_, err = r.KubeCtl(r.ControllerClusterName(), "cert-manager",
+		_, err = kube.Cmd(r.ControllerClusterName(), "cert-manager",
 			"wait", "--for=condition=Available=true", "deployment/cert-manager-webhook").Output()
 		if err != nil {
 			failedErr = err
@@ -285,7 +276,7 @@ func (r *Rockpool) InstallCertManager() {
 	failed := true
 	for retries > 0 && failed {
 		failedErr = nil
-		_, err = r.KubeApplyTemplate(r.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
+		_, err = kube.ApplyTemplate(r.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
 		if err != nil {
 			failed = true
 			failedErr = err
@@ -303,7 +294,7 @@ func (r *Rockpool) InstallCertManager() {
 
 func (r *Rockpool) InstallGitlab() {
 	cn := r.ControllerClusterName()
-	_, err := r.KubeApplyTemplate(cn, "gitlab", "gitlab.yml.tmpl", true)
+	_, err := kube.ApplyTemplate(cn, "gitlab", "gitlab.yml.tmpl", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install gitlab: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -319,7 +310,7 @@ func (r *Rockpool) InstallGitea() {
 		os.Exit(1)
 	}
 
-	values, err := templates.Render("gitea-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("gitea-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
 		os.Exit(1)
@@ -343,7 +334,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 		os.Exit(1)
 	}
 
-	values, err := templates.Render("nfs-server-provisioner-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("nfs-server-provisioner-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
 		os.Exit(1)
@@ -367,19 +358,19 @@ func (r *Rockpool) InstallMariaDB(cn string) {
 		os.Exit(1)
 	}
 
-	_, err = r.KubeApply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml", true)
+	_, err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install mariadb crds: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
-	_, err = r.KubeApply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml", true)
+	_, err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install mongodb crds: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
-	_, err = r.KubeApply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml", true)
+	_, err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install postgres crds: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -401,7 +392,7 @@ func (r *Rockpool) InstallMariaDB(cn string) {
 
 func (r *Rockpool) InstallDnsmasq() {
 	cn := r.ControllerClusterName()
-	_, err := r.KubeApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true)
+	_, err := kube.ApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install dnsmasq: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -409,7 +400,7 @@ func (r *Rockpool) InstallDnsmasq() {
 }
 
 func (r *Rockpool) InstallResolver() {
-	dest := filepath.Join("/etc/resolver", r.Hostname())
+	dest := filepath.Join("/etc/resolver", platform.Hostname())
 	data := `
 nameserver 127.0.0.1
 port 6153
@@ -439,7 +430,7 @@ port 6153
 }
 
 func (r *Rockpool) RemoveResolver() {
-	dest := filepath.Join("/etc/resolver", r.Hostname())
+	dest := filepath.Join("/etc/resolver", platform.Hostname())
 	if _, err := exec.Command("rm", "-f", dest).Output(); err != nil {
 		fmt.Println(err)
 	}
@@ -447,7 +438,7 @@ func (r *Rockpool) RemoveResolver() {
 
 func (r *Rockpool) ConfigureKeycloak() {
 	cn := r.ControllerClusterName()
-	if _, err := r.KubeExecNoProgress(
+	if _, err := kube.ExecNoProgress(
 		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 rm -f /tmp/kcadm.config
@@ -462,7 +453,7 @@ rm -f /tmp/kcadm.config
 	}
 
 	// Skip if values have already been set.
-	if out, err := r.KubeExecNoProgress(
+	if out, err := kube.ExecNoProgress(
 		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 /opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon \
@@ -489,7 +480,7 @@ set -e
 	}
 
 	// Configure keycloak.
-	_, err := r.KubeExecNoProgress(cn, "lagoon-core", "lagoon-core-keycloak", `
+	_, err := kube.ExecNoProgress(cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 
 /opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
@@ -521,7 +512,7 @@ client_id=$(echo ${client%,*} | sed 's/"//g')
 
 // ConfigureTargetCoreDNS adds DNS records to targets for the required services.
 func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
-	cm := r.KubeGetConfigMap(cn, "kube-system", "coredns")
+	cm := kube.GetConfigMap(cn, "kube-system", "coredns")
 	corednsCm := CoreDNSConfigMap{}
 	err := json.Unmarshal(cm, &corednsCm)
 	if err != nil {
@@ -529,7 +520,7 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		os.Exit(1)
 	}
 	for _, h := range []string{"harbor", "broker", "ssh", "api", "gitea"} {
-		entry := fmt.Sprintf("%s %s.lagoon.%s\n", r.ControllerIP(), h, r.Hostname())
+		entry := fmt.Sprintf("%s %s.lagoon.%s\n", r.ControllerIP(), h, platform.Hostname())
 		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
 			corednsCm.Data.NodeHosts += entry
 		}
@@ -541,8 +532,8 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("[%s] %s", cn, r.KubeReplace(cn, "kube-system", "coredns", string(cm)))
-	out, err := r.KubeCtl(cn, "kube-system", "rollout", "restart", "deployment/coredns").Output()
+	fmt.Printf("[%s] %s", cn, kube.Replace(cn, "kube-system", "coredns", string(cm)))
+	out, err := kube.Cmd(cn, "kube-system", "rollout", "restart", "deployment/coredns").Output()
 	if err != nil {
 		fmt.Printf("[%s] CoreDNS restart failed: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -551,8 +542,8 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 }
 
 func (r *Rockpool) LagoonCliAddConfig() {
-	graphql := fmt.Sprintf("http://api.lagoon.%s/graphql", r.Hostname())
-	ui := fmt.Sprintf("http://ui.lagoon.%s", r.Hostname())
+	graphql := fmt.Sprintf("http://api.lagoon.%s/graphql", platform.Hostname())
+	ui := fmt.Sprintf("http://ui.lagoon.%s", platform.Hostname())
 
 	// Get list of existing configs.
 	cmd := exec.Command("lagoon", "config", "list", "--output-json")
@@ -574,7 +565,7 @@ func (r *Rockpool) LagoonCliAddConfig() {
 
 	// Add the config.
 	fmt.Println("[rockpool] adding lagoon config")
-	cmd = exec.Command("lagoon", "config", "add", "--lagoon", r.Name,
+	cmd = exec.Command("lagoon", "config", "add", "--lagoon", platform.Name,
 		"--graphql", graphql, "--ui", ui, "--hostname", "127.0.0.1", "--port", "2022")
 	_, err = cmd.Output()
 	if err != nil {
@@ -584,7 +575,7 @@ func (r *Rockpool) LagoonCliAddConfig() {
 
 func (r *Rockpool) LagoonCliDeleteConfig() {
 	// Get list of existing configs.
-	cmd := exec.Command("lagoon", "config", "delete", "--lagoon", r.Name, "--force")
+	cmd := exec.Command("lagoon", "config", "delete", "--lagoon", platform.Name, "--force")
 	_, err := cmd.Output()
 	if err != nil {
 		panic(err)
@@ -592,7 +583,7 @@ func (r *Rockpool) LagoonCliDeleteConfig() {
 }
 
 func (r *Rockpool) ClusterVersion(cn string) {
-	_, err := r.KubeCtl(cn, "", "version").Output()
+	_, err := kube.Cmd(cn, "", "version").Output()
 	if err != nil {
 		fmt.Printf("[%s] could not get cluster version: %s\n", cn, err)
 	}

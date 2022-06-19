@@ -11,12 +11,11 @@ import (
 	"time"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 )
 
-var Hostname string
-
 func ApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
-	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", Hostname, endpoint)
+	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", platform.Hostname(), endpoint)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err

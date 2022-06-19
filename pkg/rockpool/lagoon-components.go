@@ -11,6 +11,8 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
+	"github.com/salsadigitalauorg/rockpool/pkg/kube"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 )
 
@@ -39,7 +41,7 @@ func (r *Rockpool) InstallHarbor() {
 		os.Exit(1)
 	}
 
-	values, err := templates.Render("harbor-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("harbor-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor values template: %s\n", cn, err)
 		os.Exit(1)
@@ -61,7 +63,7 @@ func (r *Rockpool) InstallHarbor() {
 
 func (r *Rockpool) FetchHarborCerts() {
 	cn := r.ControllerClusterName()
-	certBytes, _ := r.KubeGetSecret(cn, "harbor", "harbor-harbor-ingress", "")
+	certBytes, _ := kube.GetSecret(cn, "harbor", "harbor-harbor-ingress", "")
 	certData := struct {
 		Data map[string]string `json:"data"`
 	}{}
@@ -102,7 +104,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 		return
 	}
 
-	if _, err := r.KubeApply(cn, "lagoon", r.State.HarborSecretManifest, true); err != nil {
+	if _, err := kube.Apply(cn, "lagoon", r.State.HarborSecretManifest, true); err != nil {
 		fmt.Printf("[%s] error creating ca.crt: %s\n", cn, err)
 		os.Exit(1)
 	}
@@ -139,7 +141,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 		fmt.Printf("[%s] error rendering the build deploy patch file: %s\n", cn, err)
 		os.Exit(1)
 	}
-	_, err = r.KubePatch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
+	_, err = kube.Patch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
 	if err != nil {
 		fmt.Printf("[%s] error patching the lagoon-build-deploy deployment: %s\n", cn, err)
 		os.Exit(1)
@@ -158,7 +160,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 		return
 	}
 
-	entry := fmt.Sprintf("%s\tharbor.lagoon.%s", r.ControllerIP(), r.Hostname())
+	entry := fmt.Sprintf("%s\tharbor.lagoon.%s", r.ControllerIP(), platform.Hostname())
 	entryCmdStr := fmt.Sprintf("echo '%s' >> /etc/hosts", entry)
 	for _, n := range c.Nodes {
 		if n.Role == "loadbalancer" {
@@ -191,7 +193,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	cn := r.ControllerClusterName()
 	r.AddLagoonRepo(cn)
 
-	values, err := templates.Render("lagoon-core-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("lagoon-core-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
 		os.Exit(1)
@@ -213,8 +215,8 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 	r.AddLagoonRepo(cn)
 
 	// Get RabbitMQ pass.
-	cm := r.Config.ToMap()
-	_, cm["RabbitMQPassword"] = r.KubeGetSecret(r.ControllerClusterName(),
+	cm := platform.ToMap()
+	_, cm["RabbitMQPassword"] = kube.GetSecret(r.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-broker",
 		"RABBITMQ_PASSWORD",
@@ -240,12 +242,12 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 
 func (r *Rockpool) RegisterLagoonRemote(cn string) {
 	cId := internal.GetTargetIdFromCn(cn)
-	rName := r.Name + fmt.Sprint(cId)
+	rName := platform.Name + fmt.Sprint(cId)
 	re := Remote{
 		Id:            cId,
 		Name:          rName,
 		ConsoleUrl:    fmt.Sprintf("https://%s:6443", r.TargetIP(cn)),
-		RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, r.Hostname()),
+		RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, platform.Hostname()),
 	}
 	for _, existingRe := range r.State.Remotes {
 		if existingRe.Id == re.Id && existingRe.Name == re.Name {
@@ -253,7 +255,7 @@ func (r *Rockpool) RegisterLagoonRemote(cn string) {
 			return
 		}
 	}
-	b64Token, err := r.KubeCtl(cn, "lagoon", "get", "secret", "-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
+	b64Token, err := kube.Cmd(cn, "lagoon", "get", "secret", "-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
 	if err != nil {
 		fmt.Printf("[%s] error when fetching lagoon remote token: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
