@@ -16,8 +16,7 @@ type Wg struct {
 type K3d struct {
 	PlatformName string
 	Clusters     ClusterList
-	*Docker
-	Registries []Registry
+	Registries   []Registry
 	Registry
 	*Templates
 	*Wg
@@ -30,8 +29,6 @@ type Registry struct {
 		Status  string
 	}
 }
-
-type Docker struct{}
 
 type Templates struct {
 	*Config
@@ -92,21 +89,11 @@ type Config struct {
 
 type Rockpool struct {
 	*K3d
-	*Docker
 	*Templates
 	State
 	Config
 	Wg
 	GqlClient *graphql.Client
-}
-
-type DockerContainer struct {
-	Name            string
-	NetworkSettings struct {
-		Networks map[string]struct {
-			IPAddress string
-		}
-	}
 }
 
 type CoreDNSConfigMap struct {

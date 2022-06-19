@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 )
 
@@ -111,14 +112,14 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 			continue
 		}
 
-		caCrtFileOut, _ := r.Docker.Exec(n.Name, "ls /etc/ssl/certs/harbor-cert.crt")
+		caCrtFileOut, _ := docker.Exec(n.Name, "ls /etc/ssl/certs/harbor-cert.crt")
 		if strings.Trim(string(caCrtFileOut), "\n") == "/etc/ssl/certs/harbor-cert.crt" {
 			continue
 		}
 
 		// Add harbor's ca.crt to the target.
 		destCaCrt := fmt.Sprintf("%s:/etc/ssl/certs/harbor-cert.crt", n.Name)
-		_, err := r.Docker.Cp(r.State.HarborCaCrtFile, destCaCrt)
+		_, err := docker.Cp(r.State.HarborCaCrtFile, destCaCrt)
 		if err != nil {
 			fmt.Printf("[%s] error copying ca.crt: %s\n", cn, internal.GetCmdStdErr(err))
 			os.Exit(1)
@@ -162,10 +163,10 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 			continue
 		}
 
-		hostsContent, _ := r.Docker.Exec(n.Name, "cat /etc/hosts")
+		hostsContent, _ := docker.Exec(n.Name, "cat /etc/hosts")
 		if !strings.Contains(string(hostsContent), entry) {
 			fmt.Printf("[%s] adding harbor host entries\n", n.Name)
-			_, err := r.Docker.Exec(n.Name, entryCmdStr)
+			_, err := docker.Exec(n.Name, entryCmdStr)
 			if err != nil {
 				fmt.Printf("[%s] error adding harbor host entry: %s\n", cn, internal.GetCmdStdErr(err))
 				os.Exit(1)

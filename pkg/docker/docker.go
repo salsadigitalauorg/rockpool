@@ -1,4 +1,4 @@
-package rockpool
+package docker
 
 import (
 	"encoding/json"
@@ -9,23 +9,23 @@ import (
 	"github.com/salsadigitalauorg/rockpool/internal"
 )
 
-func (d *Docker) Exec(n string, cmdStr string) ([]byte, error) {
+func Exec(n string, cmdStr string) ([]byte, error) {
 	return exec.Command("docker", "exec", n, "ash", "-c", cmdStr).Output()
 }
 
-func (d *Docker) Stop(n string) ([]byte, error) {
+func Stop(n string) ([]byte, error) {
 	return exec.Command("docker", "stop", n).Output()
 }
 
-func (d *Docker) Start(n string) ([]byte, error) {
+func Start(n string) ([]byte, error) {
 	return exec.Command("docker", "start", n).Output()
 }
 
-func (d *Docker) Restart(n string) ([]byte, error) {
+func Restart(n string) ([]byte, error) {
 	return exec.Command("docker", "restart", n).Output()
 }
 
-func (d *Docker) Inspect(cn string) []DockerContainer {
+func Inspect(cn string) []DockerContainer {
 	cmd := exec.Command("docker", "inspect", cn)
 	out, err := cmd.Output()
 	if err != nil {
@@ -42,6 +42,6 @@ func (d *Docker) Inspect(cn string) []DockerContainer {
 	return containers
 }
 
-func (d *Docker) Cp(src string, dest string) ([]byte, error) {
+func Cp(src string, dest string) ([]byte, error) {
 	return exec.Command("docker", "cp", src, dest).Output()
 }

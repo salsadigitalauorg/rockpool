@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 )
 
 var registryName = "rockpool-registry"
@@ -62,7 +63,7 @@ func (k3 *K3d) RegistryCreate() {
 	done := false
 	retries := 12
 	for !done && retries > 0 {
-		registryConfig, err = k3.Docker.Exec(registryNameFull, "cat "+regCfgFile)
+		registryConfig, err = docker.Exec(registryNameFull, "cat "+regCfgFile)
 		if err != nil {
 			fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
 			time.Sleep(5 * time.Second)
@@ -77,12 +78,12 @@ func (k3 *K3d) RegistryCreate() {
 
 	if !strings.Contains(string(registryConfig), proxyLine) {
 		fmt.Println("[rockpool] adding registry proxy config")
-		_, err := k3.Docker.Exec(registryNameFull, proxyLineCmdStr)
+		_, err := docker.Exec(registryNameFull, proxyLineCmdStr)
 		if err != nil {
 			fmt.Println("[rockpool] error adding registry proxy config:", internal.GetCmdStdErr(err))
 			os.Exit(1)
 		}
-		k3.Docker.Restart(registryNameFull)
+		docker.Restart(registryNameFull)
 	}
 }
 
@@ -99,7 +100,7 @@ func (k3 *K3d) RegistryStop() {
 		return
 	}
 	fmt.Println("[rockpool] stopping registry")
-	_, err := k3.Docker.Stop(k3.Registry.Name)
+	_, err := docker.Stop(k3.Registry.Name)
 	if err != nil {
 		fmt.Println("[rockpool] error stopping registry:", internal.GetCmdStdErr(err))
 		os.Exit(1)
@@ -109,7 +110,7 @@ func (k3 *K3d) RegistryStop() {
 
 func (k3 *K3d) RegistryStart() {
 	fmt.Println("[rockpool] starting registry")
-	_, err := k3.Docker.Start(registryNameFull)
+	_, err := docker.Start(registryNameFull)
 	if err != nil {
 		fmt.Println("[rockpool] error starting registry:", internal.GetCmdStdErr(err))
 		os.Exit(1)

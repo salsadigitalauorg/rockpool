@@ -52,12 +52,8 @@ func (r *Rockpool) Initialise() {
 	ts := Templates{Config: &r.Config}
 	r.Templates = &ts
 
-	d := Docker{}
-	r.Docker = &d
-
 	k3 := K3d{
 		PlatformName: r.Name,
-		Docker:       r.Docker,
 		Templates:    r.Templates,
 		Wg:           &r.Wg,
 	}
