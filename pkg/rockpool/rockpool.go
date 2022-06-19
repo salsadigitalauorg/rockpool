@@ -1,7 +1,6 @@
 package rockpool
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,10 +14,10 @@ import (
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
+	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
+	"github.com/salsadigitalauorg/rockpool/pkg/templates"
+	"github.com/salsadigitalauorg/rockpool/pkg/wg"
 )
-
-//go:embed templates
-var templates embed.FS
 
 func EnsureBinariesExist() {
 	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
@@ -49,34 +48,28 @@ func (c *Config) ToMap() map[string]string {
 }
 
 func (r *Rockpool) Initialise() {
+	gitea.Hostname = r.Hostname()
+	k3d.PlatformName = r.Config.Name
+	templates.ConfigDir = r.Config.ConfigDir
+	templates.PlatformName = r.Config.Name
+
 	EnsureBinariesExist()
-	ts := Templates{Config: &r.Config}
-	r.Templates = &ts
-
-	k3 := K3d{
-		PlatformName: r.Name,
-		Templates:    r.Templates,
-		Wg:           &r.Wg,
-	}
-	r.K3d = &k3
-
 	r.Spinner.Color("red", "bold")
 	r.Config.Arch = runtime.GOARCH
 
 	// Create directory for rendered templates.
-	err := os.MkdirAll(r.Templates.RenderedPath(true), os.ModePerm)
+	err := os.MkdirAll(templates.RenderedPath(true), os.ModePerm)
 	if err != nil {
-		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", r.Templates.RenderedPath(true), err)
+		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", templates.RenderedPath(true), err)
 		os.Exit(1)
 	}
 
-	r.ClusterFetch()
-	gitea.Hostname = r.Hostname()
+	k3d.ClusterFetch()
 }
 
 func (r *Rockpool) Up(clusters []string) {
 	if len(clusters) == 0 {
-		if len(r.K3d.Clusters) > 0 {
+		if len(k3d.Clusters) > 0 {
 			clusters = r.allClusters()
 		} else {
 			clusters = append(clusters, r.ControllerClusterName())
@@ -85,8 +78,8 @@ func (r *Rockpool) Up(clusters []string) {
 			}
 		}
 	}
-	r.K3d.RegistryCreate()
-	r.K3d.RegistryRenderConfig()
+	k3d.RegistryCreate()
+	k3d.RegistryRenderConfig()
 	r.CreateClusters(clusters)
 
 	setupController := false
@@ -108,10 +101,10 @@ func (r *Rockpool) Up(clusters []string) {
 	if len(setupTargets) > 0 {
 		r.FetchHarborCerts()
 		for _, c := range setupTargets {
-			r.WgAdd(1)
+			wg.Add(1)
 			go r.SetupLagoonTarget(c)
 		}
-		r.WgWait()
+		wg.Wait()
 
 		r.SetupNginxReverseProxyForRemotes()
 
@@ -129,19 +122,19 @@ func (r *Rockpool) Up(clusters []string) {
 
 func (r *Rockpool) allClusters() []string {
 	cls := []string{}
-	for _, c := range r.K3d.Clusters {
+	for _, c := range k3d.Clusters {
 		cls = append(cls, c.Name)
 	}
 	return cls
 }
 
 func (r *Rockpool) Start(clusters []string) {
-	r.K3d.RegistryStart()
+	k3d.RegistryStart()
 	if len(clusters) == 0 {
 		clusters = r.allClusters()
 	}
 	for _, cn := range clusters {
-		r.K3d.ClusterStart(cn)
+		k3d.ClusterStart(cn)
 		r.AddHarborHostEntries(cn)
 		if cn != r.ControllerClusterName() {
 			r.ConfigureTargetCoreDNS(cn)
@@ -154,14 +147,14 @@ func (r *Rockpool) Stop(clusters []string) {
 		clusters = r.allClusters()
 	}
 	for _, c := range clusters {
-		r.WgAdd(1)
+		wg.Add(1)
 		go func(c string) {
-			defer r.WgDone()
-			r.ClusterStop(c)
+			defer wg.Done()
+			k3d.ClusterStop(c)
 		}(c)
 	}
-	r.WgWait()
-	r.K3d.RegistryStop()
+	wg.Wait()
+	k3d.RegistryStop()
 }
 
 func (r *Rockpool) Down(clusters []string) {
@@ -173,17 +166,17 @@ func (r *Rockpool) Down(clusters []string) {
 			r.LagoonCliDeleteConfig()
 			r.RemoveResolver()
 		}
-		r.WgAdd(1)
-		go r.ClusterDelete(c)
+		wg.Add(1)
+		go k3d.ClusterDelete(c)
 	}
-	r.WgWait()
-	r.K3d.RegistryStop()
+	wg.Wait()
+	k3d.RegistryStop()
 }
 
 func (r *Rockpool) CreateClusters(clusters []string) {
 	for _, c := range clusters {
-		r.ClusterCreate(c, c == r.ControllerClusterName())
-		r.WriteKubeConfig(c)
+		k3d.ClusterCreate(c, c == r.ControllerClusterName())
+		k3d.WriteKubeConfig(c)
 	}
 }
 
@@ -213,7 +206,7 @@ func (r *Rockpool) SetupLagoonController() {
 }
 
 func (r *Rockpool) SetupLagoonTarget(cn string) {
-	defer r.WgDone()
+	defer wg.Done()
 
 	helm.List(cn)
 	r.ConfigureTargetCoreDNS(cn)
@@ -246,7 +239,7 @@ func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
 	}
 	cm["Targets"] = targets
 
-	patchFile, err := r.Templates.Render("ingress-nginx-values.yml.tmpl", cm, "")
+	patchFile, err := templates.Render("ingress-nginx-values.yml.tmpl", cm, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering ingress nginx patch template: %s\n", cn, err)
 		os.Exit(1)
@@ -326,7 +319,7 @@ func (r *Rockpool) InstallGitea() {
 		os.Exit(1)
 	}
 
-	values, err := r.Templates.Render("gitea-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("gitea-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
 		os.Exit(1)
@@ -350,7 +343,7 @@ func (r *Rockpool) InstallNfsProvisioner(cn string) {
 		os.Exit(1)
 	}
 
-	values, err := r.Templates.Render("nfs-server-provisioner-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("nfs-server-provisioner-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
 		os.Exit(1)
@@ -595,5 +588,12 @@ func (r *Rockpool) LagoonCliDeleteConfig() {
 	_, err := cmd.Output()
 	if err != nil {
 		panic(err)
+	}
+}
+
+func (r *Rockpool) ClusterVersion(cn string) {
+	_, err := r.KubeCtl(cn, "", "version").Output()
+	if err != nil {
+		fmt.Printf("[%s] could not get cluster version: %s\n", cn, err)
 	}
 }

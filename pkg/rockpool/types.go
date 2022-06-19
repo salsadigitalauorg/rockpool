@@ -2,60 +2,12 @@ package rockpool
 
 import (
 	"encoding/json"
-	"sync"
 
 	"github.com/briandowns/spinner"
+	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
 	"github.com/shurcooL/graphql"
 	"golang.org/x/sync/syncmap"
 )
-
-type Wg struct {
-	wg *sync.WaitGroup
-}
-
-type K3d struct {
-	PlatformName string
-	Clusters     ClusterList
-	Registries   []Registry
-	Registry
-	*Templates
-	*Wg
-}
-
-type Registry struct {
-	Name  string `json:"name"`
-	State struct {
-		Running bool
-		Status  string
-	}
-}
-
-type Templates struct {
-	*Config
-}
-
-type ClusterNode struct {
-	Name  string `json:"name"`
-	Role  string `json:"role"`
-	State struct {
-		Running bool
-		Status  string
-	}
-	IP struct {
-		IP string
-	}
-}
-
-type Cluster struct {
-	Name           string        `json:"name"`
-	ServersRunning int           `json:"serversRunning"`
-	ServersCount   int           `json:"serversCount"`
-	AgentsRunning  int           `json:"agentsRunning"`
-	AgentsCount    int           `json:"agentsCount"`
-	Nodes          []ClusterNode `json:"nodes"`
-}
-
-type ClusterList []Cluster
 
 type Remote struct {
 	Id            int    `json:"id"`
@@ -66,7 +18,7 @@ type Remote struct {
 
 type State struct {
 	Spinner  spinner.Spinner
-	Registry Registry
+	Registry k3d.Registry
 	// Use syncmap.Map instead of a regular map for the following so there's no
 	// race conditions during concurrent runs, which was happening before.
 	// See https://stackoverflow.com/a/45585833/351590.
@@ -88,11 +40,8 @@ type Config struct {
 }
 
 type Rockpool struct {
-	*K3d
-	*Templates
 	State
 	Config
-	Wg
 	GqlClient *graphql.Client
 }
 

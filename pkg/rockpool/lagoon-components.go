@@ -10,6 +10,8 @@ import (
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
+	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
+	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 )
 
 func (r *Rockpool) InstallIngressNginx(cn string) {
@@ -37,7 +39,7 @@ func (r *Rockpool) InstallHarbor() {
 		os.Exit(1)
 	}
 
-	values, err := r.Templates.Render("harbor-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("harbor-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor values template: %s\n", cn, err)
 		os.Exit(1)
@@ -65,7 +67,7 @@ func (r *Rockpool) FetchHarborCerts() {
 	}{}
 	json.Unmarshal(certBytes, &certData)
 
-	secretManifest, err := r.Templates.Render("harbor-cert.yml.tmpl", certData, "")
+	secretManifest, err := templates.Render("harbor-cert.yml.tmpl", certData, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor cert template: %s\n", cn, err)
 		os.Exit(1)
@@ -78,7 +80,7 @@ func (r *Rockpool) FetchHarborCerts() {
 		fmt.Printf("[%s] error when decoding ca.crt: %#v\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	caCrtFile, err := r.Templates.Render("harbor-ca.crt.tmpl", string(decoded), "")
+	caCrtFile, err := templates.Render("harbor-ca.crt.tmpl", string(decoded), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering harbor ca.crt template: %s\n", cn, err)
 		os.Exit(1)
@@ -94,7 +96,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 		return
 	}
 
-	exists, c := r.K3d.ClusterExists(cn)
+	exists, c := k3d.ClusterExists(cn)
 	if !exists {
 		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return
@@ -128,11 +130,11 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 	}
 
 	if clusterUpdated {
-		r.ClusterRestart(c.Name)
+		k3d.ClusterRestart(c.Name)
 	}
 
 	// Patch lagoon-remote-lagoon-build-deploy to add the cert secret.
-	patchFile, err := r.Templates.Render("patch-lagoon-remote-lagoon-build-deploy.yaml", nil, "")
+	patchFile, err := templates.Render("patch-lagoon-remote-lagoon-build-deploy.yaml", nil, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering the build deploy patch file: %s\n", cn, err)
 		os.Exit(1)
@@ -150,7 +152,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 		return
 	}
 
-	exists, c := r.K3d.ClusterExists(cn)
+	exists, c := k3d.ClusterExists(cn)
 	if !exists {
 		fmt.Printf("[%s] cluster does not exist\n", cn)
 		return
@@ -189,7 +191,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	cn := r.ControllerClusterName()
 	r.AddLagoonRepo(cn)
 
-	values, err := r.Templates.Render("lagoon-core-values.yml.tmpl", r.Config.ToMap(), "")
+	values, err := templates.Render("lagoon-core-values.yml.tmpl", r.Config.ToMap(), "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
 		os.Exit(1)
@@ -220,7 +222,7 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 
 	cm["TargetId"] = fmt.Sprint(internal.GetTargetIdFromCn(cn))
 
-	values, err := r.Templates.Render("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
+	values, err := templates.Render("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-remote values template: %s\n", cn, err)
 		os.Exit(1)

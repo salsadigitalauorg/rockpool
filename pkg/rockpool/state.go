@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
 )
 
 func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
@@ -21,16 +22,16 @@ func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
 }
 
 func (r *Rockpool) Status() {
-	r.K3d.ClusterFetch()
-	if len(r.K3d.Clusters) == 0 {
+	k3d.ClusterFetch()
+	if len(k3d.Clusters) == 0 {
 		fmt.Printf("No cluster found for '%s'\n", r.Name)
 		return
 	}
 
 	runningClusters := 0
 	fmt.Println("Clusters:")
-	for _, c := range r.K3d.Clusters {
-		isRunning := r.K3d.ClusterIsRunning(c.Name)
+	for _, c := range k3d.Clusters {
+		isRunning := k3d.ClusterIsRunning(c.Name)
 		fmt.Printf("  %s: ", c.Name)
 		if isRunning {
 			fmt.Println("running")
@@ -47,9 +48,9 @@ func (r *Rockpool) Status() {
 
 	fmt.Println("Kubeconfig:")
 	fmt.Println("  Controller:", internal.KubeconfigPath(r.ControllerClusterName()))
-	if len(r.K3d.Clusters) > 1 {
+	if len(k3d.Clusters) > 1 {
 		fmt.Println("  Targets:")
-		for _, c := range r.K3d.Clusters {
+		for _, c := range k3d.Clusters {
 			if c.Name == r.ControllerClusterName() {
 				continue
 			}
@@ -86,7 +87,7 @@ func (r *Rockpool) Hostname() string {
 }
 
 func (r *Rockpool) ControllerIP() string {
-	for _, c := range r.Clusters {
+	for _, c := range k3d.Clusters {
 		if c.Name != r.ControllerClusterName() {
 			continue
 		}
@@ -103,7 +104,7 @@ func (r *Rockpool) ControllerIP() string {
 }
 
 func (r *Rockpool) TargetIP(cn string) string {
-	for _, c := range r.Clusters {
+	for _, c := range k3d.Clusters {
 		if c.Name != cn {
 			continue
 		}

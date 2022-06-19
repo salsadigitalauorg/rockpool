@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 )
 
 func (r *Rockpool) KubeCtl(cn string, ns string, args ...string) *exec.Cmd {
@@ -46,7 +47,7 @@ func (r *Rockpool) KubeApply(cn string, ns string, fn string, force bool) ([]byt
 }
 
 func (r *Rockpool) KubeApplyTemplate(cn string, ns string, fn string, force bool) ([]byte, error) {
-	f, err := r.Templates.Render(fn, r.Config.ToMap(), "")
+	f, err := templates.Render(fn, r.Config.ToMap(), "")
 	if err != nil {
 		return nil, err
 	}

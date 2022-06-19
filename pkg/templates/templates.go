@@ -1,6 +1,7 @@
-package rockpool
+package templates
 
 import (
+	"embed"
 	"os"
 	"path"
 	"path/filepath"
@@ -8,15 +9,21 @@ import (
 	"text/template"
 )
 
+//go:embed templates
+var templates embed.FS
+
+var ConfigDir string
+var PlatformName string
+
 // Render executes a given template file and returns the path to its
 // rendered version.
-func (ts *Templates) Render(tn string, config interface{}, destName string) (string, error) {
+func Render(tn string, config interface{}, destName string) (string, error) {
 	t := template.Must(template.ParseFS(templates, "templates/"+tn))
 
 	var rendered string
-	path := ts.RenderedPath(true)
+	path := RenderedPath(true)
 	if tn == "registries.yaml" {
-		path = ts.RenderedPath(false)
+		path = RenderedPath(false)
 	}
 	if destName != "" {
 		rendered = filepath.Join(path, destName)
@@ -39,10 +46,10 @@ func (ts *Templates) Render(tn string, config interface{}, destName string) (str
 	return rendered, nil
 }
 
-func (ts *Templates) RenderedPath(withName bool) string {
-	p := path.Join(ts.Config.ConfigDir, "rendered")
+func RenderedPath(withName bool) string {
+	p := path.Join(ConfigDir, "rendered")
 	if withName {
-		p = path.Join(p, ts.Config.Name)
+		p = path.Join(p, PlatformName)
 	}
 	return p
 }
