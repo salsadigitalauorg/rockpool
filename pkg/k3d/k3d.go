@@ -300,3 +300,37 @@ func WriteKubeConfig(cn string) {
 		panic(fmt.Sprintln("unable to write kubeconfig:", err))
 	}
 }
+
+func ControllerIP() string {
+	for _, c := range Clusters {
+		if c.Name != platform.ControllerClusterName() {
+			continue
+		}
+
+		for _, n := range c.Nodes {
+			if n.Role == "loadbalancer" {
+				return n.IP.IP
+			}
+		}
+	}
+	fmt.Println("[rockpool] unable to get controller ip")
+	os.Exit(1)
+	return ""
+}
+
+func TargetIP(cn string) string {
+	for _, c := range Clusters {
+		if c.Name != cn {
+			continue
+		}
+
+		for _, n := range c.Nodes {
+			if n.Role == "loadbalancer" {
+				return n.IP.IP
+			}
+		}
+	}
+	fmt.Println("[rockpool] unable to get target ip")
+	os.Exit(1)
+	return ""
+}

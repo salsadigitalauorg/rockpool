@@ -31,3 +31,11 @@ func Hostname() string {
 func TotalClusterNum() int {
 	return NumTargets + 1
 }
+
+func ControllerClusterName() string {
+	return Name + "-controller"
+}
+
+func TargetClusterName(targetId int) string {
+	return Name + "-target-" + fmt.Sprint(targetId)
+}

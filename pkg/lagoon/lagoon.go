@@ -1,4 +1,4 @@
-package rockpool
+package lagoon
 
 import (
 	"context"
@@ -13,9 +13,14 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
+	"github.com/salsadigitalauorg/rockpool/pkg/ssh"
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 )
+
+var GqlClient *graphql.Client
+
+var Remotes []Remote
 
 var lagoonUserinfo struct {
 	Me struct {
@@ -28,9 +33,9 @@ var lagoonUserinfo struct {
 	}
 }
 
-func (r *Rockpool) lagoonFetchApiToken() string {
+func FetchApiToken() string {
 	fmt.Println("[rockpool] fetching lagoon api token")
-	_, password := kube.GetSecret(r.ControllerClusterName(),
+	_, password := kube.GetSecret(platform.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-keycloak",
 		"KEYCLOAK_LAGOON_ADMIN_PASSWORD",
@@ -78,44 +83,44 @@ func (r *Rockpool) lagoonFetchApiToken() string {
 	return res.Token
 }
 
-func (r *Rockpool) GetLagoonApiClient() {
-	if r.GqlClient != nil {
+func InitApiClient() {
+	if GqlClient != nil {
 		return
 	}
-	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: r.lagoonFetchApiToken()})
+	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: FetchApiToken()})
 	httpClient := &http.Client{
 		Transport: &oauth2.Transport{
 			Base:   interceptor.New(),
 			Source: oauth2.ReuseTokenSource(nil, src),
 		},
 	}
-	r.GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", platform.Hostname()), httpClient)
+	GqlClient = graphql.NewClient(fmt.Sprintf("http://api.lagoon.%s/graphql", platform.Hostname()), httpClient)
 }
 
-func (r *Rockpool) LagoonApiGetRemotes() {
+func GetRemotes() {
 	fmt.Println("[rockpool] fetching lagoon api remotes...")
 	var query struct {
 		AllKubernetes []Remote
 	}
-	err := r.GqlClient.Query(context.Background(), &query, nil)
+	err := GqlClient.Query(context.Background(), &query, nil)
 	if err != nil {
 		fmt.Println("[rockpool] error fetching Lagoon remotes:", err)
 		os.Exit(1)
 	}
-	r.State.Remotes = query.AllKubernetes
+	Remotes = query.AllKubernetes
 }
 
-func (r *Rockpool) LagoonApiFetchUserInfo() {
-	err := r.GqlClient.Query(context.Background(), &lagoonUserinfo, nil)
+func FetchUserInfo() {
+	err := GqlClient.Query(context.Background(), &lagoonUserinfo, nil)
 	if err != nil {
 		fmt.Println("[rockpool] error fetching Lagoon user info:", err)
 		os.Exit(1)
 	}
 }
 
-func (r *Rockpool) LagoonApiAddSshKey() {
-	keyValue, keyType, keyFingerpint, cmt := r.SshGetPublicKeyFingerprint()
-	r.LagoonApiFetchUserInfo()
+func AddSshKey() {
+	keyValue, keyType, keyFingerpint, cmt := ssh.GetPublicKeyFingerprint()
+	FetchUserInfo()
 	for _, k := range lagoonUserinfo.Me.SshKeys {
 		if k.KeyFingerprint == keyFingerpint {
 			fmt.Println("[rockpool] lagoon ssh key had already been added")
@@ -139,14 +144,14 @@ func (r *Rockpool) LagoonApiAddSshKey() {
 		"userId":    graphql.String(lagoonUserinfo.Me.Id),
 	}
 	fmt.Println("[rockpool] adding lagoon ssh key")
-	err := r.GqlClient.Mutate(context.Background(), &m, vars)
+	err := GqlClient.Mutate(context.Background(), &m, vars)
 	if err != nil {
 		fmt.Printf("[rockpool] error adding Lagoon ssh key %s: %#v\n", cmt, err)
 		os.Exit(1)
 	}
 }
 
-func (r *Rockpool) LagoonApiAddRemote(re Remote, token string) {
+func AddRemote(re Remote, token string) {
 	var m struct {
 		AddKubernetes struct {
 			Remote
@@ -159,10 +164,10 @@ func (r *Rockpool) LagoonApiAddRemote(re Remote, token string) {
 		"token":        graphql.String(token),
 		"routePattern": graphql.String(re.RouterPattern),
 	}
-	err := r.GqlClient.Mutate(context.Background(), &m, vars)
+	err := GqlClient.Mutate(context.Background(), &m, vars)
 	if err != nil {
 		fmt.Printf("[rockpool] error adding Lagoon remote %s: %#v\n", re.Name, err)
 		os.Exit(1)
 	}
-	r.Remotes = append(r.Remotes, m.AddKubernetes.Remote)
+	Remotes = append(Remotes, m.AddKubernetes.Remote)
 }

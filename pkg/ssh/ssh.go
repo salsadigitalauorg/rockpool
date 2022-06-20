@@ -1,4 +1,4 @@
-package rockpool
+package ssh
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func (r *Rockpool) SshGetPublicKey() []byte {
+func GetPublicKey() []byte {
 	home, _ := os.UserHomeDir()
 	var keyFile string
 	idEd25519 := filepath.Join(home, ".ssh", "id_ed25519.pub")
@@ -30,8 +30,8 @@ func (r *Rockpool) SshGetPublicKey() []byte {
 	return data
 }
 
-func (r *Rockpool) SshGetPublicKeyFingerprint() (string, string, string, string) {
-	key := r.SshGetPublicKey()
+func GetPublicKeyFingerprint() (string, string, string, string) {
+	key := GetPublicKey()
 	pk, comment, _, _, err := ssh.ParseAuthorizedKey(key)
 	if err != nil {
 		panic(err)

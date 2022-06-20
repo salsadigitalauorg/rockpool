@@ -16,6 +16,7 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
+	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/wg"
@@ -41,11 +42,9 @@ func EnsureBinariesExist() {
 }
 
 func (r *Rockpool) Initialise() {
-	r.State = State{
-		Spinner: *spinner.New(spinner.CharSets[14], 100*time.Millisecond),
-	}
-
 	EnsureBinariesExist()
+
+	r.Spinner = *spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	r.Spinner.Color("red", "bold")
 
 	// Create directory for rendered templates.
@@ -63,9 +62,9 @@ func (r *Rockpool) Up(clusters []string) {
 		if len(k3d.Clusters) > 0 {
 			clusters = r.allClusters()
 		} else {
-			clusters = append(clusters, r.ControllerClusterName())
+			clusters = append(clusters, platform.ControllerClusterName())
 			for i := 1; i <= platform.NumTargets; i++ {
-				clusters = append(clusters, r.TargetClusterName(i))
+				clusters = append(clusters, platform.TargetClusterName(i))
 			}
 		}
 	}
@@ -76,7 +75,7 @@ func (r *Rockpool) Up(clusters []string) {
 	setupController := false
 	setupTargets := []string{}
 	for _, c := range clusters {
-		if c == r.ControllerClusterName() {
+		if c == platform.ControllerClusterName() {
 			setupController = true
 			continue
 		}
@@ -87,10 +86,10 @@ func (r *Rockpool) Up(clusters []string) {
 		r.SetupLagoonController()
 	}
 
-	r.GetLagoonApiClient()
-	r.LagoonApiGetRemotes()
+	lagoon.InitApiClient()
+	lagoon.GetRemotes()
 	if len(setupTargets) > 0 {
-		r.FetchHarborCerts()
+		FetchHarborCerts()
 		for _, c := range setupTargets {
 			wg.Add(1)
 			go r.SetupLagoonTarget(c)
@@ -102,8 +101,8 @@ func (r *Rockpool) Up(clusters []string) {
 		// Do the following serially so as not to run into
 		// race conditions while doing the restarts.
 		for _, c := range setupTargets {
-			r.AddHarborHostEntries(c)
-			r.InstallHarborCerts(c)
+			AddHarborHostEntries(c)
+			InstallHarborCerts(c)
 		}
 	}
 	r.InstallResolver()
@@ -126,8 +125,8 @@ func (r *Rockpool) Start(clusters []string) {
 	}
 	for _, cn := range clusters {
 		k3d.ClusterStart(cn)
-		r.AddHarborHostEntries(cn)
-		if cn != r.ControllerClusterName() {
+		AddHarborHostEntries(cn)
+		if cn != platform.ControllerClusterName() {
 			r.ConfigureTargetCoreDNS(cn)
 		}
 	}
@@ -153,7 +152,7 @@ func (r *Rockpool) Down(clusters []string) {
 		clusters = r.allClusters()
 	}
 	for _, c := range clusters {
-		if c == r.ControllerClusterName() {
+		if c == platform.ControllerClusterName() {
 			r.LagoonCliDeleteConfig()
 			r.RemoveResolver()
 		}
@@ -166,7 +165,7 @@ func (r *Rockpool) Down(clusters []string) {
 
 func (r *Rockpool) CreateClusters(clusters []string) {
 	for _, c := range clusters {
-		k3d.ClusterCreate(c, c == r.ControllerClusterName())
+		k3d.ClusterCreate(c, c == platform.ControllerClusterName())
 		k3d.WriteKubeConfig(c)
 	}
 }
@@ -174,8 +173,8 @@ func (r *Rockpool) CreateClusters(clusters []string) {
 func (r *Rockpool) SetupLagoonController() {
 	r.InstallMailHog()
 
-	helm.List(r.ControllerClusterName())
-	r.InstallIngressNginx(r.ControllerClusterName())
+	helm.List(platform.ControllerClusterName())
+	InstallIngressNginx(platform.ControllerClusterName())
 	r.InstallCertManager()
 
 	r.InstallDnsmasq()
@@ -186,13 +185,13 @@ func (r *Rockpool) SetupLagoonController() {
 	// Create test repo.
 	gitea.CreateRepo()
 
-	r.InstallHarbor()
-	r.InstallLagoonCore()
+	InstallHarbor()
+	InstallLagoonCore()
 
 	// Wait for Keycloak to be installed, then configure it.
 	r.ConfigureKeycloak()
-	r.GetLagoonApiClient()
-	r.LagoonApiAddSshKey()
+	lagoon.InitApiClient()
+	lagoon.AddSshKey()
 	r.LagoonCliAddConfig()
 }
 
@@ -201,15 +200,15 @@ func (r *Rockpool) SetupLagoonTarget(cn string) {
 
 	helm.List(cn)
 	r.ConfigureTargetCoreDNS(cn)
-	r.InstallIngressNginx(cn)
+	InstallIngressNginx(cn)
 	r.InstallNfsProvisioner(cn)
 	r.InstallMariaDB(cn)
-	r.InstallLagoonRemote(cn)
-	r.RegisterLagoonRemote(cn)
+	InstallLagoonRemote(cn)
+	RegisterLagoonRemote(cn)
 }
 
 func (r *Rockpool) InstallMailHog() {
-	cn := r.ControllerClusterName()
+	cn := platform.ControllerClusterName()
 	_, err := kube.ApplyTemplate(cn, "default", "mailhog.yml.tmpl", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install mailhog: %s\n", cn, internal.GetCmdStdErr(err))
@@ -218,7 +217,7 @@ func (r *Rockpool) InstallMailHog() {
 }
 
 func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
-	cn := r.ControllerClusterName()
+	cn := platform.ControllerClusterName()
 
 	cm := map[string]interface{}{
 		"Name":   platform.Name,
@@ -226,7 +225,7 @@ func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
 	}
 	targets := map[int]string{}
 	for i := 0; i < platform.NumTargets; i++ {
-		targets[i+1] = r.TargetIP(r.TargetClusterName(i + 1))
+		targets[i+1] = k3d.TargetIP(platform.TargetClusterName(i + 1))
 	}
 	cm["Targets"] = targets
 
@@ -245,7 +244,7 @@ func (r *Rockpool) SetupNginxReverseProxyForRemotes() {
 }
 
 func (r *Rockpool) InstallCertManager() {
-	cn := r.ControllerClusterName()
+	cn := platform.ControllerClusterName()
 	_, err := kube.ApplyTemplate(cn, "", "cert-manager.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install cert-manager: %s\n", cn, internal.GetCmdStdErr(err))
@@ -257,7 +256,7 @@ func (r *Rockpool) InstallCertManager() {
 	var failedErr error
 	for deployNotFound && retries > 0 {
 		failedErr = nil
-		_, err = kube.Cmd(r.ControllerClusterName(), "cert-manager",
+		_, err = kube.Cmd(platform.ControllerClusterName(), "cert-manager",
 			"wait", "--for=condition=Available=true", "deployment/cert-manager-webhook").Output()
 		if err != nil {
 			failedErr = err
@@ -276,7 +275,7 @@ func (r *Rockpool) InstallCertManager() {
 	failed := true
 	for retries > 0 && failed {
 		failedErr = nil
-		_, err = kube.ApplyTemplate(r.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
+		_, err = kube.ApplyTemplate(platform.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
 		if err != nil {
 			failed = true
 			failedErr = err
@@ -293,7 +292,7 @@ func (r *Rockpool) InstallCertManager() {
 }
 
 func (r *Rockpool) InstallGitlab() {
-	cn := r.ControllerClusterName()
+	cn := platform.ControllerClusterName()
 	_, err := kube.ApplyTemplate(cn, "gitlab", "gitlab.yml.tmpl", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install gitlab: %s\n", cn, internal.GetCmdStdErr(err))
@@ -302,7 +301,7 @@ func (r *Rockpool) InstallGitlab() {
 }
 
 func (r *Rockpool) InstallGitea() {
-	cn := r.ControllerClusterName()
+	cn := platform.ControllerClusterName()
 	cmd := helm.Exec(cn, "", "repo", "add", "gitea-charts", "https://dl.gitea.io/charts/")
 	err := cmd.Run()
 	if err != nil {
@@ -391,7 +390,7 @@ func (r *Rockpool) InstallMariaDB(cn string) {
 }
 
 func (r *Rockpool) InstallDnsmasq() {
-	cn := r.ControllerClusterName()
+	cn := platform.ControllerClusterName()
 	_, err := kube.ApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install dnsmasq: %s\n", cn, internal.GetCmdStdErr(err))
@@ -437,7 +436,7 @@ func (r *Rockpool) RemoveResolver() {
 }
 
 func (r *Rockpool) ConfigureKeycloak() {
-	cn := r.ControllerClusterName()
+	cn := platform.ControllerClusterName()
 	if _, err := kube.ExecNoProgress(
 		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
@@ -520,7 +519,7 @@ func (r *Rockpool) ConfigureTargetCoreDNS(cn string) {
 		os.Exit(1)
 	}
 	for _, h := range []string{"harbor", "broker", "ssh", "api", "gitea"} {
-		entry := fmt.Sprintf("%s %s.lagoon.%s\n", r.ControllerIP(), h, platform.Hostname())
+		entry := fmt.Sprintf("%s %s.lagoon.%s\n", k3d.ControllerIP(), h, platform.Hostname())
 		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
 			corednsCm.Data.NodeHosts += entry
 		}

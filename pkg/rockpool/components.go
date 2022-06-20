@@ -12,11 +12,15 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
+	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/templates"
 )
 
-func (r *Rockpool) InstallIngressNginx(cn string) {
+var HarborSecretManifest string
+var HarborCaCrtFile string
+
+func InstallIngressNginx(cn string) {
 	_, err := helm.InstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
@@ -32,8 +36,8 @@ func (r *Rockpool) InstallIngressNginx(cn string) {
 	}
 }
 
-func (r *Rockpool) InstallHarbor() {
-	cn := r.ControllerClusterName()
+func InstallHarbor() {
+	cn := platform.ControllerClusterName()
 	cmd := helm.Exec(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io")
 	err := cmd.Run()
 	if err != nil {
@@ -61,8 +65,8 @@ func (r *Rockpool) InstallHarbor() {
 	}
 }
 
-func (r *Rockpool) FetchHarborCerts() {
-	cn := r.ControllerClusterName()
+func FetchHarborCerts() {
+	cn := platform.ControllerClusterName()
 	certBytes, _ := kube.GetSecret(cn, "harbor", "harbor-harbor-ingress", "")
 	certData := struct {
 		Data map[string]string `json:"data"`
@@ -89,12 +93,12 @@ func (r *Rockpool) FetchHarborCerts() {
 	}
 	fmt.Printf("[%s] generated harbor ca.crt at %s\n", cn, caCrtFile)
 
-	r.State.HarborSecretManifest = secretManifest
-	r.State.HarborCaCrtFile = caCrtFile
+	HarborSecretManifest = secretManifest
+	HarborCaCrtFile = caCrtFile
 }
 
-func (r *Rockpool) InstallHarborCerts(cn string) {
-	if cn == r.ControllerClusterName() {
+func InstallHarborCerts(cn string) {
+	if cn == platform.ControllerClusterName() {
 		return
 	}
 
@@ -104,7 +108,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 		return
 	}
 
-	if _, err := kube.Apply(cn, "lagoon", r.State.HarborSecretManifest, true); err != nil {
+	if _, err := kube.Apply(cn, "lagoon", HarborSecretManifest, true); err != nil {
 		fmt.Printf("[%s] error creating ca.crt: %s\n", cn, err)
 		os.Exit(1)
 	}
@@ -123,7 +127,7 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 
 		// Add harbor's ca.crt to the target.
 		destCaCrt := fmt.Sprintf("%s:/etc/ssl/certs/harbor-cert.crt", n.Name)
-		_, err := docker.Cp(r.State.HarborCaCrtFile, destCaCrt)
+		_, err := docker.Cp(HarborCaCrtFile, destCaCrt)
 		if err != nil {
 			fmt.Printf("[%s] error copying ca.crt: %s\n", cn, internal.GetCmdStdErr(err))
 			os.Exit(1)
@@ -149,8 +153,8 @@ func (r *Rockpool) InstallHarborCerts(cn string) {
 }
 
 // AddHarborHostEntries adds host entries to the target nodes.
-func (r *Rockpool) AddHarborHostEntries(cn string) {
-	if cn == r.ControllerClusterName() {
+func AddHarborHostEntries(cn string) {
+	if cn == platform.ControllerClusterName() {
 		return
 	}
 
@@ -160,7 +164,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 		return
 	}
 
-	entry := fmt.Sprintf("%s\tharbor.lagoon.%s", r.ControllerIP(), platform.Hostname())
+	entry := fmt.Sprintf("%s\tharbor.lagoon.%s", k3d.ControllerIP(), platform.Hostname())
 	entryCmdStr := fmt.Sprintf("echo '%s' >> /etc/hosts", entry)
 	for _, n := range c.Nodes {
 		if n.Role == "loadbalancer" {
@@ -180,7 +184,7 @@ func (r *Rockpool) AddHarborHostEntries(cn string) {
 	}
 }
 
-func (r *Rockpool) AddLagoonRepo(cn string) {
+func AddLagoonRepo(cn string) {
 	cmd := helm.Exec(cn, "", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
 	err := cmd.Run()
 	if err != nil {
@@ -189,9 +193,9 @@ func (r *Rockpool) AddLagoonRepo(cn string) {
 	}
 }
 
-func (r *Rockpool) InstallLagoonCore() {
-	cn := r.ControllerClusterName()
-	r.AddLagoonRepo(cn)
+func InstallLagoonCore() {
+	cn := platform.ControllerClusterName()
+	AddLagoonRepo(cn)
 
 	values, err := templates.Render("lagoon-core-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
@@ -200,7 +204,7 @@ func (r *Rockpool) InstallLagoonCore() {
 	}
 	fmt.Printf("[%s] using generated lagoon-core values at %s\n", cn, values)
 
-	_, err = helm.InstallOrUpgrade(r.ControllerClusterName(), "lagoon-core",
+	_, err = helm.InstallOrUpgrade(platform.ControllerClusterName(), "lagoon-core",
 		"lagoon-core",
 		"lagoon/lagoon-core",
 		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
@@ -211,12 +215,12 @@ func (r *Rockpool) InstallLagoonCore() {
 	}
 }
 
-func (r *Rockpool) InstallLagoonRemote(cn string) {
-	r.AddLagoonRepo(cn)
+func InstallLagoonRemote(cn string) {
+	AddLagoonRepo(cn)
 
 	// Get RabbitMQ pass.
 	cm := platform.ToMap()
-	_, cm["RabbitMQPassword"] = kube.GetSecret(r.ControllerClusterName(),
+	_, cm["RabbitMQPassword"] = kube.GetSecret(platform.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-broker",
 		"RABBITMQ_PASSWORD",
@@ -240,16 +244,16 @@ func (r *Rockpool) InstallLagoonRemote(cn string) {
 	}
 }
 
-func (r *Rockpool) RegisterLagoonRemote(cn string) {
+func RegisterLagoonRemote(cn string) {
 	cId := internal.GetTargetIdFromCn(cn)
 	rName := platform.Name + fmt.Sprint(cId)
-	re := Remote{
+	re := lagoon.Remote{
 		Id:            cId,
 		Name:          rName,
-		ConsoleUrl:    fmt.Sprintf("https://%s:6443", r.TargetIP(cn)),
+		ConsoleUrl:    fmt.Sprintf("https://%s:6443", k3d.TargetIP(cn)),
 		RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, platform.Hostname()),
 	}
-	for _, existingRe := range r.State.Remotes {
+	for _, existingRe := range lagoon.Remotes {
 		if existingRe.Id == re.Id && existingRe.Name == re.Name {
 			fmt.Printf("[%s] Lagoon remote already exists for %s\n", cn, re.Name)
 			return
@@ -265,5 +269,5 @@ func (r *Rockpool) RegisterLagoonRemote(cn string) {
 		fmt.Printf("[%s] error when decoding lagoon remote token: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
-	r.LagoonApiAddRemote(re, string(token))
+	lagoon.AddRemote(re, string(token))
 }

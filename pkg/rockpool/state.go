@@ -2,25 +2,11 @@ package rockpool
 
 import (
 	"fmt"
-	"os"
-	"sync"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 )
-
-func (r *Rockpool) MapStringGet(m *sync.Map, key string) string {
-	valueIfc, ok := m.Load(key)
-	if !ok {
-		panic(fmt.Sprint("value not found for ", key))
-	}
-	val, ok := valueIfc.(string)
-	if !ok {
-		panic(fmt.Sprint("unable to convert interface{} value to string for ", valueIfc))
-	}
-	return val
-}
 
 func (r *Rockpool) Status() {
 	k3d.ClusterFetch()
@@ -48,11 +34,11 @@ func (r *Rockpool) Status() {
 	}
 
 	fmt.Println("Kubeconfig:")
-	fmt.Println("  Controller:", internal.KubeconfigPath(r.ControllerClusterName()))
+	fmt.Println("  Controller:", internal.KubeconfigPath(platform.ControllerClusterName()))
 	if len(k3d.Clusters) > 1 {
 		fmt.Println("  Targets:")
 		for _, c := range k3d.Clusters {
-			if c.Name == r.ControllerClusterName() {
+			if c.Name == platform.ControllerClusterName() {
 				continue
 			}
 			fmt.Println("    ", internal.KubeconfigPath(c.Name))
@@ -77,46 +63,4 @@ func (r *Rockpool) Status() {
 	fmt.Println("Lagoon SSH: ssh -p 2022 lagoon@localhost")
 
 	fmt.Println()
-}
-
-func (r *Rockpool) ControllerIP() string {
-	for _, c := range k3d.Clusters {
-		if c.Name != r.ControllerClusterName() {
-			continue
-		}
-
-		for _, n := range c.Nodes {
-			if n.Role == "loadbalancer" {
-				return n.IP.IP
-			}
-		}
-	}
-	fmt.Println("[rockpool] unable to get controller ip")
-	os.Exit(1)
-	return ""
-}
-
-func (r *Rockpool) TargetIP(cn string) string {
-	for _, c := range k3d.Clusters {
-		if c.Name != cn {
-			continue
-		}
-
-		for _, n := range c.Nodes {
-			if n.Role == "loadbalancer" {
-				return n.IP.IP
-			}
-		}
-	}
-	fmt.Println("[rockpool] unable to get target ip")
-	os.Exit(1)
-	return ""
-}
-
-func (r *Rockpool) ControllerClusterName() string {
-	return platform.Name + "-controller"
-}
-
-func (r *Rockpool) TargetClusterName(targetId int) string {
-	return platform.Name + "-target-" + fmt.Sprint(targetId)
 }
