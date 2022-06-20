@@ -11,7 +11,7 @@ import (
 
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/templates"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 )
 
 func Cmd(cn string, ns string, args ...string) *exec.Cmd {

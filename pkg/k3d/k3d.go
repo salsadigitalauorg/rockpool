@@ -11,8 +11,7 @@ import (
 	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/templates"
-	"github.com/salsadigitalauorg/rockpool/pkg/wg"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 )
 
 var registryName = "rockpool-registry"
@@ -278,7 +277,7 @@ func ClusterRestart(cn string) {
 }
 
 func ClusterDelete(cn string) {
-	defer wg.Done()
+	defer platform.WgDone()
 	if exists, _ := ClusterExists(cn); !exists {
 		return
 	}

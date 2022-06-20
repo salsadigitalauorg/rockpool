@@ -11,13 +11,13 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 )
 
-//go:embed templates
+//go:embed *.yaml *.tmpl
 var templates embed.FS
 
 // Render executes a given template file and returns the path to its
 // rendered version.
 func Render(tn string, config interface{}, destName string) (string, error) {
-	t := template.Must(template.ParseFS(templates, "templates/"+tn))
+	t := template.Must(template.ParseFS(templates, tn))
 
 	var rendered string
 	path := RenderedPath(true)

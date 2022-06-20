@@ -2,13 +2,7 @@ package rockpool
 
 import (
 	"encoding/json"
-
-	"github.com/briandowns/spinner"
 )
-
-type Rockpool struct {
-	Spinner spinner.Spinner
-}
 
 type CoreDNSConfigMap struct {
 	ApiVersion string `json:"apiVersion"`

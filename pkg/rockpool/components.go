@@ -14,7 +14,7 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
 	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/templates"
+	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 )
 
 var HarborSecretManifest string

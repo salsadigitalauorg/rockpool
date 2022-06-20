@@ -6,11 +6,9 @@ import (
 	"path/filepath"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/rockpool"
+	r "github.com/salsadigitalauorg/rockpool/pkg/rockpool"
 	"github.com/spf13/cobra"
 )
-
-var r rockpool.Rockpool
 
 var rootCmd = &cobra.Command{
 	Use:   "rockpool [command]",
