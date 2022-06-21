@@ -14,6 +14,12 @@ The following tools are needed for rockpool to work:
 
 ## Install
 
+Recommended installation on MacOs is using Homebrew:
+```sh
+brew install salsadigitalauorg/rockpool/rockpool
+```
+
+Alternative method:
 ```sh
 curl -L -o rockpool https://github.com/salsadigitalauorg/rockpool/releases/latest/download/rockpool-$(uname -s)-$(uname -m)
 
