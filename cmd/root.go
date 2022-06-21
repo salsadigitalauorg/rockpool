@@ -10,6 +10,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version information.
+var (
+	Version string
+	Commit  string
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "rockpool [command]",
 	Short: "Easily create local Lagoon instances.",
@@ -18,6 +24,15 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
+	},
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Displays the application version",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Version: ", Version)
+		fmt.Println("Commit: ", Commit)
 	},
 }
 
@@ -105,6 +120,7 @@ subdomains using the provided 'name', e.g, rockpool.k3d.local, lagoon.rockpool.k
 to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.
 `)
 
+	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(upCmd)
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(stopCmd)
