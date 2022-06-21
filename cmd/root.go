@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	r "github.com/salsadigitalauorg/rockpool/pkg/rockpool"
 	"github.com/spf13/cobra"
@@ -113,7 +114,7 @@ func init() {
 		`The base domain of the platform; ancillary services will be created as its
 subdomains using the provided 'name', e.g, rockpool.k3d.local, lagoon.rockpool.k3d.local
 `)
-	upCmd.Flags().StringSliceVar(&platform.UpgradeComponents, "upgrade-components", []string{},
+	upCmd.Flags().StringSliceVar(&helm.UpgradeComponents, "upgrade-components", []string{},
 		"A list of components to upgrade, e.g, all or ingress-nginx,harbor")
 	upCmd.Flags().StringVarP(&platform.LagoonSshKey, "ssh-key", "k", "",
 		`The ssh key to add to the lagoonadmin user. If empty, rockpool tries

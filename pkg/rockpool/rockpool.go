@@ -388,6 +388,19 @@ func InstallMariaDB(cn string) {
 		fmt.Printf("[%s] unable to install mariadb-production: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
+
+	_, err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-development", "nicholaswilde/mariadb",
+		[]string{
+			"--create-namespace", "--wait",
+			"--set", "fullnameOverride=development",
+			"--set", "secret.MYSQL_ROOT_PASSWORD=mariadbpass",
+			"--set", "persistence.config.enabled=true",
+		},
+	)
+	if err != nil {
+		fmt.Printf("[%s] unable to install mariadb-development: %s\n", cn, internal.GetCmdStdErr(err))
+		os.Exit(1)
+	}
 }
 
 func InstallDnsmasq() {

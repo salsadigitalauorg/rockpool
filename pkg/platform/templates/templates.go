@@ -16,20 +16,20 @@ var templates embed.FS
 
 // Render executes a given template file and returns the path to its
 // rendered version.
-func Render(tn string, config interface{}, destName string) (string, error) {
-	t := template.Must(template.ParseFS(templates, tn))
+func Render(tmplName string, values interface{}, destName string) (string, error) {
+	t := template.Must(template.ParseFS(templates, tmplName))
 
 	var rendered string
 	path := RenderedPath(true)
-	if tn == "registries.yaml" {
+	if tmplName == "registries.yaml" {
 		path = RenderedPath(false)
 	}
 	if destName != "" {
 		rendered = filepath.Join(path, destName)
-	} else if filepath.Ext(tn) == ".tmpl" {
-		rendered = filepath.Join(path, strings.TrimSuffix(tn, ".tmpl"))
+	} else if filepath.Ext(tmplName) == ".tmpl" {
+		rendered = filepath.Join(path, strings.TrimSuffix(tmplName, ".tmpl"))
 	} else {
-		rendered = filepath.Join(path, tn)
+		rendered = filepath.Join(path, tmplName)
 	}
 
 	f, err := os.Create(rendered)
@@ -37,7 +37,7 @@ func Render(tn string, config interface{}, destName string) (string, error) {
 		return "", err
 	}
 
-	err = t.Execute(f, config)
+	err = t.Execute(f, values)
 	f.Close()
 	if err != nil {
 		return "", err

@@ -233,6 +233,7 @@ func InstallLagoonRemote(cn string) {
 		fmt.Printf("[%s] error rendering lagoon-remote values template: %s\n", cn, err)
 		os.Exit(1)
 	}
+	fmt.Printf("[%s] using generated lagoon-remote values at %s\n", cn, values)
 
 	_, err = helm.InstallOrUpgrade(cn, "lagoon", "lagoon-remote",
 		"lagoon/lagoon-remote",

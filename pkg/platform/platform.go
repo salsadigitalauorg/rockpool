@@ -6,13 +6,12 @@ import (
 )
 
 var (
-	ConfigDir         string
-	Name              string
-	Domain            string
-	Arch              = runtime.GOARCH
-	UpgradeComponents []string
-	NumTargets        int
-	LagoonSshKey      string
+	ConfigDir    string
+	Name         string
+	Domain       string
+	Arch         = runtime.GOARCH
+	NumTargets   int
+	LagoonSshKey string
 )
 
 func ToMap() map[string]string {
