@@ -33,6 +33,17 @@ var lagoonUserinfo struct {
 	}
 }
 
+// FetchApiAdminToken creates an admin token with superpowers.
+// See https://docs.lagoon.sh/administering-lagoon/graphql-queries/#running-graphql-queries
+func FetchApiAdminToken() string {
+	fmt.Println("[rockpool] fetching lagoon api admin token")
+	out, err := kube.Exec(platform.ControllerClusterName(), "lagoon-core", "lagoon-core-storage-calculator", "/create_jwt.py")
+	if err != nil {
+		panic(err)
+	}
+	return string(out)
+}
+
 func FetchApiToken() string {
 	fmt.Println("[rockpool] fetching lagoon api token")
 	_, password := kube.GetSecret(platform.ControllerClusterName(),
