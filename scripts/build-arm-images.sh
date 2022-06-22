@@ -5,7 +5,7 @@ set -ex
 ROCKPOOL_REPO=${ROCKPOOL_REPO:-https://github.com/salsadigitalauorg/rockpool}
 ROCKPOOL_IMAGES_REPO=${ROCKPOOL_IMAGES_REPO:-ghcr.io/salsadigitalauorg/rockpool}
 KEYCLOAK_VERSION=${KEYCLOAK_VERSION:-7.0.1}
-LAGOON_VERSION=${LAGOON_VERSION:-v2.5.0}
+LAGOON_VERSION=${LAGOON_VERSION:-v2.7.1}
 
 function all () {
   k3s

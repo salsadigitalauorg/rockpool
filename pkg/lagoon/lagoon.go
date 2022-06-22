@@ -18,6 +18,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Version is the version of Lagoon to be installed.
+var Version string
+
 var GqlClient *graphql.Client
 
 var Remotes []Remote

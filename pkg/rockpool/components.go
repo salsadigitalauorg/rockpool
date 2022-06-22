@@ -197,7 +197,10 @@ func InstallLagoonCore() {
 	cn := platform.ControllerClusterName()
 	AddLagoonRepo(cn)
 
-	values, err := templates.Render("lagoon-core-values.yml.tmpl", platform.ToMap(), "")
+	cm := platform.ToMap()
+	cm["LagoonVersion"] = lagoon.Version
+
+	values, err := templates.Render("lagoon-core-values.yml.tmpl", cm, "")
 	if err != nil {
 		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
 		os.Exit(1)
@@ -220,6 +223,7 @@ func InstallLagoonRemote(cn string) {
 
 	// Get RabbitMQ pass.
 	cm := platform.ToMap()
+	cm["LagoonVersion"] = lagoon.Version
 	_, cm["RabbitMQPassword"] = kube.GetSecret(platform.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-broker",
