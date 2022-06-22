@@ -71,6 +71,7 @@ func Up(clusters []string) {
 	}
 	k3d.RegistryCreate()
 	k3d.RegistryRenderConfig()
+	k3d.RegistryStart()
 	CreateClusters(clusters)
 
 	setupController := false
@@ -607,6 +608,13 @@ func Status() {
 	if len(k3d.Clusters) == 0 {
 		fmt.Printf("No cluster found for '%s'\n", platform.Name)
 		return
+	}
+
+	fmt.Print("Registry: ")
+	if k3d.Reg.State.Running {
+		fmt.Println("running")
+	} else {
+		fmt.Println("stopped")
 	}
 
 	runningClusters := 0

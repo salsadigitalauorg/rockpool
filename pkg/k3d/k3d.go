@@ -15,7 +15,7 @@ import (
 )
 
 var registryName = "rockpool-registry"
-var registryNameFull = "k3d-rockpool-registry"
+var registryNameFull = "k3d-" + registryName
 
 var registries []Registry
 var Reg Registry
