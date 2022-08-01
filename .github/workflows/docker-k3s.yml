@@ -38,5 +38,4 @@ jobs:
 
       - name: Build & push
         id: build-and-push
-        # run: ./scripts/build-arm-images.sh k3s
-        run: docker buildx bake k3s-1_21 --progress=plain --push
+        run: ./scripts/build-arm-images.sh k3s
