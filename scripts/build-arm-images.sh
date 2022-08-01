@@ -5,7 +5,9 @@ set -ex
 ROCKPOOL_REPO=${ROCKPOOL_REPO:-https://github.com/salsadigitalauorg/rockpool}
 ROCKPOOL_IMAGES_REPO=${ROCKPOOL_IMAGES_REPO:-ghcr.io/salsadigitalauorg/rockpool}
 KEYCLOAK_VERSION=${KEYCLOAK_VERSION:-16.1.1}
-LAGOON_VERSION=${LAGOON_VERSION:-v2.7.1}
+LAGOON_VERSION=${LAGOON_VERSION:-v2.9.0}
+
+[[ "$(uname -s)" = "Darwin" ]] && sedbak=" .bak" || sedbak=""
 
 function all () {
   k3s
@@ -45,9 +47,9 @@ function lagoon_keycloak () {
     lagoon_clone
   fi
   pushd services/keycloak
-  sed -i .bak 's/FROM jboss\/keycloak/FROM ghcr\.io\/salsadigitalauorg\/rockpool\/keycloak/1' Dockerfile
-  sed -i .bak 's/${TINI_VERSION}\/tini/${TINI_VERSION}\/tini\-arm64/1' Dockerfile
-  sed -i .bak 's/\/var\/cache\/yum/\/var\/cache\/yum \&\& ln -s \/usr\/bin\/python2 \/usr\/bin\/python/1' Dockerfile
+  sed -i${sedbak} 's/FROM jboss\/keycloak/FROM ghcr\.io\/salsadigitalauorg\/rockpool\/keycloak/1' Dockerfile
+  sed -i${sedbak} 's/${TINI_VERSION}\/tini/${TINI_VERSION}\/tini\-arm64/1' Dockerfile
+  sed -i${sedbak} 's/\/var\/cache\/yum/\/var\/cache\/yum \&\& ln -s \/usr\/bin\/python2 \/usr\/bin\/python/1' Dockerfile
   docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
     --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/keycloak:${LAGOON_VERSION} \
@@ -94,10 +96,10 @@ function lagoon_oc () {
     lagoon_clone
   fi
   pushd images/oc
-  sed -i .bak 's/GLIBC_VERSION=2\.28\-r0/GLIBC_VERSION=2\.30\-r0/g' Dockerfile
-  sed -i .bak 's/sgerrand\/alpine-pkg-glibc/Rjerk\/alpine-pkg-glibc/g' Dockerfile
-  sed -i .bak 's/${GLIBC_VERSION}\//${GLIBC_VERSION}\-arm64\//g' Dockerfile
-  sed -i .bak 's/apk\ add\ glibc\-bin\.apk/apk\ add\ \-\-allow\-untrusted\ glibc\-bin\.apk/g' Dockerfile
+  sed -i${sedbak} 's/GLIBC_VERSION=2\.28\-r0/GLIBC_VERSION=2\.30\-r0/g' Dockerfile
+  sed -i${sedbak} 's/sgerrand\/alpine-pkg-glibc/Rjerk\/alpine-pkg-glibc/g' Dockerfile
+  sed -i${sedbak} 's/${GLIBC_VERSION}\//${GLIBC_VERSION}\-arm64\//g' Dockerfile
+  sed -i${sedbak} 's/apk\ add\ glibc\-bin\.apk/apk\ add\ \-\-allow\-untrusted\ glibc\-bin\.apk/g' Dockerfile
   docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
     --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/oc \
