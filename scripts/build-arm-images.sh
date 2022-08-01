@@ -4,7 +4,7 @@ set -ex
 
 ROCKPOOL_REPO=${ROCKPOOL_REPO:-https://github.com/salsadigitalauorg/rockpool}
 ROCKPOOL_IMAGES_REPO=${ROCKPOOL_IMAGES_REPO:-ghcr.io/salsadigitalauorg/rockpool}
-KEYCLOAK_VERSION=${KEYCLOAK_VERSION:-7.0.1}
+KEYCLOAK_VERSION=${KEYCLOAK_VERSION:-16.1.1}
 LAGOON_VERSION=${LAGOON_VERSION:-v2.7.1}
 
 function all () {
@@ -24,10 +24,10 @@ function k3s () {
 function keycloak () {
   [ ! -d "keycloak-containers" ] && git clone https://github.com/keycloak/keycloak-containers.git keycloak-containers
   pushd keycloak-containers && git checkout -- . && git clean -fd . && git checkout ${KEYCLOAK_VERSION} && pushd server
-  docker build \
+  docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --tag ${ROCKPOOL_IMAGES_REPO}/keycloak:${KEYCLOAK_VERSION} .
-  docker push ${ROCKPOOL_IMAGES_REPO}/keycloak:${KEYCLOAK_VERSION}
+    --tag ${ROCKPOOL_IMAGES_REPO}/keycloak:${KEYCLOAK_VERSION} \
+    --push .
   popd
   popd
 }
@@ -45,13 +45,13 @@ function lagoon_keycloak () {
     lagoon_clone
   fi
   pushd services/keycloak
-  sed -i .bak 's/jboss\/keycloak\:7\.0\.1/ghcr\.io\/salsadigitalauorg\/rockpool\/keycloak\:7\.0\.1/g' Dockerfile
-  sed -i .bak 's/${TINI_VERSION}\/tini/${TINI_VERSION}\/tini\-arm64/g' Dockerfile
-  sed -i .bak 's/\/var\/cache\/yum/\/var\/cache\/yum \&\& ln -s \/usr\/bin\/python2 \/usr\/bin\/python/g' Dockerfile
-  docker build \
+  sed -i .bak 's/FROM jboss\/keycloak/FROM ghcr\.io\/salsadigitalauorg\/rockpool\/keycloak/1' Dockerfile
+  sed -i .bak 's/${TINI_VERSION}\/tini/${TINI_VERSION}\/tini\-arm64/1' Dockerfile
+  sed -i .bak 's/\/var\/cache\/yum/\/var\/cache\/yum \&\& ln -s \/usr\/bin\/python2 \/usr\/bin\/python/1' Dockerfile
+  docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/keycloak:${LAGOON_VERSION} .
-  docker push ${ROCKPOOL_IMAGES_REPO}/lagoon/keycloak:${LAGOON_VERSION}
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/keycloak:${LAGOON_VERSION} \
+    --push .
   popd
   if [ ! "${fetched}" == "true" ]; then
     popd
@@ -64,10 +64,10 @@ function lagoon_broker_single () {
     lagoon_clone
   fi
   pushd services/broker-single
-  docker build \
+  docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/broker-single:latest .
-  docker push ${ROCKPOOL_IMAGES_REPO}/lagoon/broker-single:latest
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/broker-single:latest \
+    --push .
   popd
 }
 
@@ -77,11 +77,11 @@ function lagoon_broker () {
     lagoon_clone
   fi
   pushd services/broker
-  docker build  \
+  docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
     --build-arg IMAGE_REPO=${ROCKPOOL_IMAGES_REPO}/lagoon \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/broker:${LAGOON_VERSION} .
-  docker push ${ROCKPOOL_IMAGES_REPO}/lagoon/broker:${LAGOON_VERSION}
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/broker:${LAGOON_VERSION} \
+    --push .
   popd
   if [ ! "${fetched}" == "true" ]; then
     popd
@@ -98,10 +98,10 @@ function lagoon_oc () {
   sed -i .bak 's/sgerrand\/alpine-pkg-glibc/Rjerk\/alpine-pkg-glibc/g' Dockerfile
   sed -i .bak 's/${GLIBC_VERSION}\//${GLIBC_VERSION}\-arm64\//g' Dockerfile
   sed -i .bak 's/apk\ add\ glibc\-bin\.apk/apk\ add\ \-\-allow\-untrusted\ glibc\-bin\.apk/g' Dockerfile
-  docker build \
+  docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/oc .
-  docker push ${ROCKPOOL_IMAGES_REPO}/lagoon/oc
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/oc \
+    --push .
   popd
   if [ ! "${fetched}" == "true" ]; then
     popd
@@ -114,11 +114,11 @@ function lagoon_auto_idler () {
     lagoon_clone
   fi
   pushd services/auto-idler
-  docker build  \
+  docker buildx build --platform linux/arm64  \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
     --build-arg IMAGE_REPO=${ROCKPOOL_IMAGES_REPO}/lagoon \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/auto-idler:${LAGOON_VERSION} .
-  docker push ${ROCKPOOL_IMAGES_REPO}/lagoon/auto-idler:${LAGOON_VERSION}
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/auto-idler:${LAGOON_VERSION} \
+    --push .
   popd
   if [ ! "${fetched}" == "true" ]; then
     popd
@@ -131,11 +131,11 @@ function lagoon_storage_calculator () {
     lagoon_clone
   fi
   pushd services/storage-calculator
-  docker build \
+  docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
     --build-arg IMAGE_REPO=${ROCKPOOL_IMAGES_REPO}/lagoon \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/storage-calculator:${LAGOON_VERSION} .
-  docker push ${ROCKPOOL_IMAGES_REPO}/lagoon/storage-calculator:${LAGOON_VERSION}
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/storage-calculator:${LAGOON_VERSION} \
+    --push .
   popd
   if [ ! "${fetched}" == "true" ]; then
     popd
@@ -148,10 +148,10 @@ function lagoon_docker_host () {
     lagoon_clone
   fi
   pushd images/docker-host
-  docker build \
+  docker buildx build --platform linux/arm64 \
     --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/docker-host:${LAGOON_VERSION} .
-  docker push ${ROCKPOOL_IMAGES_REPO}/lagoon/docker-host:${LAGOON_VERSION}
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/docker-host:${LAGOON_VERSION} \
+    --push .
   popd
   if [ ! "${fetched}" == "true" ]; then
     popd
