@@ -1,7 +1,12 @@
-name: Docker - keycloak
+name: Docker - lagoon images
 
 on:
   workflow_dispatch:
+    inputs:
+      lagoonVersion:
+        description: 'Lagoon version'
+        required: true
+        default: v2.9.0
 
 env:
   REGISTRY: ghcr.io
@@ -9,12 +14,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      matrix:
-        version:
-          - 7.0.1
-          - 16.1.1
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -40,6 +40,6 @@ jobs:
 
       - name: Build & push
         id: build-and-push
-        run: ./scripts/build-arm-images.sh keycloak
+        run: ./scripts/build-arm-images.sh lagoon
         env:
-          KEYCLOAK_VERSION: ${{ matrix.version }}
+          LAGOON_VERSION: ${{ inputs.lagoonVersion }}
