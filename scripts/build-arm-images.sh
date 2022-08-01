@@ -16,7 +16,7 @@ function all () {
 
 function k3s () {
   pushd ..
-  docker buildx bake k3s --push
+  docker buildx bake k3s --progress=plain --push
   popd
 }
 
