@@ -173,7 +173,7 @@ function lagoon () {
 # Build nfs-provisioner image.
 function nfs_provisioner () {
   pushd ..
-  docker buildx bake nfs-provisioner --push
+  docker buildx bake nfs-provisioner --progress=plain --push
   popd
 }
 
