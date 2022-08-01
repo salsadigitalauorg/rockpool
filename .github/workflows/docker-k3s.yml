@@ -1,0 +1,48 @@
+name: Docker build & push - k3s
+
+on:
+  schedule:
+    - cron: '17 3 * * */6'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        version:
+          - v1.21.14-k3s1
+          - v1.22.12-k3s1
+          - v1.23.9-k3s1
+          - v1.24.3-k3s1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      # Workaround: https://github.com/docker/build-push-action/issues/461
+      - name: Setup Docker buildx
+        uses: docker/setup-buildx-action@79abd3f86f79a9d68a23c75a09a9a85889262adf
+
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        id: build-and-push
+        run: ./scripts/build-arm-images.sh k3s
+        env:
+          K3S_VERSION: ${{ matrix.version }}
