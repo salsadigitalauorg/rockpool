@@ -110,23 +110,6 @@ function lagoon_oc () {
   fi
 }
 
-function lagoon_auto_idler () {
-  fetched=$1
-  if [ ! "${fetched}" == "true" ]; then
-    lagoon_clone
-  fi
-  pushd services/auto-idler
-  docker buildx build --platform linux/arm64  \
-    --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
-    --build-arg IMAGE_REPO=${ROCKPOOL_IMAGES_REPO}/lagoon \
-    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/auto-idler:${LAGOON_VERSION} \
-    --push .
-  popd
-  if [ ! "${fetched}" == "true" ]; then
-    popd
-  fi
-}
-
 function lagoon_storage_calculator () {
   fetched=$1
   if [ ! "${fetched}" == "true" ]; then
@@ -166,7 +149,6 @@ function lagoon () {
   lagoon_broker_single true
   lagoon_broker true
   lagoon_oc true
-  lagoon_auto_idler true
   lagoon_storage_calculator true
   lagoon_docker_host true
   popd

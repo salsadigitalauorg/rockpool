@@ -183,10 +183,8 @@ webhookHandler:
 
 autoIdler:
   enabled: false
-{{- if eq .Arch "arm64" }}
-  image:
-    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/auto-idler
 
+{{- if eq .Arch "arm64" }}
 storageCalculator:
   image:
     repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/storage-calculator
