@@ -43,11 +43,17 @@ keycloak:
   {{- end }}
   resources:
     requests:
-      memory: "256Mi"
+      memory: "512Mi"
       cpu: "1000m"
     limits:
-      memory: "512Mi"
+      memory: "1536Mi"
       cpu: "1500m"
+  additionalEnvs:
+    JAVA_OPTS: >
+      -server -Xms512m -Xmx1536m -XX:MetaspaceSize=96M
+      -XX:MaxMetaspaceSize=256m -Djava.net.preferIPv4Stack=true
+      -Djboss.modules.system.pkgs=org.jboss.byteman
+      -Djava.awt.headless=true
   ingress:
     enabled: true
     {{/* annotations:
