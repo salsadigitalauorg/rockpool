@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"os"
 	"time"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func ApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
@@ -156,23 +157,20 @@ func HasTestRepo(token string) (bool, error) {
 func CreateRepo() {
 	token, err := CreateToken()
 	if err != nil {
-		fmt.Println("[rockpool] error creating gitea token:", err)
-		os.Exit(1)
+		log.WithField("err", err).Fatal("error creating gitea token")
 	}
 
 	if has, err := HasTestRepo(token); err != nil {
-		fmt.Println("[rockpool] error looking up gitea test repo:", err)
-		os.Exit(1)
+		log.WithField("err", err).Fatal("error looking up gitea test repo")
 	} else if has {
-		fmt.Println("[rockpool] gitea test repo already exists")
+		log.Debug("gitea test repo already exists")
 		return
 	}
 
-	fmt.Println("[rockpool] creating gitea test repo")
+	log.Info("creating gitea test repo")
 	data, _ := json.Marshal(map[string]string{"name": "test"})
 	_, err = ApiCall("POST", "user/repos", token, data)
 	if err != nil {
-		fmt.Println("[rockpool] unable to create gitea test repo:", err)
-		os.Exit(1)
+		log.WithField("err", err).Fatal("unable to create gitea test repo")
 	}
 }

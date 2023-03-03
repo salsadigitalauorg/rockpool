@@ -36,7 +36,7 @@ func List(cn string) {
 	err = json.Unmarshal(out, &releases)
 	if err != nil {
 		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("[%s] unable to parse helm releases: %s\n", cn, err)
+			Fatal("unable to parse helm releases")
 	}
 	Releases.Store(cn, releases)
 }
@@ -73,21 +73,21 @@ func InstallOrUpgrade(cn string, ns string, releaseName string, chartName string
 	if !upgrade {
 		for _, r := range GetReleases(cn) {
 			if r.Name == releaseName {
-				logger.Info("helm release is already installed")
+				logger.Debug("helm release is already installed")
 				return nil
 			}
 		}
 	} else {
-		logger.Info("upgrading helm release")
+		logger.Info("upgrading")
 	}
 
 	// New install.
 	if !upgrade {
-		logger.Info("installing helm release")
+		logger.Info("installing")
 	}
 
 	cmd := Exec(cn, ns, "upgrade", "--install", releaseName, chartName)
 	cmd.AddArgs(args...)
-	logger.WithField("command", cmd).Info("running command for helm release")
+	logger.WithField("command", cmd).Debug("running command for helm release")
 	return cmd.RunProgressive()
 }

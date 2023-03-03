@@ -24,7 +24,7 @@ func GetPublicKey() []byte {
 	}
 	data, err := os.ReadFile(keyFile)
 	if err != nil {
-		fmt.Println("[rockpool] error reading ssh key:", err)
+		fmt.Println("error reading ssh key:", err)
 		os.Exit(1)
 	}
 	return data

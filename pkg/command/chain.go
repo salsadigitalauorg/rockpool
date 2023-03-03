@@ -18,7 +18,7 @@ func (c *Chain) Add(stage string, cmd IShellCommand) *Chain {
 
 func (c *Chain) Exec() error {
 	for _, cc := range c.Commands {
-		log.Infof("[%s] running command '%s'\n", cc.Command)
+		log.WithField("command", cc.Command).Info("running command")
 		err := cc.Command.RunProgressive()
 		if err != nil {
 			return err

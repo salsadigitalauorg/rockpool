@@ -19,8 +19,11 @@ var templates embed.FS
 // Render executes a given template file and returns the path to its
 // rendered version.
 func Render(tmplName string, values interface{}, destName string) (string, error) {
-	log.WithField("template", tmplName).Info("rendering template")
-	log.WithFields(log.Fields{"values": values, "destName": destName}).Debug()
+	log.WithFields(log.Fields{
+		"template": tmplName,
+		"values":   values,
+		"destName": destName,
+	}).Debug()
 	t := template.Must(template.ParseFS(templates, tmplName))
 
 	var rendered string
@@ -49,7 +52,7 @@ func Render(tmplName string, values interface{}, destName string) (string, error
 	log.WithFields(log.Fields{
 		"template": tmplName,
 		"rendered": rendered,
-	}).Info("rendered template")
+	}).Debug("rendered template")
 	return rendered, nil
 }
 

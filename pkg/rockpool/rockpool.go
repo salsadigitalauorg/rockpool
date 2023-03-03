@@ -27,13 +27,14 @@ import (
 var Spinner spinner.Spinner
 
 func EnsureBinariesExist() {
+	log.Debug("checking if binaries exist")
 	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
 	missing := []string{}
 	versionError := false
 	for _, b := range binaries {
 		absPath, err := exec.LookPath(b)
 		if err != nil {
-			missing = append(missing, fmt.Sprintf("[rockpool] could not find %s; please ensure it is installed and can be found in the $PATH", b))
+			missing = append(missing, fmt.Sprintf("could not find %s; please ensure it is installed and can be found in the $PATH", b))
 			continue
 		}
 		versionCmd := command.ShellCommander(absPath, "version")
@@ -60,12 +61,11 @@ func EnsureBinariesExist() {
 		log.WithField("binary", m).Error("missing binary")
 	}
 	if len(missing) > 0 || versionError {
-		log.Fatal("[rockpool] some requirements were not met; please review above")
+		log.Fatal("some requirements were not met; please review above")
 	}
 }
 
 func Initialise() {
-	log.Info("checking if binaries exist")
 	EnsureBinariesExist()
 
 	Spinner = *spinner.New(spinner.CharSets[14], 100*time.Millisecond)
@@ -73,10 +73,13 @@ func Initialise() {
 
 	// Create directory for rendered templates.
 	templDir := templates.RenderedPath(true)
-	log.WithField("dir", templDir).Info("creating directory for rendered templates")
+	log.WithField("dir", templDir).Debug("creating directory for rendered templates")
 	err := os.MkdirAll(templDir, os.ModePerm)
 	if err != nil {
-		log.Fatal("[rockpool] unable to create temp dir %s: %s\n", templates.RenderedPath(true), err)
+		log.WithFields(log.Fields{
+			"dir": templDir,
+			"err": err,
+		}).Fatal("unable to create temp dir")
 	}
 }
 
@@ -303,77 +306,86 @@ func InstallGitlab() {
 
 func InstallGitea() {
 	cn := platform.ControllerClusterName()
-	cmd := helm.Exec(cn, "", "repo", "add", "gitea-charts", "https://dl.gitea.io/charts/")
-	err := cmd.Run()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing gitea")
+
+	err := helm.Exec(cn, "", "repo", "add", "gitea-charts",
+		"https://dl.gitea.io/charts/").Run()
 	if err != nil {
-		fmt.Printf("[%s] unable to add gitea repo: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("error adding gitea helm repo")
 	}
 
 	values, err := templates.Render("gitea-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering gitea values template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", err).
+			Fatal("error rendering gitea values template")
 	}
-	fmt.Printf("[%s] using generated gitea values at %s\n", cn, values)
 
 	err = helm.InstallOrUpgrade(cn, "gitea", "gitea", "gitea-charts/gitea",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install gitea: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install gitea")
 	}
 }
 
 func InstallNfsProvisioner(cn string) {
-	cmd := helm.Exec(cn, "", "repo", "add", "nfs-provisioner", "https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/")
-	err := cmd.Run()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing nfs provisioner")
+
+	err := helm.Exec(cn, "", "repo", "add", "nfs-provisioner",
+		"https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/").Run()
 	if err != nil {
-		fmt.Printf("[%s] unable to add nfs-provisioner repo: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to add nfs-provisioner repo")
 	}
 
-	values, err := templates.Render("nfs-server-provisioner-values.yml.tmpl", platform.ToMap(), "")
+	values, err := templates.Render("nfs-server-provisioner-values.yml.tmpl",
+		platform.ToMap(), "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering nfs-provisioner values template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", err).
+			Fatal("error rendering nfs-provisioner values template")
 	}
-	fmt.Printf("[%s] using generated nfs-provisioner values at %s\n", cn, values)
 
-	err = helm.InstallOrUpgrade(cn, "nfs-provisioner", "nfs", "nfs-provisioner/nfs-server-provisioner",
+	err = helm.InstallOrUpgrade(cn, "nfs-provisioner", "nfs",
+		"nfs-provisioner/nfs-server-provisioner",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install nfs-provisioner: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install nfs-provisioner")
 	}
 }
 
 func InstallMariaDB(cn string) {
-	cmd := helm.Exec(cn, "", "repo", "add", "nicholaswilde", "https://nicholaswilde.github.io/helm-charts/")
-	err := cmd.Run()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing mariadb")
+
+	err := helm.Exec(cn, "", "repo", "add", "nicholaswilde",
+		"https://nicholaswilde.github.io/helm-charts/").Run()
 	if err != nil {
-		fmt.Printf("[%s] unable to add nicholaswilde repo: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to add nicholaswilde repo")
 	}
 
 	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml", true)
 	if err != nil {
-		fmt.Printf("[%s] unable to install mariadb crds: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install mariadb crds")
 	}
 
 	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml", true)
 	if err != nil {
-		fmt.Printf("[%s] unable to install mongodb crds: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install mongodb crds")
 	}
 
 	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml", true)
 	if err != nil {
-		fmt.Printf("[%s] unable to install postgres crds: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install postgres crds")
 	}
 
 	err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-production", "nicholaswilde/mariadb",
@@ -385,8 +397,8 @@ func InstallMariaDB(cn string) {
 		},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install mariadb-production: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install mariadb-production")
 	}
 
 	err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-development", "nicholaswilde/mariadb",
@@ -398,18 +410,22 @@ func InstallMariaDB(cn string) {
 		},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install mariadb-development: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install mariadb-development")
 	}
 }
 
 func InstallDnsmasq() {
 	cn := platform.ControllerClusterName()
+	log.WithField("clusterName", cn).Info("installing dnsmasq")
 	kube.ApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true, 0, 0)
 }
 
 func InstallResolver() {
 	dest := filepath.Join("/etc/resolver", platform.Hostname())
+	logger := log.WithField("resolverFile", dest)
+	logger.Info("installing resolver file")
+
 	data := `
 nameserver 127.0.0.1
 port 6153
@@ -419,35 +435,51 @@ port 6153
 	var err error
 
 	if _, err := os.Stat(dest); err == nil {
-		fmt.Println("[rockpool] resolver file already exists")
+		logger.Info("resolver file already exists")
 		return
 	}
 
-	fmt.Println("[rockpool] creating resolver file")
+	logger.Info("creating resolver file")
 	if tmpFile, err = ioutil.TempFile("", "rockpool-resolver-"); err != nil {
-		panic(err)
+		logger.WithField("err", err).Panic("unable to create temporary file")
 	}
 	if err = os.Chmod(tmpFile.Name(), 0777); err != nil {
-		panic(err)
+		logger.WithFields(log.Fields{
+			"tempFile": tmpFile.Name(),
+			"err":      err,
+		}).Panic("unable to set file permissions")
 	}
 	if _, err = tmpFile.WriteString(data); err != nil {
-		panic(err)
+		logger.WithFields(log.Fields{
+			"tempFile": tmpFile.Name(),
+			"err":      err,
+		}).Panic("unable to write to temporary file")
 	}
 	if _, err = exec.Command("sudo", "mv", tmpFile.Name(), dest).Output(); err != nil {
-		panic(internal.GetCmdStdErr(err))
+		logger.WithFields(log.Fields{
+			"tempFile":    tmpFile.Name(),
+			"destination": dest,
+			"err":         command.GetMsgFromCommandError(err),
+		}).Panic("unable to move file")
 	}
 }
 
 func RemoveResolver() {
 	dest := filepath.Join("/etc/resolver", platform.Hostname())
-	if _, err := exec.Command("rm", "-f", dest).Output(); err != nil {
-		fmt.Println(err)
+	logger := log.WithField("resolverFile", dest)
+	logger.Info("removing resolver file")
+	if err := command.ShellCommander("rm", "-f", dest).Run(); err != nil {
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Warn("error when deleting resolver file")
 	}
 }
 
 func ConfigureKeycloak() {
 	cn := platform.ControllerClusterName()
-	if _, err := kube.Exec(
+	logger := log.WithField("clusterName", cn)
+	logger.Info("configuring keycloak")
+
+	if err := kube.Exec(
 		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 rm -f /tmp/kcadm.config
@@ -456,9 +488,9 @@ rm -f /tmp/kcadm.config
   --user $KEYCLOAK_ADMIN_USER --password $KEYCLOAK_ADMIN_PASSWORD \
   --config /tmp/kcadm.config
 `,
-	).Output(); err != nil {
-		fmt.Printf("[%s] error logging in to Keycloak: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+	).Run(); err != nil {
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("error logging in to Keycloak")
 	}
 
 	// Skip if values have already been set.
@@ -469,8 +501,8 @@ set -e
 	--fields 'smtpServer(from)' --config /tmp/kcadm.config
 `,
 	).Output(); err != nil {
-		fmt.Printf("[%s] error checking keycloak configuration: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("error checking keycloak configuration")
 	} else {
 		s := struct {
 			SmtpServer struct {
@@ -479,17 +511,17 @@ set -e
 		}{}
 		err := json.Unmarshal(out, &s)
 		if err != nil {
-			fmt.Printf("[%s] error parsing keycloak configuration: %s\n", cn, err)
-			os.Exit(1)
+			logger.WithField("err", err).
+				Fatal("error parsing keycloak configuration")
 		}
 		if s.SmtpServer.From == "lagoon@k3d-rockpool" {
-			fmt.Printf("[%s] keycloak already configured\n", cn)
+			logger.Debug("keycloak already configured")
 			return
 		}
 	}
 
 	// Configure keycloak.
-	_, err := kube.Exec(cn, "lagoon-core", "lagoon-core-keycloak", `
+	err := kube.Exec(cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 
 /opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
@@ -512,21 +544,23 @@ client_id=$(echo ${client%,*} | sed 's/"//g')
 /opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon/clients/${client_id} \
 	-s directAccessGrantsEnabled=true --config /tmp/kcadm.config
 `,
-	).Output()
+	).Run()
 	if err != nil {
-		fmt.Printf("[%s] error configuring keycloak: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("error configuring keycloak")
 	}
 }
 
 // ConfigureTargetCoreDNS adds DNS records to targets for the required services.
 func ConfigureTargetCoreDNS(cn string) {
+	logger := log.WithField("clusterName", cn)
+	logger.Info("configuring coredns for target")
+
 	cm := kube.GetConfigMap(cn, "kube-system", "coredns")
 	corednsCm := CoreDNSConfigMap{}
 	err := json.Unmarshal(cm, &corednsCm)
 	if err != nil {
-		fmt.Printf("[%s] error parsing CoreDNS configmap: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", err).Fatal("error parsing CoreDNS configmap")
 	}
 	for _, h := range []string{"harbor", "broker", "ssh", "api", "gitea"} {
 		entry := fmt.Sprintf("%s %s.lagoon.%s\n", k3d.ControllerIP(), h, platform.Hostname())
@@ -537,17 +571,18 @@ func ConfigureTargetCoreDNS(cn string) {
 
 	cm, err = json.Marshal(corednsCm)
 	if err != nil {
-		fmt.Printf("[%s] error encoding CoreDNS configmap: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", err).Fatal("error encoding CoreDNS configmap")
 	}
 
-	fmt.Printf("[%s] %s", cn, kube.Replace(cn, "kube-system", "coredns", string(cm)))
-	out, err := kube.Cmd(cn, "kube-system", "rollout", "restart", "deployment/coredns").Output()
+	kube.Replace(cn, "kube-system", "coredns", string(cm))
+
+	logger.Info("restarting coredns")
+	err = kube.Cmd(cn, "kube-system", "rollout", "restart",
+		"deployment/coredns").RunProgressive()
 	if err != nil {
-		fmt.Printf("[%s] CoreDNS restart failed: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("CoreDNS restart failed")
 	}
-	fmt.Printf("[%s] %s", cn, string(out))
 }
 
 func LagoonCliAddConfig() {
@@ -555,10 +590,10 @@ func LagoonCliAddConfig() {
 	ui := fmt.Sprintf("http://ui.lagoon.%s", platform.Hostname())
 
 	// Get list of existing configs.
-	cmd := exec.Command("lagoon", "config", "list", "--output-json")
-	out, err := cmd.Output()
+	out, err := command.ShellCommander("lagoon", "config", "list",
+		"--output-json").Output()
 	if err != nil {
-		panic(err)
+		log.WithField("err", err).Panic("could not get lagoon configs")
 	}
 	var configs struct {
 		Data []struct {
@@ -569,32 +604,32 @@ func LagoonCliAddConfig() {
 	}
 	err = json.Unmarshal(out, &configs)
 	if err != nil {
-		panic(err)
+		log.WithField("err", err).Panic("could not parse lagoon configs")
 	}
 
+	logger := log.WithFields(log.Fields{
+		"name":     platform.Name,
+		"hostname": platform.Hostname(),
+		"graphql":  graphql,
+		"ui":       ui,
+	})
+
 	// Add the config.
-	fmt.Println("[rockpool] adding lagoon config")
-	cmd = exec.Command("lagoon", "config", "add", "--lagoon", platform.Name,
-		"--graphql", graphql, "--ui", ui, "--hostname", "127.0.0.1", "--port", "2022")
-	_, err = cmd.Output()
+	logger.Info("adding lagoon config")
+	err = command.ShellCommander("lagoon", "config", "add", "--lagoon",
+		platform.Name, "--graphql", graphql, "--ui", ui, "--hostname",
+		"127.0.0.1", "--port", "2022").Run()
 	if err != nil {
-		panic(err)
+		log.WithField("err", err).Panic("could not add lagoon config")
 	}
 }
 
 func LagoonCliDeleteConfig() {
 	// Get list of existing configs.
-	cmd := exec.Command("lagoon", "config", "delete", "--lagoon", platform.Name, "--force")
-	_, err := cmd.Output()
+	err := command.ShellCommander("lagoon", "config", "delete", "--lagoon",
+		platform.Name, "--force").Run()
 	if err != nil {
-		panic(err)
-	}
-}
-
-func ClusterVersion(cn string) {
-	_, err := kube.Cmd(cn, "", "version").Output()
-	if err != nil {
-		fmt.Printf("[%s] could not get cluster version: %s\n", cn, err)
+		log.WithField("err", err).Panic("could not delete lagoon config")
 	}
 }
 

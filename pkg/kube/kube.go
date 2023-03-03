@@ -1,10 +1,10 @@
 package kube
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -51,7 +51,7 @@ func Apply(cn string, ns string, fn string, force bool) error {
 		"namespace":   ns,
 		"file":        fn,
 		"force":       force,
-	}).Info("applying manifest")
+	}).Debug("applying manifest")
 	return cmd.RunProgressive()
 }
 
@@ -67,7 +67,7 @@ func ApplyTemplate(cn string, ns string, fn string, force bool, retries int, del
 	if err != nil {
 		logger.Fatal("unable to render template")
 	}
-	logger.Info("applying generated manifest")
+	logger.Debug("applying generated manifest")
 	err = Apply(cn, ns, f, force)
 	if err != nil {
 		var failedErr error
@@ -108,7 +108,7 @@ func GetSecret(cn string, ns string, secret string, field string) ([]byte, strin
 		"secret":      secret,
 		"field":       field,
 	})
-	logger.Info("fetching secret")
+	logger.Debug("fetching secret")
 
 	cmd := Cmd(cn, ns, "get", "secret", secret, "--output")
 	if field != "" {
@@ -125,7 +125,7 @@ func GetSecret(cn string, ns string, secret string, field string) ([]byte, strin
 	}
 
 	if field != "" {
-		logger.Info("decoding secret")
+		logger.Debug("decoding secret")
 		out = []byte(strings.Trim(string(out), "'"))
 		if decoded, err := base64.URLEncoding.DecodeString(string(out)); err != nil {
 			logger.WithField("err", command.GetMsgFromCommandError(err)).
@@ -143,7 +143,7 @@ func GetConfigMap(cn string, ns string, name string) []byte {
 		"namespace":   ns,
 		"name":        name,
 	})
-	logger.Info("fetching ConfigMap")
+	logger.Debug("fetching ConfigMap")
 
 	cmd := Cmd(cn, ns, "get", "configmap", name, "--output", "json")
 	out, err := cmd.Output()
@@ -154,14 +154,14 @@ func GetConfigMap(cn string, ns string, name string) []byte {
 	return out
 }
 
-func Replace(cn string, ns string, name string, content string) string {
+func Replace(cn string, ns string, name string, content string) {
 	logger := log.WithFields(log.Fields{
 		"clusterName": cn,
 		"namespace":   ns,
 		"name":        name,
 		"content":     content,
 	})
-	logger.Info("replacing manifest")
+	logger.Debug("replacing manifest")
 
 	cat := command.ShellCommander("echo", content)
 	replace := Cmd(cn, ns, "replace", "-f", "-")
@@ -170,8 +170,7 @@ func Replace(cn string, ns string, name string, content string) string {
 	cat.SetStdout(writer)
 	replace.SetStdin(reader)
 
-	var replaceOut bytes.Buffer
-	replace.SetStdout(&replaceOut)
+	replace.SetStdout(os.Stdout)
 
 	cat.Start()
 	replace.Start()
@@ -182,7 +181,6 @@ func Replace(cn string, ns string, name string, content string) string {
 		logger.WithField("err", command.GetMsgFromCommandError(err)).
 			Fatal("error replacing manifest")
 	}
-	return replaceOut.String()
 }
 
 func Patch(cn string, ns string, kind string, name string, fn string) ([]byte, error) {
@@ -193,7 +191,7 @@ func Patch(cn string, ns string, kind string, name string, fn string) ([]byte, e
 		"name":        name,
 		"file":        fn,
 	})
-	logger.Info("applying patch")
+	logger.Debug("applying patch")
 
 	dryRun := Cmd(cn, ns, "patch", kind, name, "--patch-file", fn)
 	dryRun.AddArgs("--dry-run=server")

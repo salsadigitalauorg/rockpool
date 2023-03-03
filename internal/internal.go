@@ -25,7 +25,7 @@ func RunCmdWithProgress(cmd *exec.Cmd) ([]byte, error) {
 	stderr, _ := cmd.StderrPipe()
 	err := cmd.Start()
 	if err != nil {
-		fmt.Println("[rockpool] failed cmd:", cmd)
+		fmt.Println("failed cmd:", cmd)
 		panic(err)
 	}
 
