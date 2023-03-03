@@ -9,6 +9,8 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	r "github.com/salsadigitalauorg/rockpool/pkg/rockpool"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -18,10 +20,29 @@ var (
 	Commit  string
 )
 
+var logLevel string
+var debug bool
+var trace bool
+
 var rootCmd = &cobra.Command{
 	Use:   "rockpool [command]",
 	Short: "Easily create local Lagoon instances.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if debug {
+			logLevel = "debug"
+		}
+		if trace {
+			logLevel = "trace"
+		}
+		if logrusLevel, err := log.ParseLevel(logLevel); err != nil {
+			panic(err)
+		} else {
+			log.SetLevel(logrusLevel)
+		}
+		// Do not initialise when just running the root command.
+		if cmd.Use == "rockpool [command]" {
+			return
+		}
 		r.Initialise()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -30,8 +51,9 @@ var rootCmd = &cobra.Command{
 }
 
 var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Displays the application version",
+	Use:              "version",
+	Short:            "Displays the application version",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Version:", Version)
 		fmt.Println("Commit:", Commit)
@@ -107,6 +129,10 @@ func fullClusterNamesFromArgs(argClusters []string) []string {
 
 func init() {
 	determineConfigDir()
+
+	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "sets the logging level")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enables debug logging (similar to `--log-level debug`)")
+	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false, "enables trace logging (similar to `--log-level trace`)")
 
 	rootCmd.PersistentFlags().StringVarP(&platform.Name, "name", "n", "rockpool", "The name of the platform")
 

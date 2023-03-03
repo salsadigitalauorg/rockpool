@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-func KubeconfigPath(cn string) string {
+func KubeconfigPath(clusterName string) string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		panic(fmt.Sprintln("unable to get user home directory:", err))
 	}
-	return fmt.Sprintf("%s/.k3d/kubeconfig-%s.yaml", home, cn)
+	return fmt.Sprintf("%s/.k3d/kubeconfig-%s.yaml", home, clusterName)
 }
 
 // RunCmdWithProgress runs a command and progressively outputs the progress.

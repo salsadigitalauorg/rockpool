@@ -9,6 +9,8 @@ import (
 	"text/template"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
+
+	log "github.com/sirupsen/logrus"
 )
 
 //go:embed *.yaml *.tmpl
@@ -17,6 +19,8 @@ var templates embed.FS
 // Render executes a given template file and returns the path to its
 // rendered version.
 func Render(tmplName string, values interface{}, destName string) (string, error) {
+	log.WithField("template", tmplName).Info("rendering template")
+	log.WithFields(log.Fields{"values": values, "destName": destName}).Debug()
 	t := template.Must(template.ParseFS(templates, tmplName))
 
 	var rendered string
@@ -42,6 +46,10 @@ func Render(tmplName string, values interface{}, destName string) (string, error
 	if err != nil {
 		return "", err
 	}
+	log.WithFields(log.Fields{
+		"template": tmplName,
+		"rendered": rendered,
+	}).Info("rendered template")
 	return rendered, nil
 }
 

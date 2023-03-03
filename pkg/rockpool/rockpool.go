@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
@@ -19,6 +19,9 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
+
+	"github.com/briandowns/spinner"
+	log "github.com/sirupsen/logrus"
 )
 
 var Spinner spinner.Spinner
@@ -26,39 +29,59 @@ var Spinner spinner.Spinner
 func EnsureBinariesExist() {
 	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
 	missing := []string{}
+	versionError := false
 	for _, b := range binaries {
-		_, err := exec.LookPath(b)
+		absPath, err := exec.LookPath(b)
 		if err != nil {
 			missing = append(missing, fmt.Sprintf("[rockpool] could not find %s; please ensure it is installed and can be found in the $PATH", b))
 			continue
 		}
+		versionCmd := command.ShellCommander(absPath, "version")
+		if b == "kubectl" {
+			versionCmd.AddArgs("--client", "--short")
+		}
+		if b == "docker" {
+			versionCmd.AddArgs("--format", "json")
+		}
+		out, err := versionCmd.Output()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"binary": b,
+				"error":  command.GetMsgFromCommandError(err),
+			}).Error("Error getting version")
+			versionError = true
+		}
+		log.WithFields(log.Fields{
+			"binary": b,
+			"result": string(out),
+		}).Debug("fetched version")
 	}
 	for _, m := range missing {
-		fmt.Println(m)
+		log.WithField("binary", m).Error("missing binary")
 	}
-	if len(missing) > 0 {
-		fmt.Println("[rockpool] some requirements were not met; please review above")
-		os.Exit(1)
+	if len(missing) > 0 || versionError {
+		log.Fatal("[rockpool] some requirements were not met; please review above")
 	}
 }
 
 func Initialise() {
+	log.Info("checking if binaries exist")
 	EnsureBinariesExist()
 
 	Spinner = *spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	Spinner.Color("red", "bold")
 
 	// Create directory for rendered templates.
-	err := os.MkdirAll(templates.RenderedPath(true), os.ModePerm)
+	templDir := templates.RenderedPath(true)
+	log.WithField("dir", templDir).Info("creating directory for rendered templates")
+	err := os.MkdirAll(templDir, os.ModePerm)
 	if err != nil {
-		fmt.Printf("[rockpool] unable to create temp dir %s: %s\n", templates.RenderedPath(true), err)
-		os.Exit(1)
+		log.Fatal("[rockpool] unable to create temp dir %s: %s\n", templates.RenderedPath(true), err)
 	}
-
-	k3d.ClusterFetch()
 }
 
 func Up(clusters []string) {
+	k3d.ClusterFetch()
 	if len(clusters) == 0 {
 		if len(k3d.Clusters) > 0 {
 			clusters = allClusters()

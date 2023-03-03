@@ -2,46 +2,61 @@ package docker
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
 
-	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Exec(n string, cmdStr string) ([]byte, error) {
-	return exec.Command("docker", "exec", n, "ash", "-c", cmdStr).Output()
+	log.WithFields(log.Fields{
+		"container": n,
+		"command":   cmdStr,
+	}).Debug("running docker exec")
+	return command.ShellCommander("docker", "exec", n, "ash", "-c", cmdStr).Output()
 }
 
 func Stop(n string) ([]byte, error) {
-	return exec.Command("docker", "stop", n).Output()
+	log.WithField("container", n).Debug("stopping container")
+	return command.ShellCommander("docker", "stop", n).Output()
 }
 
 func Start(n string) ([]byte, error) {
-	return exec.Command("docker", "start", n).Output()
+	log.WithField("container", n).Debug("starting container")
+	return command.ShellCommander("docker", "start", n).Output()
 }
 
 func Restart(n string) ([]byte, error) {
-	return exec.Command("docker", "restart", n).Output()
+	log.WithField("container", n).Debug("restarting container")
+	return command.ShellCommander("docker", "restart", n).Output()
 }
 
-func Inspect(cn string) []DockerContainer {
-	cmd := exec.Command("docker", "inspect", cn)
+func Inspect(n string) []DockerContainer {
+	log.WithField("container", n).Debug("inspecting container")
+	cmd := command.ShellCommander("docker", "inspect", n)
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Println(string(out))
-		fmt.Printf("[%s] unable to get list of docker containers: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"container": n,
+			"out":       string(out),
+			"err":       command.GetMsgFromCommandError(err),
+		}).Fatal("unable to get list of docker containers")
 	}
 	containers := []DockerContainer{}
 	err = json.Unmarshal(out, &containers)
 	if err != nil {
-		fmt.Printf("[%s] unable to parse docker containers: %s\n", cn, err)
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"container": n,
+			"err":       err,
+		}).Fatal("unable to parse docker containers")
 	}
 	return containers
 }
 
 func Cp(src string, dest string) ([]byte, error) {
-	return exec.Command("docker", "cp", src, dest).Output()
+	log.WithFields(log.Fields{
+		"src":  src,
+		"dest": dest,
+	}).Debug("copying files")
+	return command.ShellCommander("docker", "cp", src, dest).Output()
 }

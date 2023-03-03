@@ -3,15 +3,15 @@ package k3d
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var registryName = "rockpool-registry"
@@ -23,16 +23,19 @@ var Reg Registry
 var Clusters ClusterList
 
 func RegistryList() {
-	res, err := exec.Command("k3d", "registry", "list", "-o", "json").Output()
+	log.Info("fetching registry list")
+	res, err := command.
+		ShellCommander("k3d", "registry", "list", "-o", "json").
+		Output()
 	if err != nil {
-		fmt.Printf("[rockpool] unable to get registry list: %s\n", err)
-		os.Exit(1)
+		log.WithField("error", command.GetMsgFromCommandError(err)).
+			Fatal("[rockpool] unable to get registry list")
 	}
 
 	err = json.Unmarshal(res, &registries)
 	if err != nil {
-		fmt.Printf("[rockpool] unable to parse registry list: %s\n", err)
-		os.Exit(1)
+		log.WithField("error", command.GetMsgFromCommandError(err)).
+			Fatal("[rockpool] unable to parse registry list")
 	}
 }
 
@@ -49,15 +52,20 @@ func RegistryGet() {
 func RegistryCreate() {
 	RegistryGet()
 	if Reg.Name == registryNameFull {
-		fmt.Println("[rockpool] registry already exists")
+		log.WithField("registry", registryNameFull).
+			Info("[rockpool] registry already exists")
 		return
 	}
 
-	fmt.Println("[rockpool] creating registry")
-	_, err := exec.Command("k3d", "registry", "create", registryName, "--port", "5111").Output()
+	log.WithField("registry", registryNameFull).
+		Info("[rockpool] creating registry")
+	_, err := command.ShellCommander(
+		"k3d", "registry", "create", registryName, "--port", "5111").Output()
 	if err != nil {
-		fmt.Println("[rockpool] unable to create registry: ", err)
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"registry": registryNameFull,
+			"err":      command.GetMsgFromCommandError(err),
+		}).Fatal("[rockpool] unable to create registry")
 	}
 
 	// Configure registry to enable proxy.
@@ -71,7 +79,10 @@ func RegistryCreate() {
 	for !done && retries > 0 {
 		registryConfig, err = docker.Exec(registryNameFull, "cat "+regCfgFile)
 		if err != nil {
-			fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
+			log.WithFields(log.Fields{
+				"registry": registryNameFull,
+				"err":      command.GetMsgFromCommandError(err),
+			}).Warn("[rockpool] unable to find registry container")
 			time.Sleep(5 * time.Second)
 			retries--
 			continue
@@ -79,15 +90,22 @@ func RegistryCreate() {
 		done = true
 	}
 	if err != nil {
-		fmt.Println("[rockpool] unable to find registry container:", internal.GetCmdStdErr(err))
+		log.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("[rockpool] unable to find registry container")
 	}
 
 	if !strings.Contains(string(registryConfig), proxyLine) {
-		fmt.Println("[rockpool] adding registry proxy config")
+		log.WithFields(log.Fields{
+			"registry":  registryNameFull,
+			"proxyLine": proxyLine,
+		}).Info("[rockpool] adding registry proxy config")
 		_, err := docker.Exec(registryNameFull, proxyLineCmdStr)
 		if err != nil {
-			fmt.Println("[rockpool] error adding registry proxy config:", internal.GetCmdStdErr(err))
-			os.Exit(1)
+			log.WithFields(log.Fields{
+				"registry":  registryNameFull,
+				"proxyLine": proxyLine,
+				"err":       command.GetMsgFromCommandError(err),
+			}).Fatal("[rockpool] error adding registry proxy config")
 		}
 		docker.Restart(registryNameFull)
 	}
@@ -105,23 +123,28 @@ func RegistryStop() {
 	if Reg.Name != registryNameFull {
 		return
 	}
-	fmt.Println("[rockpool] stopping registry")
+	log.WithField("registry", registryNameFull).Info("[rockpool] stopping registry")
 	_, err := docker.Stop(Reg.Name)
 	if err != nil {
-		fmt.Println("[rockpool] error stopping registry:", internal.GetCmdStdErr(err))
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"registry": registryNameFull,
+			"err":      command.GetMsgFromCommandError(err),
+		}).Fatal("[rockpool] error stopping registry")
 	}
-	fmt.Println("[rockpool] stopped registry")
+	log.WithField("registry", registryNameFull).Info("[rockpool] stopped registry")
 }
 
 func RegistryStart() {
-	fmt.Println("[rockpool] starting registry")
+	log.WithField("registry", registryNameFull).
+		Info("[rockpool] starting registry")
 	_, err := docker.Start(registryNameFull)
 	if err != nil {
-		fmt.Println("[rockpool] error starting registry:", internal.GetCmdStdErr(err))
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"registry": registryNameFull,
+			"err":      command.GetMsgFromCommandError(err),
+		}).Fatal("[rockpool] error starting registry")
 	}
-	fmt.Println("[rockpool] started registry")
+	log.WithField("registry", registryNameFull).Info("[rockpool] started registry")
 }
 
 func RegistryDelete() {
@@ -129,27 +152,28 @@ func RegistryDelete() {
 	if Reg.Name != registryNameFull {
 		return
 	}
-	fmt.Println("[rockpool] deleting registry")
-	_, err := exec.Command("k3d", "registry", "delete", Reg.Name).Output()
+	log.WithField("registry", Reg.Name).Info("[rockpool] deleting registry")
+	_, err := command.ShellCommander("k3d", "registry", "delete", Reg.Name).Output()
 	if err != nil {
-		fmt.Println("[rockpool] unable to delete registry: ", err)
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"registry": Reg.Name,
+			"err":      command.GetMsgFromCommandError(err),
+		}).Fatal("[rockpool] unable to delete registry")
 	}
-	fmt.Println("[rockpool] deleted registry")
+	log.WithField("registry", Reg.Name).Info("[rockpool] deleted registry")
 }
 
 func ClusterFetchAll() ClusterList {
 	var cl ClusterList
-	res, err := exec.Command("k3d", "cluster", "list", "-o", "json").Output()
+	res, err := command.ShellCommander("k3d", "cluster", "list", "-o", "json").Output()
+	log.Debug("[k3d] cluster list: ", string(res))
 	if err != nil {
-		fmt.Printf("[rockpool] unable to get cluster list: %s\n", internal.GetCmdStdErr(err))
-		os.Exit(1)
+		log.Fatal("[rockpool] unable to get cluster list: %s\n", command.GetMsgFromCommandError(err))
 	}
 
 	err = json.Unmarshal(res, &cl)
 	if err != nil {
-		fmt.Printf("[rockpool] unable to parse cluster list: %s\n", err)
-		os.Exit(1)
+		log.Fatal("[rockpool] unable to parse cluster list: %s\n", err)
 	}
 	return cl
 }
@@ -164,6 +188,7 @@ func ClusterExists(clusterName string) (bool, Cluster) {
 }
 
 func ClusterFetch() {
+	log.Info("fetching clusters")
 	for _, c := range ClusterFetchAll() {
 		if !strings.HasPrefix(c.Name, platform.Name) {
 			continue
@@ -178,6 +203,7 @@ func ClusterFetch() {
 
 func ClusterIsRunning(clusterName string) bool {
 	ClusterFetch()
+	log.Info("checking if cluster is running")
 	for _, c := range Clusters {
 		if c.Name != clusterName {
 			continue
@@ -188,12 +214,16 @@ func ClusterIsRunning(clusterName string) bool {
 }
 
 func ClusterCreate(cn string, isController bool) {
+	logger := log.WithFields(log.Fields{
+		"clusterName":  cn,
+		"isController": isController,
+	})
 	ClusterFetch()
 	if exists, _ := ClusterExists(cn); exists && ClusterIsRunning(cn) {
-		fmt.Printf("[%s] cluster already exists\n", cn)
+		logger.Info("cluster already exists and is running")
 		return
 	} else if exists {
-		fmt.Printf("[%s] cluster already exists, but is stopped; starting now\n", cn)
+		logger.Info("cluster already exists, but is stopped; starting now")
 		ClusterStart(cn)
 		return
 	}
@@ -227,48 +257,48 @@ func ClusterCreate(cn string, isController bool) {
 
 	cmdArgs = append(cmdArgs, k3sArgs...)
 	cmdArgs = append(cmdArgs, cn)
-	cmd := exec.Command("k3d", cmdArgs...)
+	cmd := command.ShellCommander("k3d", cmdArgs...)
 
-	fmt.Printf("[%s] creating cluster: %s\n", cn, cmd)
-
-	_, err := cmd.Output()
+	logger.WithField("command", cmd).Info("creating cluster")
+	err := cmd.RunProgressive()
 	if err != nil {
-		fmt.Printf("[%s] unable to create cluster: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to create cluster")
 	}
-	fmt.Printf("[%s] created cluster\n", cn)
+	logger.Info("created cluster")
 	ClusterFetch()
 }
 
 func ClusterStart(cn string) {
+	logger := log.WithField("clusterName", cn)
 	if exists, _ := ClusterExists(cn); !exists {
-		fmt.Printf("[%s] cluster does not exist\n", cn)
+		logger.Info("cluster does not exist")
 		return
 	}
-	fmt.Printf("[%s] starting cluster\n", cn)
-	// _, err := exec.Command(r.State.BinaryPaths["k3d"], "cluster", "start", cn).Output()
-	_, err := internal.RunCmdWithProgress(exec.Command("k3d", "cluster", "start", cn))
+	logger.Info("starting cluster")
+	err := command.ShellCommander("k3d", "cluster", "start", cn).RunProgressive()
 	if err != nil {
-		fmt.Printf("[%s] unable to start cluster: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to start cluster")
 	}
 	ClusterFetch()
-	fmt.Printf("[%s] started cluster\n", cn)
+	logger.Info("started cluster")
 }
 
 func ClusterStop(cn string) {
+	logger := log.WithField("clusterName", cn)
 	if exists, _ := ClusterExists(cn); !exists {
-		fmt.Printf("[%s] cluster does not exist\n", cn)
+		logger.Info("cluster does not exist")
 		return
 	}
-	fmt.Printf("[%s] stopping cluster\n", cn)
-	_, err := internal.RunCmdWithProgress(exec.Command("k3d", "cluster", "stop", cn))
+	logger.Info("stopping cluster")
+	err := command.ShellCommander("k3d", "cluster", "stop", cn).RunProgressive()
 	if err != nil {
-		fmt.Printf("[%s] unable to stop cluster: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to stop cluster")
 	}
 	ClusterFetch()
-	fmt.Printf("[%s] stopped cluster\n", cn)
+	logger.Info("stopped cluster")
 }
 
 func ClusterRestart(cn string) {
@@ -277,26 +307,29 @@ func ClusterRestart(cn string) {
 }
 
 func ClusterDelete(cn string) {
+	logger := log.WithField("clusterName", cn)
 	defer platform.WgDone()
 	if exists, _ := ClusterExists(cn); !exists {
 		return
 	}
 	ClusterStop(cn)
-	fmt.Printf("[%s] deleting cluster\n", cn)
-	_, err := exec.Command("k3d", "cluster", "delete", cn).Output()
+	logger.Info("deleting cluster")
+	_, err := command.ShellCommander("k3d", "cluster", "delete", cn).Output()
 	if err != nil {
-		fmt.Printf("[%s] unable to delete cluster: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to delete cluster")
 	}
 	ClusterFetch()
-	fmt.Printf("[%s] deleted cluster\n", cn)
+	logger.Info("deleted cluster")
 }
 
 func WriteKubeConfig(cn string) {
-	fmt.Printf("[%s] writing kubeconfig\n", cn)
-	_, err := exec.Command("k3d", "kubeconfig", "write", cn).CombinedOutput()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("writing kubeconfig")
+	_, err := command.ShellCommander("k3d", "kubeconfig", "write", cn).Output()
 	if err != nil {
-		panic(fmt.Sprintln("unable to write kubeconfig:", err))
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Panic("unable to write kubeconfig:")
 	}
 }
 
@@ -312,8 +345,7 @@ func ControllerIP() string {
 			}
 		}
 	}
-	fmt.Println("[rockpool] unable to get controller ip")
-	os.Exit(1)
+	log.Fatal("[rockpool] unable to get controller ip")
 	return ""
 }
 
@@ -329,7 +361,6 @@ func TargetIP(cn string) string {
 			}
 		}
 	}
-	fmt.Println("[rockpool] unable to get target ip")
-	os.Exit(1)
+	log.Fatal("[rockpool] unable to get target ip")
 	return ""
 }
