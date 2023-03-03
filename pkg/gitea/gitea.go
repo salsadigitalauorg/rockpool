@@ -157,11 +157,11 @@ func HasTestRepo(token string) (bool, error) {
 func CreateRepo() {
 	token, err := CreateToken()
 	if err != nil {
-		log.WithField("err", err).Fatal("error creating gitea token")
+		log.WithError(err).Fatal("error creating gitea token")
 	}
 
 	if has, err := HasTestRepo(token); err != nil {
-		log.WithField("err", err).Fatal("error looking up gitea test repo")
+		log.WithError(err).Fatal("error looking up gitea test repo")
 	} else if has {
 		log.Debug("gitea test repo already exists")
 		return
@@ -171,6 +171,6 @@ func CreateRepo() {
 	data, _ := json.Marshal(map[string]string{"name": "test"})
 	_, err = ApiCall("POST", "user/repos", token, data)
 	if err != nil {
-		log.WithField("err", err).Fatal("unable to create gitea test repo")
+		log.WithError(err).Fatal("unable to create gitea test repo")
 	}
 }

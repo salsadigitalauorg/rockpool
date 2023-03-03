@@ -27,16 +27,13 @@ func List(cn string) {
 	logger := log.WithField("clusterName", cn)
 	out, err := Exec(cn, "", "list", "--all-namespaces", "--output", "json").Output()
 	if err != nil {
-		logger.WithFields(log.Fields{
-			"out": string(out),
-			"err": command.GetMsgFromCommandError(err),
-		}).Fatal("unable to get list of helm releases")
+		logger.WithField("out", string(out)).WithError(err).
+			Fatal("unable to get list of helm releases")
 	}
 	releases := []HelmRelease{}
 	err = json.Unmarshal(out, &releases)
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to parse helm releases")
+		logger.WithError(err).Fatal("unable to parse helm releases")
 	}
 	Releases.Store(cn, releases)
 }

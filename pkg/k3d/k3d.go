@@ -28,14 +28,12 @@ func RegistryList() {
 		ShellCommander("k3d", "registry", "list", "-o", "json").
 		Output()
 	if err != nil {
-		log.WithField("error", command.GetMsgFromCommandError(err)).
-			Fatal("unable to get registry list")
+		log.WithError(err).Fatal("unable to get registry list")
 	}
 
 	err = json.Unmarshal(res, &registries)
 	if err != nil {
-		log.WithField("error", command.GetMsgFromCommandError(err)).
-			Fatal("unable to parse registry list")
+		log.WithError(err).Fatal("unable to parse registry list")
 	}
 }
 
@@ -62,8 +60,7 @@ func RegistryCreate() {
 	err := command.ShellCommander("k3d", "registry", "create",
 		registryName, "--port", "5111").Run()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to create registry")
+		logger.WithError(err).Fatal("unable to create registry")
 	}
 
 	// Configure registry to enable proxy.
@@ -77,8 +74,7 @@ func RegistryCreate() {
 	for !done && retries > 0 {
 		registryConfig, err = docker.Exec(registryNameFull, "cat "+regCfgFile).Output()
 		if err != nil {
-			logger.WithField("err", command.GetMsgFromCommandError(err)).
-				Warn("unable to find registry container")
+			logger.WithError(err).Warn("unable to find registry container")
 			time.Sleep(5 * time.Second)
 			retries--
 			continue
@@ -86,8 +82,7 @@ func RegistryCreate() {
 		done = true
 	}
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to find registry container")
+		logger.WithError(err).Fatal("unable to find registry container")
 	}
 
 	if !strings.Contains(string(registryConfig), proxyLine) {
@@ -95,10 +90,8 @@ func RegistryCreate() {
 			Debug("adding registry proxy config")
 		err := docker.Exec(registryNameFull, proxyLineCmdStr).Run()
 		if err != nil {
-			logger.WithFields(log.Fields{
-				"proxyLine": proxyLine,
-				"err":       command.GetMsgFromCommandError(err),
-			}).Fatal("error adding registry proxy config")
+			logger.WithField("proxyLine", proxyLine).WithError(err).
+				Fatal("error adding registry proxy config")
 		}
 		docker.Restart(registryNameFull)
 	}
@@ -121,8 +114,7 @@ func RegistryStop() {
 
 	_, err := docker.Stop(Reg.Name)
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("error stopping registry")
+		logger.WithError(err).Fatal("error stopping registry")
 	}
 }
 
@@ -132,8 +124,7 @@ func RegistryStart() {
 
 	_, err := docker.Start(registryNameFull)
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("error starting registry")
+		logger.WithError(err).Fatal("error starting registry")
 	}
 }
 
@@ -147,8 +138,7 @@ func RegistryDelete() {
 
 	err := command.ShellCommander("k3d", "registry", "delete", Reg.Name).Run()
 	if err != nil {
-		log.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to delete registry")
+		log.WithError(err).Fatal("unable to delete registry")
 	}
 }
 
@@ -157,14 +147,12 @@ func ClusterFetchAll() ClusterList {
 	res, err := command.ShellCommander("k3d", "cluster", "list", "-o", "json").Output()
 	log.Debug("cluster list: ", string(res))
 	if err != nil {
-		log.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to get cluster list")
+		log.WithError(err).Fatal("unable to get cluster list")
 	}
 
 	err = json.Unmarshal(res, &cl)
 	if err != nil {
-		log.WithField("err", err).
-			Fatal("unable to parse cluster list")
+		log.WithError(err).Fatal("unable to parse cluster list")
 	}
 	return cl
 }
@@ -253,8 +241,7 @@ func ClusterCreate(cn string, isController bool) {
 	logger.WithField("command", cmd).Info("creating cluster")
 	err := cmd.RunProgressive()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to create cluster")
+		logger.WithError(err).Fatal("unable to create cluster")
 	}
 	ClusterFetch()
 }
@@ -268,8 +255,7 @@ func ClusterStart(cn string) {
 	logger.Info("starting cluster")
 	err := command.ShellCommander("k3d", "cluster", "start", cn).RunProgressive()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to start cluster")
+		logger.WithError(err).Fatal("unable to start cluster")
 	}
 	ClusterFetch()
 	logger.Info("started cluster")
@@ -284,8 +270,7 @@ func ClusterStop(cn string) {
 	logger.Info("stopping cluster")
 	err := command.ShellCommander("k3d", "cluster", "stop", cn).RunProgressive()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to stop cluster")
+		logger.WithError(err).Fatal("unable to stop cluster")
 	}
 	ClusterFetch()
 	logger.Info("stopped cluster")
@@ -306,8 +291,7 @@ func ClusterDelete(cn string) {
 	logger.Info("deleting cluster")
 	_, err := command.ShellCommander("k3d", "cluster", "delete", cn).Output()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to delete cluster")
+		logger.WithError(err).Fatal("unable to delete cluster")
 	}
 	ClusterFetch()
 	logger.Info("deleted cluster")
@@ -318,8 +302,7 @@ func WriteKubeConfig(cn string) {
 	logger.Info("writing kubeconfig")
 	_, err := command.ShellCommander("k3d", "kubeconfig", "write", cn).Output()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Panic("unable to write kubeconfig:")
+		logger.WithError(err).Panic("unable to write kubeconfig:")
 	}
 }
 

@@ -40,14 +40,6 @@ func RunCmdWithProgress(cmd *exec.Cmd) ([]byte, error) {
 	return stdoutBytes, cmd.Wait()
 }
 
-// GetCmdStdErr extracts the error from a failed command's err.
-func GetCmdStdErr(err error) string {
-	if exitError, ok := err.(*exec.ExitError); ok {
-		return string(exitError.Stderr)
-	}
-	return err.Error()
-}
-
 func GetTargetIdFromCn(cn string) int {
 	cnParts := strings.Split(cn, "-")
 	idStr := cnParts[len(cnParts)-1]

@@ -120,16 +120,14 @@ func GetSecret(cn string, ns string, secret string, field string) ([]byte, strin
 	out, err := cmd.Output()
 	logger.WithField("out", string(out)).Debug()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("error getting secret")
+		logger.WithError(err).Fatal("error getting secret")
 	}
 
 	if field != "" {
 		logger.Debug("decoding secret")
 		out = []byte(strings.Trim(string(out), "'"))
 		if decoded, err := base64.URLEncoding.DecodeString(string(out)); err != nil {
-			logger.WithField("err", command.GetMsgFromCommandError(err)).
-				Fatal("error decoding secret")
+			logger.WithError(err).Fatal("error decoding secret")
 		} else {
 			return nil, string(decoded)
 		}
@@ -148,8 +146,7 @@ func GetConfigMap(cn string, ns string, name string) []byte {
 	cmd := Cmd(cn, ns, "get", "configmap", name, "--output", "json")
 	out, err := cmd.Output()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("error getting configmap")
+		logger.WithError(err).Fatal("error getting configmap")
 	}
 	return out
 }
@@ -178,8 +175,7 @@ func Replace(cn string, ns string, name string, content string) {
 	writer.Close()
 
 	if err := replace.Wait(); err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("error replacing manifest")
+		logger.WithError(err).Fatal("error replacing manifest")
 	}
 }
 
@@ -197,8 +193,7 @@ func Patch(cn string, ns string, kind string, name string, fn string) ([]byte, e
 	dryRun.AddArgs("--dry-run=server")
 	out, err := dryRun.Output()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("error executing dry-run patch")
+		logger.WithError(err).Fatal("error executing dry-run patch")
 	}
 	if strings.Contains(string(out), "(no change)") {
 		return nil, nil

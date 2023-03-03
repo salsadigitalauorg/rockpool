@@ -9,10 +9,8 @@ package command
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"strings"
@@ -78,22 +76,6 @@ func NewExecShellCommander(name string, arg ...string) IShellCommand {
 // ShellCommander provides a wrapper around the commander to allow for better
 // testing and mocking.
 var ShellCommander = NewExecShellCommander
-
-// GetMsgFromCommandError attempts to extract the error message from a command
-// run's stderr.
-func GetMsgFromCommandError(err error) string {
-	var pathErr *fs.PathError
-	var exitErr *exec.ExitError
-	var errMsg string
-	if errors.As(err, &pathErr) {
-		errMsg = pathErr.Path + ": " + pathErr.Err.Error()
-	} else if errors.As(err, &exitErr) {
-		errMsg = string(exitErr.Stderr)
-	} else {
-		errMsg = err.Error()
-	}
-	return errMsg
-}
 
 func ScriptTemplate(tmpl string, vars interface{}) (string, error) {
 	t, err := template.New("script").Parse(tmpl)

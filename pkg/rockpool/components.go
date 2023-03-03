@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
-	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
@@ -36,8 +35,7 @@ func InstallIngressNginx(cn string) {
 		},
 	)
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to install ingress-nginx")
+		logger.WithError(err).Fatal("unable to install ingress-nginx")
 	}
 }
 
@@ -48,13 +46,12 @@ func InstallHarbor() {
 
 	err := helm.Exec(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io").Run()
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to add harbor repo")
+		logger.WithError(err).Fatal("unable to add harbor repo")
 	}
 
 	values, err := templates.Render("harbor-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
-		logger.WithField("err", err).Fatal("error rendering harbor values template")
+		logger.WithError(err).Fatal("error rendering harbor values template")
 	}
 
 	err = helm.InstallOrUpgrade(cn,
@@ -65,8 +62,7 @@ func InstallHarbor() {
 		},
 	)
 	if err != nil {
-		logger.WithField("err", command.GetMsgFromCommandError(err)).
-			Fatal("unable to install harbor")
+		logger.WithError(err).Fatal("unable to install harbor")
 	}
 }
 
@@ -83,18 +79,18 @@ func FetchHarborCerts() {
 
 	secretManifest, err := templates.Render("harbor-cert.yml.tmpl", certData, "")
 	if err != nil {
-		logger.WithField("err", err).Fatal("error rendering harbor cert template")
+		logger.WithError(err).Fatal("error rendering harbor cert template")
 	}
 	logger.WithField("secret", secretManifest).Debug("generated harbor cert")
 
 	cacrt := certData.Data["ca.crt"]
 	decoded, err := base64.URLEncoding.DecodeString(cacrt)
 	if err != nil {
-		logger.WithField("err", err).Fatal("error decoding ca.crt")
+		logger.WithError(err).Fatal("error decoding ca.crt")
 	}
 	caCrtFile, err := templates.Render("harbor-ca.crt.tmpl", string(decoded), "")
 	if err != nil {
-		logger.WithField("err", err).Fatal("error rendering harbor ca.crt template")
+		logger.WithError(err).Fatal("error rendering harbor ca.crt template")
 	}
 	logger.WithField("certificate", caCrtFile).Debug("generated harbor ca.crt")
 
@@ -116,10 +112,8 @@ func InstallHarborCerts(cn string) {
 	}
 
 	if err := kube.Apply(cn, "lagoon", HarborSecretManifest, true); err != nil {
-		logger.WithFields(log.Fields{
-			"secret": HarborSecretManifest,
-			"err":    command.GetMsgFromCommandError(err),
-		}).Fatal("error applying ca.crt")
+		logger.WithField("secret", HarborSecretManifest).WithError(err).
+			Fatal("error applying ca.crt")
 	}
 
 	// Add the cert to the nodes.
@@ -141,8 +135,7 @@ func InstallHarborCerts(cn string) {
 			logger.WithFields(log.Fields{
 				"src":  HarborCaCrtFile,
 				"dest": destCaCrt,
-				"err":  command.GetMsgFromCommandError(err),
-			}).Fatal("error copying ca.crt")
+			}).WithError(err).Fatal("error copying ca.crt")
 		}
 		clusterUpdated = true
 	}
@@ -154,15 +147,13 @@ func InstallHarborCerts(cn string) {
 	// Patch lagoon-remote-lagoon-build-deploy to add the cert secret.
 	patchFile, err := templates.Render("patch-lagoon-remote-lagoon-build-deploy.yaml", nil, "")
 	if err != nil {
-		logger.WithField("err", err).
+		logger.WithError(err).
 			Fatal("error rendering the build deploy patch file")
 	}
 	_, err = kube.Patch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
 	if err != nil {
-		logger.WithFields(log.Fields{
-			"patchFile": patchFile,
-			"err":       command.GetMsgFromCommandError(err),
-		}).Fatal("error patching the lagoon-build-deploy deployment")
+		logger.WithField("patchFile", patchFile).WithError(err).
+			Fatal("error patching the lagoon-build-deploy deployment")
 	}
 }
 

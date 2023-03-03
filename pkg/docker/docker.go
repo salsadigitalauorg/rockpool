@@ -35,8 +35,7 @@ func Inspect(n string) []DockerContainer {
 		log.WithFields(log.Fields{
 			"container": n,
 			"out":       string(out),
-			"err":       command.GetMsgFromCommandError(err),
-		}).Fatal("unable to get list of docker containers")
+		}).WithError(err).Fatal("unable to get list of docker containers")
 	}
 	containers := []DockerContainer{}
 	err = json.Unmarshal(out, &containers)
