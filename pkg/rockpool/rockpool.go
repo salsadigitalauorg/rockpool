@@ -435,7 +435,7 @@ port 6153
 	var err error
 
 	if _, err := os.Stat(dest); err == nil {
-		logger.Info("resolver file already exists")
+		logger.Debug("resolver file already exists")
 		return
 	}
 

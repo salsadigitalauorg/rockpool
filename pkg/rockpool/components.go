@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
@@ -15,12 +15,17 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var HarborSecretManifest string
 var HarborCaCrtFile string
 
 func InstallIngressNginx(cn string) {
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing ingress-nginx")
+
 	err := helm.InstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
@@ -31,26 +36,26 @@ func InstallIngressNginx(cn string) {
 		},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install ingress-nginx: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install ingress-nginx")
 	}
 }
 
 func InstallHarbor() {
 	cn := platform.ControllerClusterName()
-	cmd := helm.Exec(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io")
-	err := cmd.Run()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing harbor")
+
+	err := helm.Exec(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io").Run()
 	if err != nil {
-		fmt.Printf("[%s] unable to add harbor repo: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to add harbor repo")
 	}
 
 	values, err := templates.Render("harbor-values.yml.tmpl", platform.ToMap(), "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering harbor values template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", err).Fatal("error rendering harbor values template")
 	}
-	fmt.Printf("[%s] using generated harbor values at %s\n", cn, values)
 
 	err = helm.InstallOrUpgrade(cn,
 		"harbor", "harbor", "harbor/harbor",
@@ -60,13 +65,16 @@ func InstallHarbor() {
 		},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install harbor: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("unable to install harbor")
 	}
 }
 
 func FetchHarborCerts() {
 	cn := platform.ControllerClusterName()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("fetching harbor certificates")
+
 	certBytes, _ := kube.GetSecret(cn, "harbor", "harbor-harbor-ingress", "")
 	certData := struct {
 		Data map[string]string `json:"data"`
@@ -75,23 +83,20 @@ func FetchHarborCerts() {
 
 	secretManifest, err := templates.Render("harbor-cert.yml.tmpl", certData, "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering harbor cert template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", err).Fatal("error rendering harbor cert template")
 	}
-	fmt.Printf("[%s] generated harbor cert at %s\n", cn, secretManifest)
+	logger.WithField("secret", secretManifest).Debug("generated harbor cert")
 
 	cacrt := certData.Data["ca.crt"]
 	decoded, err := base64.URLEncoding.DecodeString(cacrt)
 	if err != nil {
-		fmt.Printf("[%s] error when decoding ca.crt: %#v\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithField("err", err).Fatal("error decoding ca.crt")
 	}
 	caCrtFile, err := templates.Render("harbor-ca.crt.tmpl", string(decoded), "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering harbor ca.crt template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", err).Fatal("error rendering harbor ca.crt template")
 	}
-	fmt.Printf("[%s] generated harbor ca.crt at %s\n", cn, caCrtFile)
+	logger.WithField("certificate", caCrtFile).Debug("generated harbor ca.crt")
 
 	HarborSecretManifest = secretManifest
 	HarborCaCrtFile = caCrtFile
@@ -101,16 +106,20 @@ func InstallHarborCerts(cn string) {
 	if cn == platform.ControllerClusterName() {
 		return
 	}
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing harbor certificates on target")
 
 	exists, c := k3d.ClusterExists(cn)
 	if !exists {
-		fmt.Printf("[%s] cluster does not exist\n", cn)
+		logger.Warn("cluster does not exist")
 		return
 	}
 
 	if err := kube.Apply(cn, "lagoon", HarborSecretManifest, true); err != nil {
-		fmt.Printf("[%s] error creating ca.crt: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithFields(log.Fields{
+			"secret": HarborSecretManifest,
+			"err":    command.GetMsgFromCommandError(err),
+		}).Fatal("error applying ca.crt")
 	}
 
 	// Add the cert to the nodes.
@@ -129,8 +138,11 @@ func InstallHarborCerts(cn string) {
 		destCaCrt := fmt.Sprintf("%s:/etc/ssl/certs/harbor-cert.crt", n.Name)
 		_, err := docker.Cp(HarborCaCrtFile, destCaCrt)
 		if err != nil {
-			fmt.Printf("[%s] error copying ca.crt: %s\n", cn, internal.GetCmdStdErr(err))
-			os.Exit(1)
+			logger.WithFields(log.Fields{
+				"src":  HarborCaCrtFile,
+				"dest": destCaCrt,
+				"err":  command.GetMsgFromCommandError(err),
+			}).Fatal("error copying ca.crt")
 		}
 		clusterUpdated = true
 	}
@@ -142,13 +154,15 @@ func InstallHarborCerts(cn string) {
 	// Patch lagoon-remote-lagoon-build-deploy to add the cert secret.
 	patchFile, err := templates.Render("patch-lagoon-remote-lagoon-build-deploy.yaml", nil, "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering the build deploy patch file: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", err).
+			Fatal("error rendering the build deploy patch file")
 	}
 	_, err = kube.Patch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
 	if err != nil {
-		fmt.Printf("[%s] error patching the lagoon-build-deploy deployment: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithFields(log.Fields{
+			"patchFile": patchFile,
+			"err":       command.GetMsgFromCommandError(err),
+		}).Fatal("error patching the lagoon-build-deploy deployment")
 	}
 }
 
@@ -157,10 +171,12 @@ func AddHarborHostEntries(cn string) {
 	if cn == platform.ControllerClusterName() {
 		return
 	}
+	logger := log.WithField("clusterName", cn)
+	logger.Info("adding harbor host entries on target")
 
 	exists, c := k3d.ClusterExists(cn)
 	if !exists {
-		fmt.Printf("[%s] cluster does not exist\n", cn)
+		logger.Warn("cluster does not exist")
 		return
 	}
 
@@ -173,28 +189,35 @@ func AddHarborHostEntries(cn string) {
 
 		hostsContent, _ := docker.Exec(n.Name, "cat /etc/hosts").Output()
 		if !strings.Contains(string(hostsContent), entry) {
-			fmt.Printf("[%s] adding harbor host entries\n", n.Name)
+			logger.WithFields(log.Fields{
+				"node":  n.Name,
+				"entry": entry,
+			}).Debug("adding harbor host entry")
 			err := docker.Exec(n.Name, entryCmdStr).Run()
 			if err != nil {
-				fmt.Printf("[%s] error adding harbor host entry: %s\n", cn, internal.GetCmdStdErr(err))
-				os.Exit(1)
+				logger.WithFields(log.Fields{
+					"node":  n.Name,
+					"entry": entry,
+				}).WithError(err).Fatal("error adding harbor host entry")
 			}
-			fmt.Printf("[%s] added harbor host entries\n", cn)
 		}
 	}
 }
 
 func AddLagoonRepo(cn string) {
-	cmd := helm.Exec(cn, "", "repo", "add", "lagoon", "https://uselagoon.github.io/lagoon-charts/")
-	err := cmd.Run()
+	err := helm.Exec(cn, "", "repo", "add", "lagoon",
+		"https://uselagoon.github.io/lagoon-charts/").Run()
 	if err != nil {
-		fmt.Printf("[%s] unable to add lagoon repo: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		log.WithField("clusterName", cn).WithError(err).
+			Fatal("unable to add lagoon repo")
 	}
 }
 
 func InstallLagoonCore() {
 	cn := platform.ControllerClusterName()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing lagoon core")
+
 	AddLagoonRepo(cn)
 
 	cm := platform.ToMap()
@@ -202,10 +225,8 @@ func InstallLagoonCore() {
 
 	values, err := templates.Render("lagoon-core-values.yml.tmpl", cm, "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering lagoon-core values template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithError(err).Fatal("error rendering lagoon-core values template")
 	}
-	fmt.Printf("[%s] using generated lagoon-core values at %s\n", cn, values)
 
 	err = helm.InstallOrUpgrade(platform.ControllerClusterName(), "lagoon-core",
 		"lagoon-core",
@@ -213,12 +234,14 @@ func InstallLagoonCore() {
 		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install lagoon-core: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithError(err).Fatal("unable to install lagoon-core")
 	}
 }
 
 func InstallLagoonRemote(cn string) {
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing lagoon remote")
+
 	AddLagoonRepo(cn)
 
 	// Get RabbitMQ pass.
@@ -231,25 +254,24 @@ func InstallLagoonRemote(cn string) {
 	)
 
 	cm["TargetId"] = fmt.Sprint(internal.GetTargetIdFromCn(cn))
-
 	values, err := templates.Render("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
 	if err != nil {
-		fmt.Printf("[%s] error rendering lagoon-remote values template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithError(err).Fatal("error rendering lagoon-remote values template")
 	}
-	fmt.Printf("[%s] using generated lagoon-remote values at %s\n", cn, values)
 
 	err = helm.InstallOrUpgrade(cn, "lagoon", "lagoon-remote",
 		"lagoon/lagoon-remote",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
-		fmt.Printf("[%s] unable to install lagoon-remote: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithError(err).Fatal("unable to install lagoon-remote")
 	}
 }
 
 func RegisterLagoonRemote(cn string) {
+	logger := log.WithField("clusterName", cn)
+	logger.Info("registering lagoon remote")
+
 	cId := internal.GetTargetIdFromCn(cn)
 	rName := platform.Name + fmt.Sprint(cId)
 	re := lagoon.Remote{
@@ -260,19 +282,18 @@ func RegisterLagoonRemote(cn string) {
 	}
 	for _, existingRe := range lagoon.Remotes {
 		if existingRe.Id == re.Id && existingRe.Name == re.Name {
-			fmt.Printf("[%s] Lagoon remote already exists for %s\n", cn, re.Name)
+			logger.WithField("remote", re.Name).Debug("Lagoon remote already exists")
 			return
 		}
 	}
-	b64Token, err := kube.Cmd(cn, "lagoon", "get", "secret", "-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
+	b64Token, err := kube.Cmd(cn, "lagoon", "get", "secret",
+		"-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
 	if err != nil {
-		fmt.Printf("[%s] error when fetching lagoon remote token: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithError(err).Fatal("error fetching lagoon remote token")
 	}
 	token, err := base64.URLEncoding.DecodeString(strings.Trim(string(b64Token), "'"))
 	if err != nil {
-		fmt.Printf("[%s] error when decoding lagoon remote token: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithError(err).Fatal("error decoding lagoon remote token")
 	}
 	lagoon.AddRemote(re, string(token))
 }
