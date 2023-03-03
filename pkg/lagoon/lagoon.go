@@ -7,14 +7,15 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/ssh"
+
 	"github.com/shurcooL/graphql"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
 
@@ -39,7 +40,7 @@ var lagoonUserinfo struct {
 // FetchApiAdminToken creates an admin token with superpowers.
 // See https://docs.lagoon.sh/administering-lagoon/graphql-queries/#running-graphql-queries
 func FetchApiAdminToken() string {
-	fmt.Println("fetching lagoon api admin token")
+	log.Info("fetching lagoon api admin token")
 	out, err := kube.Exec(
 		platform.ControllerClusterName(), "lagoon-core",
 		"lagoon-core-storage-calculator", "/create_jwt.py").Output()
@@ -50,7 +51,7 @@ func FetchApiAdminToken() string {
 }
 
 func FetchApiToken() string {
-	fmt.Println("fetching lagoon api token")
+	log.Info("fetching lagoon api token")
 	_, password := kube.GetSecret(platform.ControllerClusterName(),
 		"lagoon-core",
 		"lagoon-core-keycloak",
@@ -66,7 +67,10 @@ func FetchApiToken() string {
 	url := fmt.Sprintf("http://keycloak.lagoon.%s/auth/realms/lagoon/protocol/openid-connect/token", platform.Hostname())
 	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(data.Encode()))
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"url":  url,
+			"data": data,
+		}).WithError(err).Panic("error preparing request to token endpoint")
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	dump, _ := httputil.DumpRequest(req, true)
@@ -76,8 +80,8 @@ func FetchApiToken() string {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("request:", string(dump))
-		panic(err)
+		log.WithField("request", string(dump)).WithError(err).
+			Panic("error executing request to token endpoint")
 	}
 	dump, _ = httputil.DumpResponse(resp, true)
 
@@ -88,13 +92,14 @@ func FetchApiToken() string {
 	}
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
-		fmt.Println("response:", string(dump))
-		fmt.Println("error parsing Lagoon API token:", err)
-		os.Exit(1)
+		log.WithField("response", string(dump)).WithError(err).
+			Fatal("error parsing Lagoon API token")
 	}
 	if res.Error != "" {
-		fmt.Printf("error fetching Lagoon API token: %s - %s\n", res.Error, res.ErrorDescription)
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"res.Error":            res.Error,
+			"res.ErrorDescription": res.ErrorDescription,
+		}).Fatal("error fetching Lagoon API token")
 	}
 	return res.Token
 }
@@ -114,32 +119,33 @@ func InitApiClient() {
 }
 
 func GetRemotes() {
-	fmt.Println("fetching lagoon api remotes...")
+	log.Info("fetching lagoon api remotes")
 	var query struct {
 		AllKubernetes []Remote
 	}
 	err := GqlClient.Query(context.Background(), &query, nil)
 	if err != nil {
-		fmt.Println("error fetching Lagoon remotes:", err)
-		os.Exit(1)
+		log.WithError(err).Fatal("error fetching Lagoon remotes")
 	}
 	Remotes = query.AllKubernetes
 }
 
 func FetchUserInfo() {
+	log.Info("fetching lagoon user info")
 	err := GqlClient.Query(context.Background(), &lagoonUserinfo, nil)
 	if err != nil {
-		fmt.Println("error fetching Lagoon user info:", err)
-		os.Exit(1)
+		log.WithError(err).Fatal("error fetching Lagoon user info")
 	}
 }
 
 func AddSshKey() {
+	log.Info("adding ssh key for lagoon user")
+
 	keyValue, keyType, keyFingerpint, cmt := ssh.GetPublicKeyFingerprint()
 	FetchUserInfo()
 	for _, k := range lagoonUserinfo.Me.SshKeys {
 		if k.KeyFingerprint == keyFingerpint {
-			fmt.Println("lagoon ssh key had already been added")
+			log.Debug("lagoon ssh key had already been added")
 			return
 		}
 	}
@@ -159,15 +165,15 @@ func AddSshKey() {
 		"userEmail": graphql.String(lagoonUserinfo.Me.Email),
 		"userId":    graphql.String(lagoonUserinfo.Me.Id),
 	}
-	fmt.Println("adding lagoon ssh key")
 	err := GqlClient.Mutate(context.Background(), &m, vars)
 	if err != nil {
-		fmt.Printf("error adding Lagoon ssh key %s: %#v\n", cmt, err)
-		os.Exit(1)
+		log.WithField("vars", vars).WithError(err).
+			Fatal("error adding Lagoon ssh key")
 	}
 }
 
 func AddRemote(re Remote, token string) {
+	log.Info("adding lagoon remote to GraphQL API")
 	var m struct {
 		AddKubernetes struct {
 			Remote
@@ -182,8 +188,8 @@ func AddRemote(re Remote, token string) {
 	}
 	err := GqlClient.Mutate(context.Background(), &m, vars)
 	if err != nil {
-		fmt.Printf("error adding Lagoon remote %s: %#v\n", re.Name, err)
-		os.Exit(1)
+		log.WithField("vars", vars).WithError(err).
+			Fatal("error adding Lagoon remote", re.Name, err)
 	}
 	Remotes = append(Remotes, m.AddKubernetes.Remote)
 }
