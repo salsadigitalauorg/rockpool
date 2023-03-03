@@ -21,7 +21,7 @@ var HarborSecretManifest string
 var HarborCaCrtFile string
 
 func InstallIngressNginx(cn string) {
-	_, err := helm.InstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
+	err := helm.InstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
 		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
 		[]string{
 			"--create-namespace", "--wait",
@@ -52,7 +52,7 @@ func InstallHarbor() {
 	}
 	fmt.Printf("[%s] using generated harbor values at %s\n", cn, values)
 
-	_, err = helm.InstallOrUpgrade(cn,
+	err = helm.InstallOrUpgrade(cn,
 		"harbor", "harbor", "harbor/harbor",
 		[]string{
 			"--create-namespace", "--wait",
@@ -108,7 +108,7 @@ func InstallHarborCerts(cn string) {
 		return
 	}
 
-	if _, err := kube.Apply(cn, "lagoon", HarborSecretManifest, true); err != nil {
+	if err := kube.Apply(cn, "lagoon", HarborSecretManifest, true); err != nil {
 		fmt.Printf("[%s] error creating ca.crt: %s\n", cn, err)
 		os.Exit(1)
 	}
@@ -120,7 +120,7 @@ func InstallHarborCerts(cn string) {
 			continue
 		}
 
-		caCrtFileOut, _ := docker.Exec(n.Name, "ls /etc/ssl/certs/harbor-cert.crt")
+		caCrtFileOut, _ := docker.Exec(n.Name, "ls /etc/ssl/certs/harbor-cert.crt").Output()
 		if strings.Trim(string(caCrtFileOut), "\n") == "/etc/ssl/certs/harbor-cert.crt" {
 			continue
 		}
@@ -171,10 +171,10 @@ func AddHarborHostEntries(cn string) {
 			continue
 		}
 
-		hostsContent, _ := docker.Exec(n.Name, "cat /etc/hosts")
+		hostsContent, _ := docker.Exec(n.Name, "cat /etc/hosts").Output()
 		if !strings.Contains(string(hostsContent), entry) {
 			fmt.Printf("[%s] adding harbor host entries\n", n.Name)
-			_, err := docker.Exec(n.Name, entryCmdStr)
+			err := docker.Exec(n.Name, entryCmdStr).Run()
 			if err != nil {
 				fmt.Printf("[%s] error adding harbor host entry: %s\n", cn, internal.GetCmdStdErr(err))
 				os.Exit(1)
@@ -207,7 +207,7 @@ func InstallLagoonCore() {
 	}
 	fmt.Printf("[%s] using generated lagoon-core values at %s\n", cn, values)
 
-	_, err = helm.InstallOrUpgrade(platform.ControllerClusterName(), "lagoon-core",
+	err = helm.InstallOrUpgrade(platform.ControllerClusterName(), "lagoon-core",
 		"lagoon-core",
 		"lagoon/lagoon-core",
 		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
@@ -239,7 +239,7 @@ func InstallLagoonRemote(cn string) {
 	}
 	fmt.Printf("[%s] using generated lagoon-remote values at %s\n", cn, values)
 
-	_, err = helm.InstallOrUpgrade(cn, "lagoon", "lagoon-remote",
+	err = helm.InstallOrUpgrade(cn, "lagoon", "lagoon-remote",
 		"lagoon/lagoon-remote",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)

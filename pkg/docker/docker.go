@@ -8,12 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func Exec(n string, cmdStr string) ([]byte, error) {
-	log.WithFields(log.Fields{
-		"container": n,
-		"command":   cmdStr,
-	}).Debug("running docker exec")
-	return command.ShellCommander("docker", "exec", n, "ash", "-c", cmdStr).Output()
+func Exec(n string, cmdStr string) command.IShellCommand {
+	return command.ShellCommander("docker", "exec", n, "ash", "-c", cmdStr)
 }
 
 func Stop(n string) ([]byte, error) {

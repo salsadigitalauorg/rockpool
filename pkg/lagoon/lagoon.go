@@ -40,7 +40,9 @@ var lagoonUserinfo struct {
 // See https://docs.lagoon.sh/administering-lagoon/graphql-queries/#running-graphql-queries
 func FetchApiAdminToken() string {
 	fmt.Println("[rockpool] fetching lagoon api admin token")
-	out, err := kube.Exec(platform.ControllerClusterName(), "lagoon-core", "lagoon-core-storage-calculator", "/create_jwt.py")
+	out, err := kube.Exec(
+		platform.ControllerClusterName(), "lagoon-core",
+		"lagoon-core-storage-calculator", "/create_jwt.py").Output()
 	if err != nil {
 		panic(err)
 	}

@@ -234,15 +234,15 @@ func SetupLagoonTarget(cn string) {
 
 func InstallMailHog() {
 	cn := platform.ControllerClusterName()
-	_, err := kube.ApplyTemplate(cn, "default", "mailhog.yml.tmpl", true)
-	if err != nil {
-		fmt.Printf("[%s] unable to install mailhog: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
-	}
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing mailhog")
+	kube.ApplyTemplate(cn, "default", "mailhog.yml.tmpl", true, 0, 0)
 }
 
 func SetupNginxReverseProxyForRemotes() {
 	cn := platform.ControllerClusterName()
+	logger := log.WithField("clusterName", cn)
+	logger.Info("setting up nginx reverse proxy for remotes")
 
 	cm := map[string]interface{}{
 		"Name":   platform.Name,
@@ -256,33 +256,28 @@ func SetupNginxReverseProxyForRemotes() {
 
 	patchFile, err := templates.Render("ingress-nginx-values.yml.tmpl", cm, "")
 	if err != nil {
-		fmt.Printf("[%s] error rendering ingress nginx patch template: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", err).Fatal("error rendering template")
 	}
 
-	fmt.Printf("[%s] using generated manifest at %s\n", cn, patchFile)
-	_, err = kube.Apply(cn, "ingress-nginx", patchFile, true)
-	if err != nil {
-		fmt.Printf("[%s] unable to setup nginx reverse proxy: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
-	}
+	kube.Apply(cn, "ingress-nginx", patchFile, true)
 }
 
 func InstallCertManager() {
 	cn := platform.ControllerClusterName()
-	_, err := kube.ApplyTemplate(cn, "", "cert-manager.yaml", true)
-	if err != nil {
-		fmt.Printf("[%s] unable to install cert-manager: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
-	}
+	logger := log.WithField("clusterName", cn)
+	logger.Info("installing cert-manager")
+
+	kube.ApplyTemplate(cn, "", "cert-manager.yaml", true, 0, 0)
 
 	retries := 10
 	deployNotFound := true
 	var failedErr error
 	for deployNotFound && retries > 0 {
 		failedErr = nil
-		_, err = kube.Cmd(platform.ControllerClusterName(), "cert-manager",
-			"wait", "--for=condition=Available=true", "deployment/cert-manager-webhook").Output()
+		_, err := kube.Cmd(
+			platform.ControllerClusterName(), "cert-manager",
+			"wait", "--for=condition=Available=true",
+			"deployment/cert-manager-webhook").Output()
 		if err != nil {
 			failedErr = err
 			retries--
@@ -292,37 +287,18 @@ func InstallCertManager() {
 		deployNotFound = false
 	}
 	if failedErr != nil {
-		fmt.Printf("[%s] error while waiting for cert-manager webhook: %s\n", cn, internal.GetCmdStdErr(failedErr))
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(failedErr)).
+			Fatal("error while waiting for cert-manager webhook")
 	}
 
-	retries = 30
-	failed := true
-	for retries > 0 && failed {
-		failedErr = nil
-		_, err = kube.ApplyTemplate(platform.ControllerClusterName(), "cert-manager", "ca.yml.tmpl", true)
-		if err != nil {
-			failed = true
-			failedErr = err
-			retries--
-			time.Sleep(10 * time.Second)
-			continue
-		}
-		failed = false
-	}
-	if failed {
-		fmt.Printf("[%s] unable to install cert-manager: %s\n", cn, internal.GetCmdStdErr(failedErr))
-		os.Exit(1)
-	}
+	kube.ApplyTemplate(platform.ControllerClusterName(), "cert-manager",
+		"ca.yml.tmpl", true, 30, 10)
 }
 
 func InstallGitlab() {
 	cn := platform.ControllerClusterName()
-	_, err := kube.ApplyTemplate(cn, "gitlab", "gitlab.yml.tmpl", true)
-	if err != nil {
-		fmt.Printf("[%s] unable to install gitlab: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
-	}
+	log.WithField("clusterName", cn).Info("installing gitlab")
+	kube.ApplyTemplate(cn, "gitlab", "gitlab.yml.tmpl", true, 0, 0)
 }
 
 func InstallGitea() {
@@ -341,7 +317,7 @@ func InstallGitea() {
 	}
 	fmt.Printf("[%s] using generated gitea values at %s\n", cn, values)
 
-	_, err = helm.InstallOrUpgrade(cn, "gitea", "gitea", "gitea-charts/gitea",
+	err = helm.InstallOrUpgrade(cn, "gitea", "gitea", "gitea-charts/gitea",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
@@ -365,7 +341,7 @@ func InstallNfsProvisioner(cn string) {
 	}
 	fmt.Printf("[%s] using generated nfs-provisioner values at %s\n", cn, values)
 
-	_, err = helm.InstallOrUpgrade(cn, "nfs-provisioner", "nfs", "nfs-provisioner/nfs-server-provisioner",
+	err = helm.InstallOrUpgrade(cn, "nfs-provisioner", "nfs", "nfs-provisioner/nfs-server-provisioner",
 		[]string{"--create-namespace", "--wait", "-f", values},
 	)
 	if err != nil {
@@ -382,25 +358,25 @@ func InstallMariaDB(cn string) {
 		os.Exit(1)
 	}
 
-	_, err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml", true)
+	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install mariadb crds: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
-	_, err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml", true)
+	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install mongodb crds: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
-	_, err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml", true)
+	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml", true)
 	if err != nil {
 		fmt.Printf("[%s] unable to install postgres crds: %s\n", cn, internal.GetCmdStdErr(err))
 		os.Exit(1)
 	}
 
-	_, err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-production", "nicholaswilde/mariadb",
+	err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-production", "nicholaswilde/mariadb",
 		[]string{
 			"--create-namespace", "--wait",
 			"--set", "fullnameOverride=production",
@@ -413,7 +389,7 @@ func InstallMariaDB(cn string) {
 		os.Exit(1)
 	}
 
-	_, err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-development", "nicholaswilde/mariadb",
+	err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-development", "nicholaswilde/mariadb",
 		[]string{
 			"--create-namespace", "--wait",
 			"--set", "fullnameOverride=development",
@@ -429,11 +405,7 @@ func InstallMariaDB(cn string) {
 
 func InstallDnsmasq() {
 	cn := platform.ControllerClusterName()
-	_, err := kube.ApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true)
-	if err != nil {
-		fmt.Printf("[%s] unable to install dnsmasq: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
-	}
+	kube.ApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true, 0, 0)
 }
 
 func InstallResolver() {
@@ -475,7 +447,7 @@ func RemoveResolver() {
 
 func ConfigureKeycloak() {
 	cn := platform.ControllerClusterName()
-	if _, err := kube.ExecNoProgress(
+	if _, err := kube.Exec(
 		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 rm -f /tmp/kcadm.config
@@ -490,7 +462,7 @@ rm -f /tmp/kcadm.config
 	}
 
 	// Skip if values have already been set.
-	if out, err := kube.ExecNoProgress(
+	if out, err := kube.Exec(
 		cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 /opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon \
@@ -517,7 +489,7 @@ set -e
 	}
 
 	// Configure keycloak.
-	_, err := kube.ExecNoProgress(cn, "lagoon-core", "lagoon-core-keycloak", `
+	_, err := kube.Exec(cn, "lagoon-core", "lagoon-core-keycloak", `
 set -e
 
 /opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \

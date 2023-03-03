@@ -2,57 +2,67 @@ package helm
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
 	"sync"
 
 	"github.com/salsadigitalauorg/rockpool/internal"
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // List of Helm releases per cluster.
 var Releases sync.Map
 var UpgradeComponents []string
 
-func Exec(cn string, ns string, args ...string) *exec.Cmd {
-	cmd := exec.Command("helm", "--kubeconfig", internal.KubeconfigPath(cn))
+func Exec(cn string, ns string, args ...string) command.IShellCommand {
+	cmd := command.ShellCommander("helm", "--kubeconfig", internal.KubeconfigPath(cn))
 	if ns != "" {
-		cmd.Args = append(cmd.Args, "--namespace", ns)
+		cmd.AddArgs("--namespace", ns)
 	}
-	cmd.Args = append(cmd.Args, args...)
+	cmd.AddArgs(args...)
 	return cmd
 }
 
 func List(cn string) {
-	cmd := Exec(cn, "", "list", "--all-namespaces", "--output", "json")
-	out, err := cmd.Output()
+	logger := log.WithField("clusterName", cn)
+	out, err := Exec(cn, "", "list", "--all-namespaces", "--output", "json").Output()
 	if err != nil {
-		fmt.Println(string(out))
-		fmt.Printf("[%s] unable to get list of helm releases: %s\n", cn, internal.GetCmdStdErr(err))
-		os.Exit(1)
+		logger.WithFields(log.Fields{
+			"out": string(out),
+			"err": command.GetMsgFromCommandError(err),
+		}).Fatal("unable to get list of helm releases")
 	}
 	releases := []HelmRelease{}
 	err = json.Unmarshal(out, &releases)
 	if err != nil {
-		fmt.Printf("[%s] unable to parse helm releases: %s\n", cn, err)
-		os.Exit(1)
+		logger.WithField("err", command.GetMsgFromCommandError(err)).
+			Fatal("[%s] unable to parse helm releases: %s\n", cn, err)
 	}
 	Releases.Store(cn, releases)
 }
 
 func GetReleases(key string) []HelmRelease {
+	logger := log.WithField("key", key)
 	valueIfc, ok := Releases.Load(key)
 	if !ok {
-		panic(fmt.Sprint("releases not found for ", key))
+		logger.Panic("releases not found")
 	}
 	val, ok := valueIfc.([]HelmRelease)
 	if !ok {
-		panic(fmt.Sprint("unable to convert binpath to string for ", valueIfc))
+		logger.WithField("valueIfc", valueIfc).
+			Panic("unable to convert binpath to string")
 	}
 	return val
 }
 
-func InstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) ([]byte, error) {
+func InstallOrUpgrade(cn string, ns string, releaseName string, chartName string, args []string) error {
+	logger := log.WithFields(log.Fields{
+		"clusterName": cn,
+		"namespace":   ns,
+		"releaseName": releaseName,
+		"chartName":   chartName,
+		"args":        args,
+	})
 	upgrade := false
 	for _, u := range UpgradeComponents {
 		if u == "all" || u == releaseName {
@@ -63,21 +73,21 @@ func InstallOrUpgrade(cn string, ns string, releaseName string, chartName string
 	if !upgrade {
 		for _, r := range GetReleases(cn) {
 			if r.Name == releaseName {
-				fmt.Printf("[%s] helm release %s is already installed\n", cn, releaseName)
-				return nil, nil
+				logger.Info("helm release is already installed")
+				return nil
 			}
 		}
 	} else {
-		fmt.Printf("[%s] upgrading helm release %s\n", cn, releaseName)
+		logger.Info("upgrading helm release")
 	}
 
 	// New install.
 	if !upgrade {
-		fmt.Printf("[%s] installing helm release %s\n", cn, releaseName)
+		logger.Info("installing helm release")
 	}
 
 	cmd := Exec(cn, ns, "upgrade", "--install", releaseName, chartName)
-	cmd.Args = append(cmd.Args, args...)
-	fmt.Printf("[%s] command for %s helm release: %v\n", cn, releaseName, cmd)
-	return cmd.Output()
+	cmd.AddArgs(args...)
+	logger.WithField("command", cmd).Info("running command for helm release")
+	return cmd.RunProgressive()
 }

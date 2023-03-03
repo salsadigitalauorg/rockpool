@@ -77,7 +77,7 @@ func RegistryCreate() {
 	done := false
 	retries := 12
 	for !done && retries > 0 {
-		registryConfig, err = docker.Exec(registryNameFull, "cat "+regCfgFile)
+		registryConfig, err = docker.Exec(registryNameFull, "cat "+regCfgFile).Output()
 		if err != nil {
 			log.WithFields(log.Fields{
 				"registry": registryNameFull,
@@ -99,7 +99,7 @@ func RegistryCreate() {
 			"registry":  registryNameFull,
 			"proxyLine": proxyLine,
 		}).Info("[rockpool] adding registry proxy config")
-		_, err := docker.Exec(registryNameFull, proxyLineCmdStr)
+		_, err := docker.Exec(registryNameFull, proxyLineCmdStr).Output()
 		if err != nil {
 			log.WithFields(log.Fields{
 				"registry":  registryNameFull,

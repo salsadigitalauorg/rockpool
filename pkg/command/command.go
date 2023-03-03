@@ -24,14 +24,18 @@ import (
 
 // IShellCommand is an interface for running shell commands.
 type IShellCommand interface {
+	Run() error
 	Output() ([]byte, error)
 	CombinedOutput() ([]byte, error)
+	RunProgressive() error
 	SetDir(dir string)
 	AddArgs(args ...string)
 	Start() error
+	SetStdin(in io.Reader)
+	SetStdout(out io.Writer)
 	StdoutPipe() (io.ReadCloser, error)
 	StderrPipe() (io.ReadCloser, error)
-	RunProgressive() error
+	Wait() error
 }
 
 // ExecShellCommand implements IShellCommand.
@@ -55,6 +59,14 @@ func (cmd ExecShellCommand) RunProgressive() error {
 		return err
 	}
 	return nil
+}
+
+func (cmd ExecShellCommand) SetStdin(in io.Reader) {
+	cmd.Stdin = in
+}
+
+func (cmd ExecShellCommand) SetStdout(out io.Writer) {
+	cmd.Stdout = out
 }
 
 // NewExecShellCommander returns a command instance.
