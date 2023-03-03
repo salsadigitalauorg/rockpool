@@ -3,7 +3,6 @@ package rockpool
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -155,6 +154,8 @@ func Start(clusters []string) {
 }
 
 func Stop(clusters []string) {
+	log.WithField("clusters", clusters).Info("stopping all clusters")
+	k3d.ClusterFetch()
 	if len(clusters) == 0 {
 		clusters = allClusters()
 	}
@@ -170,6 +171,8 @@ func Stop(clusters []string) {
 }
 
 func Down(clusters []string) {
+	log.WithField("clusters", clusters).Info("stopping and deleting all clusters")
+	k3d.ClusterFetch()
 	if len(clusters) == 0 {
 		clusters = allClusters()
 	}
@@ -421,7 +424,7 @@ port 6153
 	}
 
 	logger.Info("creating resolver file")
-	if tmpFile, err = ioutil.TempFile("", "rockpool-resolver-"); err != nil {
+	if tmpFile, err = os.CreateTemp("", "rockpool-resolver-"); err != nil {
 		logger.WithError(err).Panic("unable to create temporary file")
 	}
 	if err = os.Chmod(tmpFile.Name(), 0777); err != nil {
