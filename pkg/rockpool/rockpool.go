@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
@@ -433,7 +432,7 @@ port 6153
 		logger.WithField("tempFile", tmpFile.Name()).WithError(err).
 			Panic("unable to write to temporary file")
 	}
-	if _, err = exec.Command("sudo", "mv", tmpFile.Name(), dest).Output(); err != nil {
+	if err = command.ShellCommander("sudo", "mv", tmpFile.Name(), dest).Run(); err != nil {
 		logger.WithFields(log.Fields{
 			"tempFile":    tmpFile.Name(),
 			"destination": dest,
@@ -637,14 +636,14 @@ func Status() {
 	}
 
 	fmt.Println("Kubeconfig:")
-	fmt.Println("  Controller:", internal.KubeconfigPath(platform.ControllerClusterName()))
+	fmt.Println("  Controller:", kube.KubeconfigPath(platform.ControllerClusterName()))
 	if len(k3d.Clusters) > 1 {
 		fmt.Println("  Targets:")
 		for _, c := range k3d.Clusters {
 			if c.Name == platform.ControllerClusterName() {
 				continue
 			}
-			fmt.Println("    ", internal.KubeconfigPath(c.Name))
+			fmt.Println("    ", kube.KubeconfigPath(c.Name))
 		}
 	}
 

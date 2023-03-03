@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
@@ -16,8 +16,27 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func KubeconfigPath(clusterName string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(fmt.Sprintln("unable to get user home directory:", err))
+	}
+	return fmt.Sprintf("%s/.k3d/kubeconfig-%s.yaml", home, clusterName)
+}
+
+func GetTargetIdFromCn(cn string) int {
+	cnParts := strings.Split(cn, "-")
+	idStr := cnParts[len(cnParts)-1]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		fmt.Printf("[%s] invalid cluster id: %s\n", cn, idStr)
+		os.Exit(1)
+	}
+	return id
+}
+
 func Cmd(cn string, ns string, args ...string) command.IShellCommand {
-	cmd := command.ShellCommander("kubectl", "--kubeconfig", internal.KubeconfigPath(cn))
+	cmd := command.ShellCommander("kubectl", "--kubeconfig", KubeconfigPath(cn))
 	if ns != "" {
 		cmd.AddArgs("--namespace", ns)
 	}

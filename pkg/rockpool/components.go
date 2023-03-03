@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
@@ -244,7 +243,7 @@ func InstallLagoonRemote(cn string) {
 		"RABBITMQ_PASSWORD",
 	)
 
-	cm["TargetId"] = fmt.Sprint(internal.GetTargetIdFromCn(cn))
+	cm["TargetId"] = fmt.Sprint(kube.GetTargetIdFromCn(cn))
 	values, err := templates.Render("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
 	if err != nil {
 		logger.WithError(err).Fatal("error rendering lagoon-remote values template")
@@ -263,7 +262,7 @@ func RegisterLagoonRemote(cn string) {
 	logger := log.WithField("clusterName", cn)
 	logger.Info("registering lagoon remote")
 
-	cId := internal.GetTargetIdFromCn(cn)
+	cId := kube.GetTargetIdFromCn(cn)
 	rName := platform.Name + fmt.Sprint(cId)
 	re := lagoon.Remote{
 		Id:            cId,

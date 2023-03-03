@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/salsadigitalauorg/rockpool/internal"
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
+	"github.com/salsadigitalauorg/rockpool/pkg/kube"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -15,7 +15,7 @@ var Releases sync.Map
 var UpgradeComponents []string
 
 func Exec(cn string, ns string, args ...string) command.IShellCommand {
-	cmd := command.ShellCommander("helm", "--kubeconfig", internal.KubeconfigPath(cn))
+	cmd := command.ShellCommander("helm", "--kubeconfig", kube.KubeconfigPath(cn))
 	if ns != "" {
 		cmd.AddArgs("--namespace", ns)
 	}
