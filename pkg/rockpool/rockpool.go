@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/action"
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
@@ -23,10 +22,11 @@ import (
 
 func EnsureBinariesExist() {
 	log.Debug("checking if binaries exist")
-	action.Chain{
+	chain := &action.Chain{
 		FailOnFirstError: &[]bool{false}[0],
-		ErrorMsg:         "some requirements were not met; please review above"}.
-		Add(action.BinaryExists{Bin: "k3d"}).
+		ErrorMsg:         "some requirements were not met; please review above",
+	}
+	chain.Add(action.BinaryExists{Bin: "k3d"}).
 		Add(action.BinaryExists{Bin: "docker", VersionArgs: []string{"--format", "json"}}).
 		Add(action.BinaryExists{Bin: "kubectl", VersionArgs: []string{"--client", "--short"}}).
 		Add(action.BinaryExists{Bin: "helm"}).
@@ -47,26 +47,26 @@ func Initialise() {
 	}
 }
 
-func Up(clusters []string) {
+func Up(desiredClusters []string) {
 	k3d.ClusterFetch()
-	if len(clusters) == 0 {
+	if len(desiredClusters) == 0 {
 		if len(k3d.Clusters) > 0 {
-			clusters = allClusters()
+			desiredClusters = allClusters()
 		} else {
-			clusters = append(clusters, platform.ControllerClusterName())
+			desiredClusters = append(desiredClusters, platform.ControllerClusterName())
 			for i := 1; i <= platform.NumTargets; i++ {
-				clusters = append(clusters, platform.TargetClusterName(i))
+				desiredClusters = append(desiredClusters, platform.TargetClusterName(i))
 			}
 		}
 	}
 	k3d.RegistryCreate()
 	k3d.RegistryRenderConfig()
 	k3d.RegistryStart()
-	CreateClusters(clusters)
+	CreateClusters(desiredClusters)
 
 	setupController := false
 	setupTargets := []string{}
-	for _, c := range clusters {
+	for _, c := range desiredClusters {
 		if c == platform.ControllerClusterName() {
 			setupController = true
 			continue
@@ -167,13 +167,69 @@ func CreateClusters(clusters []string) {
 }
 
 func SetupLagoonController() {
-	InstallMailHog()
+	clusterName := platform.ControllerClusterName()
 
-	helm.List(platform.ControllerClusterName())
-	InstallIngressNginx(platform.ControllerClusterName())
-	InstallCertManager()
+	chain := action.Chain{}
 
-	InstallDnsmasq()
+	chain.Add(kube.Templater{
+		Stage:       "controller-setup",
+		Info:        "installing mailhog",
+		ClusterName: clusterName,
+		Namespace:   "default",
+		Force:       true,
+		Template:    "mailhog.yml.tmpl",
+	})
+
+	chain.Add(action.Handler{
+		Func: func(logger *log.Entry) bool {
+			helm.List(clusterName)
+			return true
+		},
+	})
+
+	ingressNginxInstaller.Stage = "controller-setup"
+	ingressNginxInstaller.ClusterName = clusterName
+	chain.Add(ingressNginxInstaller)
+
+	chain.Add(kube.Templater{
+		Stage:       "controller-setup",
+		Info:        "installing cert-manager",
+		ClusterName: clusterName,
+		Namespace:   "",
+		Template:    "cert-manager.yaml",
+		Force:       true,
+	})
+
+	chain.Add(kube.Waiter{
+		Stage:       "controller-setup",
+		ClusterName: clusterName,
+		Namespace:   "cert-manager",
+		Resource:    "deployment/cert-manager-webhook",
+		Condition:   "Available=true",
+		Retries:     10,
+		Delay:       5,
+	})
+
+	chain.Add(kube.Templater{
+		Stage:       "controller-setup",
+		ClusterName: clusterName,
+		Namespace:   "cert-manager",
+		Template:    "ca.yml.tmpl",
+		Force:       true,
+		Retries:     30,
+		Delay:       10,
+	})
+
+	chain.Run()
+
+	chain.Add(kube.Templater{
+		Stage:       "controller-setup",
+		Info:        "installing dnsmasq",
+		ClusterName: clusterName,
+		Namespace:   "default",
+		Force:       true,
+		Template:    "dnsmasq.yml.tmpl",
+	})
 
 	// InstallGitlab()
 	InstallGitea()
@@ -191,23 +247,24 @@ func SetupLagoonController() {
 	LagoonCliAddConfig()
 }
 
-func SetupLagoonTarget(cn string) {
+func SetupLagoonTarget(clusterName string) {
+	chain := action.Chain{}
+
 	defer platform.WgDone()
 
-	helm.List(cn)
-	ConfigureTargetCoreDNS(cn)
-	InstallIngressNginx(cn)
-	InstallNfsProvisioner(cn)
-	InstallMariaDB(cn)
-	InstallLagoonRemote(cn)
-	RegisterLagoonRemote(cn)
-}
+	helm.List(clusterName)
+	ConfigureTargetCoreDNS(clusterName)
 
-func InstallMailHog() {
-	cn := platform.ControllerClusterName()
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing mailhog")
-	kube.ApplyTemplate(cn, "default", "mailhog.yml.tmpl", true, 0, 0)
+	ingressNginxInstaller.Stage = "target-setup"
+	ingressNginxInstaller.ClusterName = clusterName
+	chain.Add(ingressNginxInstaller)
+
+	chain.Run()
+
+	InstallNfsProvisioner(clusterName)
+	InstallMariaDB(clusterName)
+	InstallLagoonRemote(clusterName)
+	RegisterLagoonRemote(clusterName)
 }
 
 func SetupNginxReverseProxyForRemotes() {
@@ -231,38 +288,6 @@ func SetupNginxReverseProxyForRemotes() {
 	}
 
 	kube.Apply(cn, "ingress-nginx", patchFile, true)
-}
-
-func InstallCertManager() {
-	cn := platform.ControllerClusterName()
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing cert-manager")
-
-	kube.ApplyTemplate(cn, "", "cert-manager.yaml", true, 0, 0)
-
-	retries := 10
-	deployNotFound := true
-	var failedErr error
-	for deployNotFound && retries > 0 {
-		failedErr = nil
-		_, err := kube.Cmd(
-			platform.ControllerClusterName(), "cert-manager",
-			"wait", "--for=condition=Available=true",
-			"deployment/cert-manager-webhook").Output()
-		if err != nil {
-			failedErr = err
-			retries--
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		deployNotFound = false
-	}
-	if failedErr != nil {
-		logger.WithError(failedErr).Fatal("error while waiting for cert-manager webhook")
-	}
-
-	kube.ApplyTemplate(platform.ControllerClusterName(), "cert-manager",
-		"ca.yml.tmpl", true, 30, 10)
 }
 
 func InstallGitlab() {
@@ -368,12 +393,6 @@ func InstallMariaDB(cn string) {
 	if err != nil {
 		logger.WithError(err).Fatal("unable to install mariadb-development")
 	}
-}
-
-func InstallDnsmasq() {
-	cn := platform.ControllerClusterName()
-	log.WithField("clusterName", cn).Info("installing dnsmasq")
-	kube.ApplyTemplate(cn, "default", "dnsmasq.yml.tmpl", true, 0, 0)
 }
 
 func InstallResolver() {

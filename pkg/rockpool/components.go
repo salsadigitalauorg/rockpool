@@ -20,22 +20,17 @@ import (
 var HarborSecretManifest string
 var HarborCaCrtFile string
 
-func InstallIngressNginx(cn string) {
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing ingress-nginx")
-
-	err := helm.InstallOrUpgrade(cn, "ingress-nginx", "ingress-nginx",
-		"https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
-		[]string{
-			"--create-namespace", "--wait",
-			"--set", "controller.config.ssl-redirect=false",
-			"--set", "controller.config.proxy-body-size=8m",
-			"--set", "server-name-hash-bucket-size=128",
-		},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install ingress-nginx")
-	}
+var ingressNginxInstaller = helm.Installer{
+	Info:        "installing ingress-nginx",
+	Namespace:   "ingress-nginx",
+	ReleaseName: "ingress-nginx",
+	Chart:       "https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
+	Args: []string{
+		"--create-namespace", "--wait",
+		"--set", "controller.config.ssl-redirect=false",
+		"--set", "controller.config.proxy-body-size=8m",
+		"--set", "server-name-hash-bucket-size=128",
+	},
 }
 
 func InstallHarbor() {

@@ -60,7 +60,8 @@ func RegistryCreate() {
 	err := command.ShellCommander("k3d", "registry", "create",
 		registryName, "--port", "5111").Run()
 	if err != nil {
-		logger.WithError(err).Fatal("unable to create registry")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to create registry")
 	}
 
 	// Configure registry to enable proxy.
@@ -74,7 +75,8 @@ func RegistryCreate() {
 	for !done && retries > 0 {
 		registryConfig, err = docker.Exec(registryNameFull, "cat "+regCfgFile).Output()
 		if err != nil {
-			logger.WithError(err).Warn("unable to find registry container")
+			logger.WithError(command.GetMsgFromCommandError(err)).
+				Warn("unable to find registry container")
 			time.Sleep(5 * time.Second)
 			retries--
 			continue
@@ -90,7 +92,8 @@ func RegistryCreate() {
 			Debug("adding registry proxy config")
 		err := docker.Exec(registryNameFull, proxyLineCmdStr).Run()
 		if err != nil {
-			logger.WithField("proxyLine", proxyLine).WithError(err).
+			logger.WithField("proxyLine", proxyLine).
+				WithError(command.GetMsgFromCommandError(err)).
 				Fatal("error adding registry proxy config")
 		}
 		docker.Restart(registryNameFull)
@@ -114,7 +117,8 @@ func RegistryStop() {
 
 	_, err := docker.Stop(Reg.Name)
 	if err != nil {
-		logger.WithError(err).Fatal("error stopping registry")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("error stopping registry")
 	}
 }
 
@@ -124,7 +128,8 @@ func RegistryStart() {
 
 	_, err := docker.Start(registryNameFull)
 	if err != nil {
-		logger.WithError(err).Fatal("error starting registry")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("error starting registry")
 	}
 }
 
@@ -138,7 +143,8 @@ func RegistryDelete() {
 
 	err := command.ShellCommander("k3d", "registry", "delete", Reg.Name).Run()
 	if err != nil {
-		log.WithError(err).Fatal("unable to delete registry")
+		log.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to delete registry")
 	}
 }
 
@@ -147,7 +153,8 @@ func ClusterFetchAll() ClusterList {
 	res, err := command.ShellCommander("k3d", "cluster", "list", "-o", "json").Output()
 	log.Debug("cluster list: ", string(res))
 	if err != nil {
-		log.WithError(err).Fatal("unable to get cluster list")
+		log.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to get cluster list")
 	}
 
 	err = json.Unmarshal(res, &cl)

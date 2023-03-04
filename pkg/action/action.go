@@ -13,12 +13,13 @@ type Action interface {
 	Execute() bool
 }
 
-func (c Chain) Add(a Action) *Chain {
+func (c *Chain) Add(a Action) *Chain {
 	c.Actions = append(c.Actions, a)
-	return &c
+	return c
 }
 
 func (c Chain) Run() {
+	log.WithField("actions", c.Actions).Debug("running chain")
 	if c.FailOnFirstError == nil {
 		c.FailOnFirstError = &[]bool{true}[0]
 	}
