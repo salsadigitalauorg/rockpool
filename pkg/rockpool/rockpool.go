@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/action"
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
@@ -18,53 +18,24 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 
-	"github.com/briandowns/spinner"
 	log "github.com/sirupsen/logrus"
 )
 
-var Spinner spinner.Spinner
-
 func EnsureBinariesExist() {
 	log.Debug("checking if binaries exist")
-	binaries := []string{"k3d", "docker", "kubectl", "helm", "lagoon"}
-	missing := []string{}
-	versionError := false
-	for _, b := range binaries {
-		absPath, err := exec.LookPath(b)
-		if err != nil {
-			missing = append(missing, fmt.Sprintf("could not find %s; please ensure it is installed and can be found in the $PATH", b))
-			continue
-		}
-		versionCmd := command.ShellCommander(absPath, "version")
-		if b == "kubectl" {
-			versionCmd.AddArgs("--client", "--short")
-		}
-		if b == "docker" {
-			versionCmd.AddArgs("--format", "json")
-		}
-		out, err := versionCmd.Output()
-		if err != nil {
-			log.WithField("binary", b).WithError(err).Error("Error getting version")
-			versionError = true
-		}
-		log.WithFields(log.Fields{
-			"binary": b,
-			"result": string(out),
-		}).Debug("fetched version")
-	}
-	for _, m := range missing {
-		log.WithField("binary", m).Error("missing binary")
-	}
-	if len(missing) > 0 || versionError {
-		log.Fatal("some requirements were not met; please review above")
-	}
+	action.Chain{
+		FailOnFirstError: &[]bool{false}[0],
+		ErrorMsg:         "some requirements were not met; please review above"}.
+		Add(action.BinaryExists{Bin: "k3d"}).
+		Add(action.BinaryExists{Bin: "docker", VersionArgs: []string{"--format", "json"}}).
+		Add(action.BinaryExists{Bin: "kubectl", VersionArgs: []string{"--client", "--short"}}).
+		Add(action.BinaryExists{Bin: "helm"}).
+		Add(action.BinaryExists{Bin: "lagoon"}).
+		Run()
 }
 
 func Initialise() {
 	EnsureBinariesExist()
-
-	Spinner = *spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	Spinner.Color("red", "bold")
 
 	// Create directory for rendered templates.
 	templDir := templates.RenderedPath(true)
