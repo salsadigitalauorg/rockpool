@@ -1,6 +1,7 @@
 package rockpool
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -119,7 +120,12 @@ func Start(clusters []string) {
 		k3d.ClusterStart(cn)
 		AddHarborHostEntries(cn)
 		if cn != platform.ControllerClusterName() {
-			ConfigureTargetCoreDNS(cn)
+			action.Handler{
+				Stage:     "cluster-start",
+				Info:      "configuring coredns for target",
+				LogFields: log.Fields{"cluster": cn},
+				Func:      ConfigureTargetCoreDNS,
+			}.Execute()
 		}
 	}
 }
@@ -171,7 +177,7 @@ func SetupLagoonController() {
 
 	chain := action.Chain{}
 
-	chain.Add(kube.Templater{
+	chain.Add(kube.Applyer{
 		Stage:       "controller-setup",
 		Info:        "installing mailhog",
 		ClusterName: clusterName,
@@ -191,7 +197,7 @@ func SetupLagoonController() {
 	ingressNginxInstaller.ClusterName = clusterName
 	chain.Add(ingressNginxInstaller)
 
-	chain.Add(kube.Templater{
+	chain.Add(kube.Applyer{
 		Stage:       "controller-setup",
 		Info:        "installing cert-manager",
 		ClusterName: clusterName,
@@ -206,7 +212,7 @@ func SetupLagoonController() {
 		Condition:   "Available=true",
 		Retries:     10,
 		Delay:       5,
-	}).Add(kube.Templater{
+	}).Add(kube.Applyer{
 		Stage:       "controller-setup",
 		ClusterName: clusterName,
 		Namespace:   "cert-manager",
@@ -216,7 +222,7 @@ func SetupLagoonController() {
 		Delay:       10,
 	})
 
-	chain.Add(kube.Templater{
+	chain.Add(kube.Applyer{
 		Stage:       "controller-setup",
 		Info:        "installing dnsmasq",
 		ClusterName: clusterName,
@@ -390,19 +396,145 @@ func SetupLagoonTarget(clusterName string) {
 
 	defer platform.WgDone()
 
-	helm.FetchInstalledReleases(clusterName)
-	ConfigureTargetCoreDNS(clusterName)
+	chain.Add(action.Handler{
+		Stage:     "target-setup",
+		Info:      "configuring coredns for target",
+		LogFields: log.Fields{"cluster": clusterName},
+		Func:      ConfigureTargetCoreDNS,
+	})
 
+	chain.Add(action.Handler{
+		Func: func(logger *log.Entry) bool {
+			helm.FetchInstalledReleases(clusterName)
+			return true
+		},
+	})
 	ingressNginxInstaller.Stage = "target-setup"
 	ingressNginxInstaller.ClusterName = clusterName
 	chain.Add(ingressNginxInstaller)
 
-	chain.Run()
+	chain.Add(helm.Installer{
+		Stage:       "target-setup",
+		Info:        "installing nfs provisioner",
+		ClusterName: clusterName,
+		AddRepo: helm.HelmRepo{
+			Name: "nfs-provisioner",
+			Url:  "https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/",
+		},
+		Namespace:          "nfs-provisioner",
+		ReleaseName:        "nfs",
+		Chart:              "nfs-provisioner/nfs-server-provisioner",
+		Args:               []string{"--create-namespace", "--wait"},
+		ValuesTemplate:     "nfs-server-provisioner-values.yml.tmpl",
+		ValuesTemplateVars: platform.ToMap(),
+	})
 
-	InstallNfsProvisioner(clusterName)
-	InstallMariaDB(clusterName)
-	InstallLagoonRemote(clusterName)
-	RegisterLagoonRemote(clusterName)
+	chain.Add(kube.Applyer{
+		Stage:       "target-setup",
+		Info:        "applying dbaas-operator manifests",
+		ClusterName: clusterName,
+		Namespace:   "",
+		Urls: []string{
+			"https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml",
+			"https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml",
+			"https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml",
+		},
+		Force: true,
+	}).Add(helm.Installer{
+		Stage:       "target-setup",
+		Info:        "installing mariadb-production",
+		ClusterName: clusterName,
+		AddRepo: helm.HelmRepo{
+			Name: "nicholaswilde",
+			Url:  "https://nicholaswilde.github.io/helm-charts/",
+		},
+		Namespace:   "mariadb",
+		ReleaseName: "mariadb-production",
+		Chart:       "nicholaswilde/mariadb",
+		Args: []string{
+			"--create-namespace", "--wait",
+			"--set", "fullnameOverride=production",
+			"--set", "secret.MYSQL_ROOT_PASSWORD=mariadbpass",
+			"--set", "persistence.config.enabled=true",
+		},
+	}).Add(helm.Installer{
+		Stage:       "target-setup",
+		Info:        "installing mariadb-development",
+		ClusterName: clusterName,
+		AddRepo: helm.HelmRepo{
+			Name: "nicholaswilde",
+			Url:  "https://nicholaswilde.github.io/helm-charts/",
+		},
+		Namespace:   "mariadb",
+		ReleaseName: "mariadb-development",
+		Chart:       "nicholaswilde/mariadb",
+		Args: []string{
+			"--create-namespace", "--wait",
+			"--set", "fullnameOverride=development",
+			"--set", "secret.MYSQL_ROOT_PASSWORD=mariadbpass",
+			"--set", "persistence.config.enabled=true",
+		},
+	})
+
+	lagoonValues := platform.ToMap()
+	lagoonValues["LagoonVersion"] = lagoon.Version
+	lagoonValues["TargetId"] = fmt.Sprint(kube.GetTargetIdFromCn(clusterName))
+	_, lagoonValues["RabbitMQPassword"] = kube.GetSecret(platform.ControllerClusterName(),
+		"lagoon-core",
+		"lagoon-core-broker",
+		"RABBITMQ_PASSWORD",
+	)
+	chain.Add(helm.Installer{
+		Stage:       "target-setup",
+		Info:        "installing lagoon remote",
+		ClusterName: clusterName,
+		AddRepo: helm.HelmRepo{
+			Name: "lagoon",
+			Url:  "https://uselagoon.github.io/lagoon-charts/",
+		},
+		Namespace:          "lagoon",
+		ReleaseName:        "lagoon-remote",
+		Chart:              "lagoon/lagoon-remote",
+		Args:               []string{"--create-namespace", "--wait"},
+		ValuesTemplate:     "lagoon-remote-values.yml.tmpl",
+		ValuesTemplateVars: lagoonValues,
+	})
+
+	chain.Add(action.Handler{
+		Stage:     "target-setup",
+		Info:      "registering lagoon remote",
+		LogFields: log.Fields{"cluster": clusterName},
+		Func: func(logger *log.Entry) bool {
+			cn := logger.Data["cluster"].(string)
+			cId := kube.GetTargetIdFromCn(cn)
+			rName := platform.Name + fmt.Sprint(cId)
+			re := lagoon.Remote{
+				Id:            cId,
+				Name:          rName,
+				ConsoleUrl:    fmt.Sprintf("https://%s:6443", k3d.TargetIP(cn)),
+				RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, platform.Hostname()),
+			}
+			for _, existingRe := range lagoon.Remotes {
+				if existingRe.Id == re.Id && existingRe.Name == re.Name {
+					logger.WithField("remote", re.Name).Debug("Lagoon remote already exists")
+					return true
+				}
+			}
+			b64Token, err := kube.Cmd(cn, "lagoon", "get", "secret",
+				"-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
+			if err != nil {
+				logger.WithError(err).Fatal("error fetching lagoon remote token")
+			}
+			token, err := base64.URLEncoding.DecodeString(strings.Trim(string(b64Token), "'"))
+			if err != nil {
+				logger.WithError(err).Fatal("error decoding lagoon remote token")
+			}
+			lagoon.AddRemote(re, string(token))
+			return true
+		},
+	})
+
+	chain.Run()
 }
 
 func SetupNginxReverseProxyForRemotes() {
@@ -426,81 +558,6 @@ func SetupNginxReverseProxyForRemotes() {
 	}
 
 	kube.Apply(cn, "ingress-nginx", patchFile, true)
-}
-
-func InstallNfsProvisioner(cn string) {
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing nfs provisioner")
-
-	err := helm.Exec(cn, "", "repo", "add", "nfs-provisioner",
-		"https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/").Run()
-	if err != nil {
-		logger.WithError(err).Fatal("unable to add nfs-provisioner repo")
-	}
-
-	values, err := templates.Render("nfs-server-provisioner-values.yml.tmpl",
-		platform.ToMap(), "")
-	if err != nil {
-		logger.WithError(err).Fatal("error rendering nfs-provisioner values template")
-	}
-
-	err = helm.InstallOrUpgrade(cn, "nfs-provisioner", "nfs",
-		"nfs-provisioner/nfs-server-provisioner",
-		[]string{"--create-namespace", "--wait", "-f", values},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install nfs-provisioner")
-	}
-}
-
-func InstallMariaDB(cn string) {
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing mariadb")
-
-	err := helm.Exec(cn, "", "repo", "add", "nicholaswilde",
-		"https://nicholaswilde.github.io/helm-charts/").Run()
-	if err != nil {
-		logger.WithError(err).Fatal("unable to add nicholaswilde repo")
-	}
-
-	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mariadb.yaml", true)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install mariadb crds")
-	}
-
-	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/mongodb.yaml", true)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install mongodb crds")
-	}
-
-	err = kube.Apply(cn, "", "https://raw.githubusercontent.com/amazeeio/charts/main/charts/dbaas-operator/crds/postgres.yaml", true)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install postgres crds")
-	}
-
-	err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-production", "nicholaswilde/mariadb",
-		[]string{
-			"--create-namespace", "--wait",
-			"--set", "fullnameOverride=production",
-			"--set", "secret.MYSQL_ROOT_PASSWORD=mariadbpass",
-			"--set", "persistence.config.enabled=true",
-		},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install mariadb-production")
-	}
-
-	err = helm.InstallOrUpgrade(cn, "mariadb", "mariadb-development", "nicholaswilde/mariadb",
-		[]string{
-			"--create-namespace", "--wait",
-			"--set", "fullnameOverride=development",
-			"--set", "secret.MYSQL_ROOT_PASSWORD=mariadbpass",
-			"--set", "persistence.config.enabled=true",
-		},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install mariadb-development")
-	}
 }
 
 func InstallResolver() {
@@ -547,39 +604,6 @@ func RemoveResolver() {
 	logger.Info("removing resolver file")
 	if err := command.ShellCommander("rm", "-f", dest).Run(); err != nil {
 		logger.WithError(err).Warn("error when deleting resolver file")
-	}
-}
-
-// ConfigureTargetCoreDNS adds DNS records to targets for the required services.
-func ConfigureTargetCoreDNS(cn string) {
-	logger := log.WithField("clusterName", cn)
-	logger.Info("configuring coredns for target")
-
-	cm := kube.GetConfigMap(cn, "kube-system", "coredns")
-	corednsCm := CoreDNSConfigMap{}
-	err := json.Unmarshal(cm, &corednsCm)
-	if err != nil {
-		logger.WithError(err).Fatal("error parsing CoreDNS configmap")
-	}
-	for _, h := range []string{"harbor", "broker", "ssh", "api", "gitea"} {
-		entry := fmt.Sprintf("%s %s.lagoon.%s\n", k3d.ControllerIP(), h, platform.Hostname())
-		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
-			corednsCm.Data.NodeHosts += entry
-		}
-	}
-
-	cm, err = json.Marshal(corednsCm)
-	if err != nil {
-		logger.WithError(err).Fatal("error encoding CoreDNS configmap")
-	}
-
-	kube.Replace(cn, "kube-system", "coredns", string(cm))
-
-	logger.Info("restarting coredns")
-	err = kube.Cmd(cn, "kube-system", "rollout", "restart",
-		"deployment/coredns").RunProgressive()
-	if err != nil {
-		logger.WithError(err).Fatal("CoreDNS restart failed")
 	}
 }
 

@@ -10,7 +10,6 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
-	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 
@@ -162,71 +161,34 @@ func AddHarborHostEntries(cn string) {
 	}
 }
 
-func AddLagoonRepo(cn string) {
-	err := helm.Exec(cn, "", "repo", "add", "lagoon",
-		"https://uselagoon.github.io/lagoon-charts/").Run()
+// ConfigureTargetCoreDNS adds DNS records to targets for the required services.
+var ConfigureTargetCoreDNS = func(logger *log.Entry) bool {
+	cn := logger.Data["cluster"].(string)
+	cm := kube.GetConfigMap(cn, "kube-system", "coredns")
+	corednsCm := CoreDNSConfigMap{}
+	err := json.Unmarshal(cm, &corednsCm)
 	if err != nil {
-		log.WithField("clusterName", cn).WithError(err).
-			Fatal("unable to add lagoon repo")
+		logger.WithError(err).Fatal("error parsing CoreDNS configmap")
 	}
-}
-
-func InstallLagoonRemote(cn string) {
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing lagoon remote")
-
-	AddLagoonRepo(cn)
-
-	// Get RabbitMQ pass.
-	cm := platform.ToMap()
-	cm["LagoonVersion"] = lagoon.Version
-	_, cm["RabbitMQPassword"] = kube.GetSecret(platform.ControllerClusterName(),
-		"lagoon-core",
-		"lagoon-core-broker",
-		"RABBITMQ_PASSWORD",
-	)
-
-	cm["TargetId"] = fmt.Sprint(kube.GetTargetIdFromCn(cn))
-	values, err := templates.Render("lagoon-remote-values.yml.tmpl", cm, cn+"-lagoon-remote-values.yml")
-	if err != nil {
-		logger.WithError(err).Fatal("error rendering lagoon-remote values template")
-	}
-
-	err = helm.InstallOrUpgrade(cn, "lagoon", "lagoon-remote",
-		"lagoon/lagoon-remote",
-		[]string{"--create-namespace", "--wait", "-f", values},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install lagoon-remote")
-	}
-}
-
-func RegisterLagoonRemote(cn string) {
-	logger := log.WithField("clusterName", cn)
-	logger.Info("registering lagoon remote")
-
-	cId := kube.GetTargetIdFromCn(cn)
-	rName := platform.Name + fmt.Sprint(cId)
-	re := lagoon.Remote{
-		Id:            cId,
-		Name:          rName,
-		ConsoleUrl:    fmt.Sprintf("https://%s:6443", k3d.TargetIP(cn)),
-		RouterPattern: fmt.Sprintf("${environment}.${project}.%s.%s", rName, platform.Hostname()),
-	}
-	for _, existingRe := range lagoon.Remotes {
-		if existingRe.Id == re.Id && existingRe.Name == re.Name {
-			logger.WithField("remote", re.Name).Debug("Lagoon remote already exists")
-			return
+	for _, h := range []string{"harbor", "broker", "ssh", "api", "gitea"} {
+		entry := fmt.Sprintf("%s %s.lagoon.%s\n", k3d.ControllerIP(), h, platform.Hostname())
+		if !strings.Contains(corednsCm.Data.NodeHosts, entry) {
+			corednsCm.Data.NodeHosts += entry
 		}
 	}
-	b64Token, err := kube.Cmd(cn, "lagoon", "get", "secret",
-		"-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
+
+	cm, err = json.Marshal(corednsCm)
 	if err != nil {
-		logger.WithError(err).Fatal("error fetching lagoon remote token")
+		logger.WithError(err).Fatal("error encoding CoreDNS configmap")
 	}
-	token, err := base64.URLEncoding.DecodeString(strings.Trim(string(b64Token), "'"))
+
+	kube.Replace(cn, "kube-system", "coredns", string(cm))
+
+	logger.Info("restarting coredns")
+	err = kube.Cmd(cn, "kube-system", "rollout", "restart",
+		"deployment/coredns").RunProgressive()
 	if err != nil {
-		logger.WithError(err).Fatal("error decoding lagoon remote token")
+		logger.WithError(err).Fatal("CoreDNS restart failed")
 	}
-	lagoon.AddRemote(re, string(token))
+	return true
 }

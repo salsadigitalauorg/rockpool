@@ -12,13 +12,13 @@ type HelmRepo struct {
 
 type Installer struct {
 	Stage              string
+	Info               string
 	ClusterName        string
 	AddRepo            HelmRepo
 	Namespace          string
 	ReleaseName        string
 	Chart              string
 	Args               []string
-	Info               string
 	ValuesTemplate     string
 	ValuesTemplateVars interface{}
 }
