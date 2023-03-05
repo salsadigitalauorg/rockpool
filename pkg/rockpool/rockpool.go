@@ -198,9 +198,7 @@ func SetupLagoonController() {
 		Namespace:   "",
 		Template:    "cert-manager.yaml",
 		Force:       true,
-	})
-
-	chain.Add(kube.Waiter{
+	}).Add(kube.Waiter{
 		Stage:       "controller-setup",
 		ClusterName: clusterName,
 		Namespace:   "cert-manager",
@@ -208,9 +206,7 @@ func SetupLagoonController() {
 		Condition:   "Available=true",
 		Retries:     10,
 		Delay:       5,
-	})
-
-	chain.Add(kube.Templater{
+	}).Add(kube.Templater{
 		Stage:       "controller-setup",
 		ClusterName: clusterName,
 		Namespace:   "cert-manager",
@@ -219,8 +215,6 @@ func SetupLagoonController() {
 		Retries:     30,
 		Delay:       10,
 	})
-
-	chain.Run()
 
 	chain.Add(kube.Templater{
 		Stage:       "controller-setup",
@@ -231,8 +225,32 @@ func SetupLagoonController() {
 		Template:    "dnsmasq.yml.tmpl",
 	})
 
-	// InstallGitlab()
-	InstallGitea()
+	// chain.Add(kube.Templater{
+	// 	Stage:       "controller-setup",
+	// 	Info:        "installing gitlab",
+	// 	ClusterName: clusterName,
+	// 	Namespace:   "gitlab",
+	// 	Force:       true,
+	// 	Template:    "gitlab.yml.tmpl",
+	// })
+
+	chain.Add(helm.Installer{
+		Stage:       "controller-setup",
+		ClusterName: clusterName,
+		Namespace:   "gitea",
+		AddRepo: helm.HelmRepo{
+			Name: "gitea-charts",
+			Url:  "https://dl.gitea.io/charts/",
+		},
+		ReleaseName:        "gitea",
+		Chart:              "gitea-charts/gitea",
+		Args:               []string{"--create-namespace"},
+		Info:               "installing gitea",
+		ValuesTemplate:     "gitea-values.yml.tmpl",
+		ValuesTemplateVars: platform.ToMap(),
+	})
+
+	chain.Run()
 
 	// Create test repo.
 	gitea.CreateRepo()
@@ -288,36 +306,6 @@ func SetupNginxReverseProxyForRemotes() {
 	}
 
 	kube.Apply(cn, "ingress-nginx", patchFile, true)
-}
-
-func InstallGitlab() {
-	cn := platform.ControllerClusterName()
-	log.WithField("clusterName", cn).Info("installing gitlab")
-	kube.ApplyTemplate(cn, "gitlab", "gitlab.yml.tmpl", true, 0, 0)
-}
-
-func InstallGitea() {
-	cn := platform.ControllerClusterName()
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing gitea")
-
-	err := helm.Exec(cn, "", "repo", "add", "gitea-charts",
-		"https://dl.gitea.io/charts/").Run()
-	if err != nil {
-		logger.WithError(err).Fatal("error adding gitea helm repo")
-	}
-
-	values, err := templates.Render("gitea-values.yml.tmpl", platform.ToMap(), "")
-	if err != nil {
-		logger.WithError(err).Fatal("error rendering gitea values template")
-	}
-
-	err = helm.InstallOrUpgrade(cn, "gitea", "gitea", "gitea-charts/gitea",
-		[]string{"--create-namespace", "--wait", "-f", values},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install gitea")
-	}
 }
 
 func InstallNfsProvisioner(cn string) {

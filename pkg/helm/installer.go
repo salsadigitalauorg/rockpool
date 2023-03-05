@@ -1,15 +1,26 @@
 package helm
 
-import log "github.com/sirupsen/logrus"
+import (
+	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
+	log "github.com/sirupsen/logrus"
+)
+
+type HelmRepo struct {
+	Name string
+	Url  string
+}
 
 type Installer struct {
-	Stage       string
-	ClusterName string
-	Namespace   string
-	ReleaseName string
-	Chart       string
-	Args        []string
-	Info        string
+	Stage              string
+	ClusterName        string
+	Namespace          string
+	AddRepo            HelmRepo
+	ReleaseName        string
+	Chart              string
+	Args               []string
+	Info               string
+	ValuesTemplate     string
+	ValuesTemplateVars interface{}
 }
 
 func (i Installer) GetStage() string {
@@ -27,8 +38,26 @@ func (i Installer) Execute() bool {
 	if i.Info != "" {
 		logger.Info(i.Info)
 	}
-	err := InstallOrUpgrade(i.ClusterName, i.Namespace, i.ReleaseName,
-		i.Chart, i.Args)
+
+	if i.AddRepo.Url != "" {
+		logger.WithField("addRepo", i.AddRepo)
+		err := Exec(i.ClusterName, "", "repo", "add", i.AddRepo.Name,
+			i.AddRepo.Url).Run()
+		if err != nil {
+			logger.WithError(err).Fatal("error adding helm repository")
+		}
+	}
+
+	args := i.Args
+	if i.ValuesTemplate != "" {
+		valuesFile, err := templates.Render(i.ValuesTemplate, i.ValuesTemplateVars, "")
+		if err != nil {
+			logger.WithError(err).Fatal("error rendering gitea values template")
+		}
+		args = append(args, "-f", valuesFile)
+	}
+
+	err := InstallOrUpgrade(i.ClusterName, i.Namespace, i.ReleaseName, i.Chart, args)
 	if err != nil {
 		logger.WithError(err).Fatal("unable to install helm chart")
 	}
