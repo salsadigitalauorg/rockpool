@@ -23,7 +23,7 @@ func Exec(cn string, ns string, args ...string) command.IShellCommand {
 	return cmd
 }
 
-func List(cn string) {
+func FetchInstalledReleases(cn string) {
 	logger := log.WithField("clusterName", cn)
 	out, err := Exec(cn, "", "list", "--all-namespaces", "--output", "json").Output()
 	if err != nil {

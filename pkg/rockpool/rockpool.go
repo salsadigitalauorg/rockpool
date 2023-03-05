@@ -182,7 +182,7 @@ func SetupLagoonController() {
 
 	chain.Add(action.Handler{
 		Func: func(logger *log.Entry) bool {
-			helm.List(clusterName)
+			helm.FetchInstalledReleases(clusterName)
 			return true
 		},
 	})
@@ -236,27 +236,61 @@ func SetupLagoonController() {
 
 	chain.Add(helm.Installer{
 		Stage:       "controller-setup",
+		Info:        "installing gitea",
 		ClusterName: clusterName,
-		Namespace:   "gitea",
 		AddRepo: helm.HelmRepo{
 			Name: "gitea-charts",
 			Url:  "https://dl.gitea.io/charts/",
 		},
+		Namespace:          "gitea",
 		ReleaseName:        "gitea",
 		Chart:              "gitea-charts/gitea",
 		Args:               []string{"--create-namespace"},
-		Info:               "installing gitea",
 		ValuesTemplate:     "gitea-values.yml.tmpl",
+		ValuesTemplateVars: platform.ToMap(),
+	}).Add(action.Handler{
+		Func: func(logger *log.Entry) bool {
+			// Create test repo.
+			gitea.CreateRepo()
+			return true
+		},
+	})
+
+	chain.Add(helm.Installer{
+		Stage:       "controller-setup",
+		Info:        "installing harbor",
+		ClusterName: clusterName,
+		AddRepo: helm.HelmRepo{
+			Name: "harbor",
+			Url:  "https://helm.goharbor.io",
+		},
+		Namespace:          "harbor",
+		ReleaseName:        "harbor",
+		Chart:              "harbor/harbor",
+		Args:               []string{"--create-namespace", "--wait", "--version=1.5.6"},
+		ValuesTemplate:     "harbor-values.yml.tmpl",
 		ValuesTemplateVars: platform.ToMap(),
 	})
 
+	lagoonValues := platform.ToMap()
+	lagoonValues["LagoonVersion"] = lagoon.Version
+	chain.Add(helm.Installer{
+		Stage:       "controller-setup",
+		Info:        "installing lagoon core",
+		ClusterName: clusterName,
+		AddRepo: helm.HelmRepo{
+			Name: "lagoon",
+			Url:  "https://uselagoon.github.io/lagoon-charts/",
+		},
+		Namespace:          "lagoon-core",
+		ReleaseName:        "lagoon-core",
+		Chart:              "lagoon/lagoon-core",
+		Args:               []string{"--create-namespace", "--wait", "--timeout", "30m0s"},
+		ValuesTemplate:     "lagoon-core-values.yml.tmpl",
+		ValuesTemplateVars: lagoonValues,
+	})
+
 	chain.Run()
-
-	// Create test repo.
-	gitea.CreateRepo()
-
-	InstallHarbor()
-	InstallLagoonCore()
 
 	// Wait for Keycloak to be installed, then configure it.
 	ConfigureKeycloak()
@@ -270,7 +304,7 @@ func SetupLagoonTarget(clusterName string) {
 
 	defer platform.WgDone()
 
-	helm.List(clusterName)
+	helm.FetchInstalledReleases(clusterName)
 	ConfigureTargetCoreDNS(clusterName)
 
 	ingressNginxInstaller.Stage = "target-setup"

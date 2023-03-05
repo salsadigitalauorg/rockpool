@@ -33,33 +33,6 @@ var ingressNginxInstaller = helm.Installer{
 	},
 }
 
-func InstallHarbor() {
-	cn := platform.ControllerClusterName()
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing harbor")
-
-	err := helm.Exec(cn, "", "repo", "add", "harbor", "https://helm.goharbor.io").Run()
-	if err != nil {
-		logger.WithError(err).Fatal("unable to add harbor repo")
-	}
-
-	values, err := templates.Render("harbor-values.yml.tmpl", platform.ToMap(), "")
-	if err != nil {
-		logger.WithError(err).Fatal("error rendering harbor values template")
-	}
-
-	err = helm.InstallOrUpgrade(cn,
-		"harbor", "harbor", "harbor/harbor",
-		[]string{
-			"--create-namespace", "--wait",
-			"-f", values, "--version=1.5.6",
-		},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install harbor")
-	}
-}
-
 func FetchHarborCerts() {
 	cn := platform.ControllerClusterName()
 	logger := log.WithField("clusterName", cn)
@@ -195,31 +168,6 @@ func AddLagoonRepo(cn string) {
 	if err != nil {
 		log.WithField("clusterName", cn).WithError(err).
 			Fatal("unable to add lagoon repo")
-	}
-}
-
-func InstallLagoonCore() {
-	cn := platform.ControllerClusterName()
-	logger := log.WithField("clusterName", cn)
-	logger.Info("installing lagoon core")
-
-	AddLagoonRepo(cn)
-
-	cm := platform.ToMap()
-	cm["LagoonVersion"] = lagoon.Version
-
-	values, err := templates.Render("lagoon-core-values.yml.tmpl", cm, "")
-	if err != nil {
-		logger.WithError(err).Fatal("error rendering lagoon-core values template")
-	}
-
-	err = helm.InstallOrUpgrade(platform.ControllerClusterName(), "lagoon-core",
-		"lagoon-core",
-		"lagoon/lagoon-core",
-		[]string{"--create-namespace", "--wait", "--timeout", "30m0s", "-f", values},
-	)
-	if err != nil {
-		logger.WithError(err).Fatal("unable to install lagoon-core")
 	}
 }
 
