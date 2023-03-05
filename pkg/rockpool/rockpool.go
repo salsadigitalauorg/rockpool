@@ -290,13 +290,99 @@ func SetupLagoonController() {
 		ValuesTemplateVars: lagoonValues,
 	})
 
-	chain.Run()
+	chain.Add(action.Handler{
+		Stage:     "controller-setup",
+		Info:      "configuring keycloak",
+		LogFields: log.Fields{"cluster": clusterName},
+		Func: func(logger *log.Entry) bool {
+			logger.Debug("logging into keycloak")
+			cn := logger.Data["cluster"].(string)
+			if err := kube.Exec(
+				cn, "lagoon-core", "lagoon-core-keycloak", `
+set -e
+rm -f /tmp/kcadm.config
+/opt/jboss/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080/auth --realm master \
+  --user $KEYCLOAK_ADMIN_USER --password $KEYCLOAK_ADMIN_PASSWORD \
+  --config /tmp/kcadm.config
+`,
+			).Run(); err != nil {
+				logger.WithError(command.GetMsgFromCommandError(err)).
+					Fatal("error logging in to Keycloak")
+			}
 
-	// Wait for Keycloak to be installed, then configure it.
-	ConfigureKeycloak()
-	lagoon.InitApiClient()
-	lagoon.AddSshKey()
-	LagoonCliAddConfig()
+			logger.Debug("checking if keycloak has already been configured")
+			if out, err := kube.Exec(
+				cn, "lagoon-core", "lagoon-core-keycloak", `
+set -e
+/opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon \
+	--fields 'smtpServer(from)' --config /tmp/kcadm.config
+`,
+			).Output(); err != nil {
+				logger.WithError(command.GetMsgFromCommandError(err)).
+					Fatal("error checking keycloak configuration")
+			} else {
+				s := struct {
+					SmtpServer struct {
+						From string `json:"from"`
+					} `json:"smtpServer"`
+				}{}
+				err := json.Unmarshal(out, &s)
+				if err != nil {
+					logger.WithError(err).Fatal("error parsing keycloak configuration")
+				}
+				if s.SmtpServer.From == "lagoon@k3d-rockpool" {
+					logger.Debug("keycloak already configured")
+					return true
+				}
+			}
+
+			// Configure keycloak.
+			err := kube.Exec(cn, "lagoon-core", "lagoon-core-keycloak", `
+set -e
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s resetPasswordAllowed=true --config /tmp/kcadm.config
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s smtpServer.host="mailhog.default.svc.cluster.local" --config /tmp/kcadm.config
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s smtpServer.port=1025 --config /tmp/kcadm.config
+
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
+  -s smtpServer.from="lagoon@k3d-rockpool" --config /tmp/kcadm.config
+
+# Allow direct access grants so we can grab a token by using a POST request.
+client=$(/opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon/clients \
+	--fields 'id,clientId' --config /tmp/kcadm.config \
+	--format csv|grep "lagoon-ui")
+client_id=$(echo ${client%,*} | sed 's/"//g')
+/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon/clients/${client_id} \
+	-s directAccessGrantsEnabled=true --config /tmp/kcadm.config
+`,
+			).Run()
+			if err != nil {
+				logger.WithError(command.GetMsgFromCommandError(err)).
+					Fatal("error configuring keycloak")
+			}
+			return true
+		},
+	})
+
+	chain.Add(action.Handler{
+		Stage:     "controller-setup",
+		Info:      "configuring lagoon client",
+		LogFields: log.Fields{"cluster": clusterName},
+		Func: func(logger *log.Entry) bool {
+			lagoon.InitApiClient()
+			lagoon.AddSshKey()
+			LagoonCliAddConfig()
+			return true
+		},
+	})
+
+	chain.Run()
 }
 
 func SetupLagoonTarget(clusterName string) {
@@ -464,79 +550,6 @@ func RemoveResolver() {
 	}
 }
 
-func ConfigureKeycloak() {
-	cn := platform.ControllerClusterName()
-	logger := log.WithField("clusterName", cn)
-	logger.Info("configuring keycloak")
-
-	if err := kube.Exec(
-		cn, "lagoon-core", "lagoon-core-keycloak", `
-set -e
-rm -f /tmp/kcadm.config
-/opt/jboss/keycloak/bin/kcadm.sh config credentials \
-  --server http://localhost:8080/auth --realm master \
-  --user $KEYCLOAK_ADMIN_USER --password $KEYCLOAK_ADMIN_PASSWORD \
-  --config /tmp/kcadm.config
-`,
-	).Run(); err != nil {
-		logger.WithError(err).Fatal("error logging in to Keycloak")
-	}
-
-	// Skip if values have already been set.
-	if out, err := kube.Exec(
-		cn, "lagoon-core", "lagoon-core-keycloak", `
-set -e
-/opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon \
-	--fields 'smtpServer(from)' --config /tmp/kcadm.config
-`,
-	).Output(); err != nil {
-		logger.WithError(err).Fatal("error checking keycloak configuration")
-	} else {
-		s := struct {
-			SmtpServer struct {
-				From string `json:"from"`
-			} `json:"smtpServer"`
-		}{}
-		err := json.Unmarshal(out, &s)
-		if err != nil {
-			logger.WithError(err).Fatal("error parsing keycloak configuration")
-		}
-		if s.SmtpServer.From == "lagoon@k3d-rockpool" {
-			logger.Debug("keycloak already configured")
-			return
-		}
-	}
-
-	// Configure keycloak.
-	err := kube.Exec(cn, "lagoon-core", "lagoon-core-keycloak", `
-set -e
-
-/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
-  -s resetPasswordAllowed=true --config /tmp/kcadm.config
-
-/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
-  -s smtpServer.host="mailhog.default.svc.cluster.local" --config /tmp/kcadm.config
-
-/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
-  -s smtpServer.port=1025 --config /tmp/kcadm.config
-
-/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon \
-  -s smtpServer.from="lagoon@k3d-rockpool" --config /tmp/kcadm.config
-
-# Allow direct access grants so we can grab a token by using a POST request.
-client=$(/opt/jboss/keycloak/bin/kcadm.sh get realms/lagoon/clients \
-	--fields 'id,clientId' --config /tmp/kcadm.config \
-	--format csv|grep "lagoon-ui")
-client_id=$(echo ${client%,*} | sed 's/"//g')
-/opt/jboss/keycloak/bin/kcadm.sh update realms/lagoon/clients/${client_id} \
-	-s directAccessGrantsEnabled=true --config /tmp/kcadm.config
-`,
-	).Run()
-	if err != nil {
-		logger.WithError(err).Fatal("error configuring keycloak")
-	}
-}
-
 // ConfigureTargetCoreDNS adds DNS records to targets for the required services.
 func ConfigureTargetCoreDNS(cn string) {
 	logger := log.WithField("clusterName", cn)
@@ -578,7 +591,8 @@ func LagoonCliAddConfig() {
 	out, err := command.ShellCommander("lagoon", "config", "list",
 		"--output-json").Output()
 	if err != nil {
-		log.WithError(err).Panic("could not get lagoon configs")
+		log.WithError(command.GetMsgFromCommandError(err)).
+			Panic("could not get lagoon configs")
 	}
 	var configs struct {
 		Data []struct {
@@ -605,7 +619,8 @@ func LagoonCliAddConfig() {
 		platform.Name, "--graphql", graphql, "--ui", ui, "--hostname",
 		"127.0.0.1", "--port", "2022").Run()
 	if err != nil {
-		log.WithError(err).Panic("could not add lagoon config")
+		log.WithError(command.GetMsgFromCommandError(err)).
+			Panic("could not add lagoon config")
 	}
 }
 
@@ -614,7 +629,8 @@ func LagoonCliDeleteConfig() {
 	err := command.ShellCommander("lagoon", "config", "delete", "--lagoon",
 		platform.Name, "--force").Run()
 	if err != nil {
-		log.WithError(err).Panic("could not delete lagoon config")
+		log.WithError(command.GetMsgFromCommandError(err)).
+			Panic("could not delete lagoon config")
 	}
 }
 
