@@ -6,7 +6,7 @@ on:
       lagoonVersion:
         description: 'Lagoon version'
         required: true
-        default: v2.9.0
+        default: v2.12.0
 
 env:
   REGISTRY: ghcr.io

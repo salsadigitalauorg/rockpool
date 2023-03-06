@@ -2,6 +2,11 @@ name: Docker - keycloak
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version'
+        required: true
+        default: 16.1.1
 
 env:
   REGISTRY: ghcr.io
@@ -10,11 +15,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      matrix:
-        version:
-          - 7.0.1
-          - 16.1.1
 
     steps:
       - name: Checkout repository
@@ -42,4 +42,4 @@ jobs:
         id: build-and-push
         run: ./scripts/build-arm-images.sh keycloak
         env:
-          KEYCLOAK_VERSION: ${{ matrix.version }}
+          KEYCLOAK_VERSION: ${{ inputs.version }}
