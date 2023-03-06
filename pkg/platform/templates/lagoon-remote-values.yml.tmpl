@@ -1,12 +1,5 @@
 imageTag: {{ .LagoonVersion }}
 
-{{- if eq .Arch "arm64" }}
-dockerHost:
-  image:
-    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/docker-host
-  registry: harbor.lagoon.{{ .Hostname }}
-{{- end }}
-
 lagoon-build-deploy:
   enabled: true
   extraArgs:

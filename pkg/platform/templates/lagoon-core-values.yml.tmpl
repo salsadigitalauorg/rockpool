@@ -190,12 +190,6 @@ webhookHandler:
 autoIdler:
   enabled: false
 
-{{- if eq .Arch "arm64" }}
-storageCalculator:
-  image:
-    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/storage-calculator
-{{- end }}
-
 logs2webhook:
   replicaCount: 1
 
