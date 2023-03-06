@@ -56,7 +56,7 @@ func (cmd ExecShellCommand) RunProgressive() error {
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil {
-		return err
+		return GetMsgFromCommandError(err)
 	}
 	return nil
 }

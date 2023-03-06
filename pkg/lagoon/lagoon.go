@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
@@ -45,7 +46,7 @@ func FetchApiAdminToken() string {
 		platform.ControllerClusterName(), "lagoon-core",
 		"lagoon-core-storage-calculator", "/create_jwt.py").Output()
 	if err != nil {
-		panic(err)
+		log.WithError(command.GetMsgFromCommandError(err)).Panic()
 	}
 	return string(out)
 }

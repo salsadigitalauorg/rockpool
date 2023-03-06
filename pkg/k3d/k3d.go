@@ -28,7 +28,8 @@ func RegistryList() {
 		ShellCommander("k3d", "registry", "list", "-o", "json").
 		Output()
 	if err != nil {
-		log.WithError(err).Fatal("unable to get registry list")
+		log.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to get registry list")
 	}
 
 	err = json.Unmarshal(res, &registries)
@@ -84,7 +85,8 @@ func RegistryCreate() {
 		done = true
 	}
 	if err != nil {
-		logger.WithError(err).Fatal("unable to find registry container")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to find registry container")
 	}
 
 	if !strings.Contains(string(registryConfig), proxyLine) {
@@ -298,7 +300,8 @@ func ClusterDelete(cn string) {
 	logger.Info("deleting cluster")
 	_, err := command.ShellCommander("k3d", "cluster", "delete", cn).Output()
 	if err != nil {
-		logger.WithError(err).Fatal("unable to delete cluster")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to delete cluster")
 	}
 	ClusterFetch()
 	logger.Info("deleted cluster")
@@ -309,7 +312,8 @@ func WriteKubeConfig(cn string) {
 	logger.Info("writing kubeconfig")
 	_, err := command.ShellCommander("k3d", "kubeconfig", "write", cn).Output()
 	if err != nil {
-		logger.WithError(err).Panic("unable to write kubeconfig:")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Panic("unable to write kubeconfig:")
 	}
 }
 

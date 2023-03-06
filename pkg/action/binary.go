@@ -30,8 +30,9 @@ func (b BinaryExists) Execute() bool {
 
 	absPath, err := exec.LookPath(b.Bin)
 	if err != nil {
-		logger.Error("could not find binary; please ensure it is installed " +
-			"and can be found in the $PATH")
+		logger.WithError(err).
+			Error("could not find binary; please ensure it is installed " +
+				"and can be found in the $PATH")
 		return false
 	}
 
@@ -41,7 +42,8 @@ func (b BinaryExists) Execute() bool {
 	}
 	out, err := versionCmd.Output()
 	if err != nil {
-		logger.Error("error getting version")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Error("error getting version")
 		return false
 	}
 

@@ -523,7 +523,8 @@ func SetupLagoonTarget(clusterName string) {
 			b64Token, err := kube.Cmd(cn, "lagoon", "get", "secret",
 				"-o=jsonpath='{.items[?(@.metadata.annotations.kubernetes\\.io/service-account\\.name==\"lagoon-remote-kubernetes-build-deploy\")].data.token}'").Output()
 			if err != nil {
-				logger.WithError(err).Fatal("error fetching lagoon remote token")
+				logger.WithError(command.GetMsgFromCommandError(err)).
+					Fatal("error fetching lagoon remote token")
 			}
 			token, err := base64.URLEncoding.DecodeString(strings.Trim(string(b64Token), "'"))
 			if err != nil {
@@ -594,7 +595,8 @@ port 6153
 		logger.WithFields(log.Fields{
 			"tempFile":    tmpFile.Name(),
 			"destination": dest,
-		}).WithError(err).Panic("unable to move file")
+		}).WithError(command.GetMsgFromCommandError(err)).
+			Panic("unable to move file")
 	}
 }
 
@@ -603,7 +605,8 @@ func RemoveResolver() {
 	logger := log.WithField("resolverFile", dest)
 	logger.Info("removing resolver file")
 	if err := command.ShellCommander("rm", "-f", dest).Run(); err != nil {
-		logger.WithError(err).Warn("error when deleting resolver file")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Warn("error when deleting resolver file")
 	}
 }
 

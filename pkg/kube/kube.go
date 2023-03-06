@@ -29,8 +29,10 @@ func GetTargetIdFromCn(cn string) int {
 	idStr := cnParts[len(cnParts)-1]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		fmt.Printf("[%s] invalid cluster id: %s\n", cn, idStr)
-		os.Exit(1)
+		log.WithFields(log.Fields{
+			"cluster": cn,
+			"id":      idStr,
+		}).Fatal("invalid cluster id")
 	}
 	return id
 }
@@ -45,10 +47,10 @@ func Cmd(cn string, ns string, args ...string) command.IShellCommand {
 }
 
 func Apply(cn string, ns string, fn string, force bool) error {
-	dryRun := Cmd(cn, ns, "apply", "-f", fn, "--dry-run=server")
-	out, err := dryRun.Output()
+	// dry-run first to check for changes.
+	out, err := Cmd(cn, ns, "apply", "-f", fn, "--dry-run=server").Output()
 	if err != nil {
-		return err
+		return command.GetMsgFromCommandError(err)
 	}
 	changesRequired := false
 	for _, l := range strings.Split(strings.Trim(string(out), "\n"), "\n") {
@@ -116,8 +118,7 @@ func ApplyTemplate(cn string, ns string, fn string, force bool, retries int, del
 }
 
 func Exec(cn string, ns string, deploy string, cmdStr string) command.IShellCommand {
-	cmd := Cmd(cn, ns, "exec", "deploy/"+deploy, "--", "bash", "-c", cmdStr)
-	return cmd
+	return Cmd(cn, ns, "exec", "deploy/"+deploy, "--", "bash", "-c", cmdStr)
 }
 
 func GetSecret(cn string, ns string, secret string, field string) ([]byte, string) {
@@ -139,7 +140,8 @@ func GetSecret(cn string, ns string, secret string, field string) ([]byte, strin
 	out, err := cmd.Output()
 	logger.WithField("out", string(out)).Debug()
 	if err != nil {
-		logger.WithError(err).Fatal("error getting secret")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("error getting secret")
 	}
 
 	if field != "" {
@@ -165,7 +167,8 @@ func GetConfigMap(cn string, ns string, name string) []byte {
 	cmd := Cmd(cn, ns, "get", "configmap", name, "--output", "json")
 	out, err := cmd.Output()
 	if err != nil {
-		logger.WithError(err).Fatal("error getting configmap")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("error getting configmap")
 	}
 	return out
 }
@@ -194,7 +197,8 @@ func Replace(cn string, ns string, name string, content string) {
 	writer.Close()
 
 	if err := replace.Wait(); err != nil {
-		logger.WithError(err).Fatal("error replacing manifest")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("error replacing manifest")
 	}
 }
 
@@ -208,11 +212,11 @@ func Patch(cn string, ns string, kind string, name string, fn string) ([]byte, e
 	})
 	logger.Debug("applying patch")
 
-	dryRun := Cmd(cn, ns, "patch", kind, name, "--patch-file", fn)
-	dryRun.AddArgs("--dry-run=server")
-	out, err := dryRun.Output()
+	out, err := Cmd(cn, ns, "patch", kind, name, "--patch-file", fn,
+		"--dry-run=server").Output()
 	if err != nil {
-		logger.WithError(err).Fatal("error executing dry-run patch")
+		logger.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("error executing dry-run patch")
 	}
 	if strings.Contains(string(out), "(no change)") {
 		return nil, nil

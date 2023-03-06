@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 	log "github.com/sirupsen/logrus"
 )
@@ -44,7 +45,8 @@ func (i Installer) Execute() bool {
 		err := Exec(i.ClusterName, "", "repo", "add", i.AddRepo.Name,
 			i.AddRepo.Url).Run()
 		if err != nil {
-			logger.WithError(err).Fatal("error adding helm repository")
+			logger.WithError(command.GetMsgFromCommandError(err)).
+				Fatal("error adding helm repository")
 		}
 	}
 

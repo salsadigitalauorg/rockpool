@@ -1,12 +1,13 @@
 package ssh
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
+
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -24,8 +25,7 @@ func GetPublicKey() []byte {
 	}
 	data, err := os.ReadFile(keyFile)
 	if err != nil {
-		fmt.Println("error reading ssh key:", err)
-		os.Exit(1)
+		log.WithField("keyFile", keyFile).WithError(err).Fatal("error reading ssh key")
 	}
 	return data
 }

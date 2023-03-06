@@ -27,7 +27,8 @@ func FetchInstalledReleases(cn string) {
 	logger := log.WithField("clusterName", cn)
 	out, err := Exec(cn, "", "list", "--all-namespaces", "--output", "json").Output()
 	if err != nil {
-		logger.WithField("out", string(out)).WithError(err).
+		logger.WithField("out", string(out)).
+			WithError(command.GetMsgFromCommandError(err)).
 			Fatal("unable to get list of helm releases")
 	}
 	releases := []HelmRelease{}

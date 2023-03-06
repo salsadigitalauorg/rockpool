@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
@@ -101,7 +102,8 @@ func InstallHarborCerts(cn string) {
 			logger.WithFields(log.Fields{
 				"src":  HarborCaCrtFile,
 				"dest": destCaCrt,
-			}).WithError(err).Fatal("error copying ca.crt")
+			}).WithError(command.GetMsgFromCommandError(err)).
+				Fatal("error copying ca.crt")
 		}
 		clusterUpdated = true
 	}
@@ -118,7 +120,8 @@ func InstallHarborCerts(cn string) {
 	}
 	_, err = kube.Patch(cn, "lagoon", "deployment", "lagoon-remote-lagoon-build-deploy", patchFile)
 	if err != nil {
-		logger.WithField("patchFile", patchFile).WithError(err).
+		logger.WithField("patchFile", patchFile).
+			WithError(command.GetMsgFromCommandError(err)).
 			Fatal("error patching the lagoon-build-deploy deployment")
 	}
 }
@@ -155,7 +158,8 @@ func AddHarborHostEntries(cn string) {
 				logger.WithFields(log.Fields{
 					"node":  n.Name,
 					"entry": entry,
-				}).WithError(err).Fatal("error adding harbor host entry")
+				}).WithError(command.GetMsgFromCommandError(err)).
+					Fatal("error adding harbor host entry")
 			}
 		}
 	}
