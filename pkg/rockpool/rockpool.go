@@ -99,8 +99,6 @@ func Up(desiredClusters []string) {
 		}
 	}
 	InstallResolver()
-	fmt.Println()
-	Status()
 }
 
 func allClusters() []string {
@@ -113,6 +111,8 @@ func allClusters() []string {
 
 func Start(clusters []string) {
 	k3d.RegistryStart()
+	log.WithField("clusters", clusters).Info("starting clusters")
+	k3d.ClusterFetch()
 	if len(clusters) == 0 {
 		clusters = allClusters()
 	}
@@ -131,7 +131,7 @@ func Start(clusters []string) {
 }
 
 func Stop(clusters []string) {
-	log.WithField("clusters", clusters).Info("stopping all clusters")
+	log.WithField("clusters", clusters).Info("stopping clusters")
 	k3d.ClusterFetch()
 	if len(clusters) == 0 {
 		clusters = allClusters()
@@ -148,7 +148,7 @@ func Stop(clusters []string) {
 }
 
 func Down(clusters []string) {
-	log.WithField("clusters", clusters).Info("stopping and deleting all clusters")
+	log.WithField("clusters", clusters).Info("stopping and deleting clusters")
 	k3d.ClusterFetch()
 	if len(clusters) == 0 {
 		clusters = allClusters()

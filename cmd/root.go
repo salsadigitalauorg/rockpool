@@ -67,6 +67,8 @@ var upCmd = &cobra.Command{
 specified in the arguments, e.g, 'rockpool up controller target-1'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		r.Up(fullClusterNamesFromArgs(args))
+		fmt.Println()
+		r.Status()
 	},
 }
 
