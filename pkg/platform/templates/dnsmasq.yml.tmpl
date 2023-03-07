@@ -61,7 +61,7 @@ spec:
       containers:
       - name: dnsmasq
         image: pygmystack/dnsmasq:latest
-        args: ["--log-facility=-", "-A", "/{{ .Hostname }}/127.0.0.1"]
+        args: ["--log-facility=-", "-A", "/{{ .Hostname }}/{{ .VmIp }}"]
         ports:
         - containerPort: 53
           name: dns

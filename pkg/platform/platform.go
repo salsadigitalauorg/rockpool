@@ -3,6 +3,8 @@ package platform
 import (
 	"fmt"
 	"runtime"
+
+	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 )
 
 var (
@@ -20,6 +22,7 @@ func ToMap() map[string]string {
 		"Domain":   Domain,
 		"Hostname": fmt.Sprintf("%s.%s", Name, Domain),
 		"Arch":     Arch,
+		"VmIp":     docker.GetVmIp(),
 	}
 }
 

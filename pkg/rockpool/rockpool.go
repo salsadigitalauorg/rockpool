@@ -10,6 +10,7 @@ import (
 
 	"github.com/salsadigitalauorg/rockpool/pkg/action"
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
+	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
@@ -251,7 +252,7 @@ func SetupLagoonController() {
 		Namespace:          "gitea",
 		ReleaseName:        "gitea",
 		Chart:              "gitea-charts/gitea",
-		Args:               []string{"--create-namespace"},
+		Args:               []string{"--create-namespace", "--wait"},
 		ValuesTemplate:     "gitea-values.yml.tmpl",
 		ValuesTemplateVars: platform.ToMap(),
 	}).Add(action.Handler{
@@ -294,6 +295,36 @@ func SetupLagoonController() {
 		Args:               []string{"--create-namespace", "--wait", "--timeout", "30m0s"},
 		ValuesTemplate:     "lagoon-core-values.yml.tmpl",
 		ValuesTemplateVars: lagoonValues,
+	}).Add(action.Handler{
+		Stage:     "controller-setup",
+		Info:      "ensuring db tables have been created",
+		LogFields: log.Fields{"cluster": clusterName},
+		Func: func(logger *log.Entry) bool {
+			cn := logger.Data["cluster"].(string)
+
+			logger.Debug("checking if tables exist")
+			out, err := kube.Cmd(cn, "lagoon-core", "exec",
+				"sts/lagoon-core-api-db", "--", "bash", "-c",
+				"mysql -u$MARIADB_USER -p$MARIADB_PASSWORD $MARIADB_DATABASE -e 'SHOW TABLES;'",
+			).Output()
+			if err != nil {
+				logger.WithError(command.GetMsgFromCommandError(err)).
+					Fatal("error getting tables")
+			}
+			if string(out) != "" {
+				return true
+			}
+
+			logger.Debug("running the db init script")
+			err = kube.Cmd(cn, "lagoon-core", "exec", "sts/lagoon-core-api-db",
+				"--", "/legacy_rerun_initdb.sh").Run()
+			if err != nil {
+				logger.WithError(command.GetMsgFromCommandError(err)).
+					Fatal("error running db init")
+			}
+
+			return true
+		},
 	})
 
 	chain.Add(action.Handler{
@@ -562,14 +593,16 @@ func SetupNginxReverseProxyForRemotes() {
 }
 
 func InstallResolver() {
+	nameserverIp := docker.GetVmIp()
+
 	dest := filepath.Join("/etc/resolver", platform.Hostname())
 	logger := log.WithField("resolverFile", dest)
 	logger.Info("installing resolver file")
 
-	data := `
-nameserver 127.0.0.1
+	data := fmt.Sprintf(`
+nameserver %s
 port 6153
-`
+`, nameserverIp)
 
 	var tmpFile *os.File
 	var err error

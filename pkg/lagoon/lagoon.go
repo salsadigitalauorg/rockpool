@@ -43,10 +43,10 @@ var lagoonUserinfo struct {
 // FetchApiAdminToken creates an admin token with superpowers.
 // See https://docs.lagoon.sh/administering-lagoon/graphql-queries/#running-graphql-queries
 func FetchApiAdminToken() string {
-	log.Info("fetching lagoon api admin token")
+	log.Debug("fetching lagoon api admin token")
 	out, err := kube.Exec(
 		platform.ControllerClusterName(), "lagoon-core",
-		"lagoon-core-storage-calculator", "/create_jwt.py").Output()
+		"lagoon-core-ssh", "/create_60_sec_jwt.py").Output()
 	if err != nil {
 		log.WithError(command.GetMsgFromCommandError(err)).Panic()
 	}
@@ -77,6 +77,7 @@ func FetchApiToken() string {
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	dump, _ := httputil.DumpRequest(req, true)
+	log.WithField("dump", string(dump)).Debug("request dump")
 
 	client := &http.Client{
 		Transport: interceptor.New(),
@@ -87,6 +88,7 @@ func FetchApiToken() string {
 			Panic("error executing request to token endpoint")
 	}
 	dump, _ = httputil.DumpResponse(resp, true)
+	log.WithField("dump", string(dump)).Debug("response dump")
 
 	var res struct {
 		Token            string `json:"access_token"`

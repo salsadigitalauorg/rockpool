@@ -16,7 +16,7 @@ var lagoonAdminTokenCmd = &cobra.Command{
 	Use:   "admin-token",
 	Short: "Fetch an admin token for the Lagoon API.",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Token:", lagoon.FetchApiAdminToken())
+		fmt.Print(lagoon.FetchApiAdminToken())
 	},
 }
 

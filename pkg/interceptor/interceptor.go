@@ -3,6 +3,8 @@ package interceptor
 import (
 	"context"
 	"net/http"
+
+	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 )
 
 // Interceptor creates an HTTP interceptor which allows us to modify requests.
@@ -17,7 +19,7 @@ func New() Interceptor {
 
 func (Interceptor) modifyRequest(r *http.Request) *http.Request {
 	req := r.Clone(context.Background())
-	req.URL.Host = "127.0.0.1"
+	req.URL.Host = docker.GetVmIp()
 	return req
 }
 
