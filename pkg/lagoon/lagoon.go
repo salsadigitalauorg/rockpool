@@ -20,6 +20,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var DefaultVersion = "v2.12.0"
+
 // Version is the version of Lagoon to be installed.
 var Version string
 

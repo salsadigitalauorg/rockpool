@@ -132,25 +132,32 @@ func fullClusterNamesFromArgs(argClusters []string) []string {
 func init() {
 	determineConfigDir()
 
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "sets the logging level")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enables debug logging (similar to `--log-level debug`)")
-	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false, "enables trace logging (similar to `--log-level trace`)")
+	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info",
+		"Sets the logging level")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false,
+		"Enables debug logging (similar to `--log-level debug`)")
+	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false,
+		"Enables trace logging (similar to `--log-level trace`)")
 
-	rootCmd.PersistentFlags().StringVarP(&platform.Name, "name", "n", "rockpool", "The name of the platform")
+	rootCmd.PersistentFlags().StringVarP(&platform.Name, "name", "n",
+		"rockpool", "The name of the platform")
 
-	upCmd.Flags().IntVarP(&platform.NumTargets, "targets", "t", 1, "Number of targets (lagoon remotes) to create")
+	upCmd.Flags().IntVarP(&platform.NumTargets, "targets", "t", 1,
+		"Number of targets (lagoon remotes) to create")
 	upCmd.Flags().StringVarP(&platform.Domain, "domain", "d", "k3d.local",
-		`The base domain of the platform; ancillary services will be created as its
-subdomains using the provided 'name', e.g, rockpool.k3d.local, lagoon.rockpool.k3d.local
-`)
+		`The base domain of the platform; ancillary services will be created as
+its subdomains using the provided 'name', e.g, rockpool.k3d.local,
+lagoon.rockpool.k3d.local`)
 
-	upCmd.Flags().StringVarP(&lagoon.Version, "lagoon-version", "l", "v2.7.1", "The version of Lagoon to install")
-	upCmd.Flags().StringSliceVar(&helm.UpgradeComponents, "upgrade-components", []string{},
+	upCmd.Flags().StringVarP(&lagoon.Version, "lagoon-version", "l",
+		lagoon.DefaultVersion, "The version of Lagoon to install")
+	upCmd.Flags().StringSliceVar(&helm.UpgradeComponents, "upgrade-components",
+		[]string{},
 		"A list of components to upgrade, e.g, all or ingress-nginx,harbor")
+
 	upCmd.Flags().StringVarP(&platform.LagoonSshKey, "ssh-key", "k", "",
 		`The ssh key to add to the lagoonadmin user. If empty, rockpool tries
-to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.
-`)
+to use ~/.ssh/id_ed25519.pub first, then ~/.ssh/id_rsa.pub.`)
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(upCmd)

@@ -76,12 +76,12 @@ func InstallOrUpgrade(cn string, ns string, releaseName string, chartName string
 			}
 		}
 	} else {
-		logger.Info("upgrading")
+		logger.Debug("upgrading")
 	}
 
 	// New install.
 	if !upgrade {
-		logger.Info("installing")
+		logger.Debug("installing")
 	}
 
 	cmd := Exec(cn, ns, "upgrade", "--install", releaseName, chartName)

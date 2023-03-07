@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var IngressNginxDefaultVersion = "4.5.2"
 var HarborSecretManifest string
 var HarborCaCrtFile string
 
@@ -24,11 +25,17 @@ var ingressNginxInstaller = helm.Installer{
 	Info:        "installing ingress-nginx",
 	Namespace:   "ingress-nginx",
 	ReleaseName: "ingress-nginx",
-	Chart:       "https://github.com/kubernetes/ingress-nginx/releases/download/helm-chart-3.40.0/ingress-nginx-3.40.0.tgz",
+	Chart: fmt.Sprintf(
+		"https://github.com/kubernetes/ingress-nginx/releases/download/"+
+			"helm-chart-%s/ingress-nginx-%s.tgz",
+		IngressNginxDefaultVersion,
+		IngressNginxDefaultVersion),
 	Args: []string{
 		"--create-namespace", "--wait",
 		"--set", "controller.config.ssl-redirect=false",
 		"--set", "controller.config.proxy-body-size=8m",
+		"--set", "controller.ingressClassResource.default=true",
+		"--set", "controller.watchIngressWithoutClass=true",
 		"--set", "server-name-hash-bucket-size=128",
 	},
 }

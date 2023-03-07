@@ -126,11 +126,25 @@ drushAlias:
         hosts:
           - drushalias.lagoon.{{ .Hostname }} */}}
 
+nats:
+  enabled: false
+  replicaCount: 1
+
 ssh:
   replicaCount: 1
   service:
     type: LoadBalancer
     port: 22
+
+sshPortalAPI:
+  enabled: false
+  replicaCount: 1
+  serviceMonitor:
+    enabled: false
+
+sshToken:
+  enabled: false
+  replicaCount: 1
 
 broker:
   replicaCount: 1
@@ -190,13 +204,19 @@ webhookHandler:
 autoIdler:
   enabled: false
 
+storageCalculator:
+  enabled: false
+
 logs2webhook:
   replicaCount: 1
 
 drushAlias:
   replicaCount: 1
+  image:
+    tag: "v3.1.0"
 
 controllerhandler:
+  enabled: false
   replicaCount: 1
 
 workflows:

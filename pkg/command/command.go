@@ -141,7 +141,6 @@ func Syscall(bin string, args []string) {
 	}
 
 	execArgs := append([]string{bin}, args...)
-	log.Info("running command: ", execArgs)
-	log.Debugf("execArgs: %#v", execArgs)
+	log.WithField("command", execArgs).Info("running command")
 	syscall.Exec(binary, execArgs, os.Environ())
 }
