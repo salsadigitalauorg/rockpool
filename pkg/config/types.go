@@ -58,6 +58,14 @@ type LagoonConfig struct {
 }
 
 type Config struct {
+	// Name of the Rockpool instance.
+	Name string `yaml:"name"`
+
+	// The base domain of the platform; ancillary services will be created as
+	// its subdomains using the provided 'name', e.g, rockpool.local,
+	// lagoon.rockpool.local
+	Domain string `yaml:"domain"`
+
 	// Defines the clusters that Rockpool will use to install Lagoon on.
 	Clusters `yaml:"clusters"`
 

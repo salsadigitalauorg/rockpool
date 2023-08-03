@@ -117,7 +117,7 @@ func RegistryStop() {
 	logger := log.WithField("registry", registryNameFull)
 	logger.Info("stopping registry")
 
-	_, err := docker.Stop(Reg.Name)
+	_, err := docker.Stop(Reg.Name).Output()
 	if err != nil {
 		logger.WithError(command.GetMsgFromCommandError(err)).
 			Fatal("error stopping registry")

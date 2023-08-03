@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/config"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
@@ -43,7 +44,7 @@ var rootCmd = &cobra.Command{
 		if cmd.Use == "rockpool [command]" {
 			return
 		}
-		r.Initialise()
+		config.Initialise()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
@@ -138,16 +139,6 @@ func init() {
 		"Enables debug logging (similar to `--log-level debug`)")
 	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false,
 		"Enables trace logging (similar to `--log-level trace`)")
-
-	rootCmd.PersistentFlags().StringVarP(&platform.Name, "name", "n",
-		"rockpool", "The name of the platform")
-
-	upCmd.Flags().IntVarP(&platform.NumTargets, "targets", "t", 1,
-		"Number of targets (lagoon remotes) to create")
-	upCmd.Flags().StringVarP(&platform.Domain, "domain", "d", "k3d.local",
-		`The base domain of the platform; ancillary services will be created as
-its subdomains using the provided 'name', e.g, rockpool.k3d.local,
-lagoon.rockpool.k3d.local`)
 
 	upCmd.Flags().StringVarP(&lagoon.Version, "lagoon-version", "l",
 		lagoon.DefaultVersion, "The version of Lagoon to install")

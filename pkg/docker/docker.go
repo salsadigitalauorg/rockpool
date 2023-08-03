@@ -10,27 +10,46 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func GetCurrentContext() Context {
+var CurrentContext *Context
+
+func GetCurrentContext() *Context {
+	if CurrentContext != nil {
+		return CurrentContext
+	}
+
 	out, err := command.ShellCommander("docker", "context", "ls", "--format", "json").Output()
 	if err != nil {
 		log.WithError(command.GetMsgFromCommandError(err)).
 			Fatal("unable to get docker context list")
 	}
 
+	log.WithField("contexts-output", string(out)).Debug("got context list")
+
 	var contexts []Context
-	err = json.Unmarshal(out, &contexts)
-	if err != nil {
-		log.WithError(err).
-			Fatal("unable to get parse docker contexts")
+	contextLines := strings.Split(string(out), "\n")
+	for _, l := range contextLines {
+		if l == "" {
+			continue
+		}
+		var context Context
+		err = json.Unmarshal([]byte(l), &context)
+		if err != nil {
+			log.WithField("context-line", l).
+				WithError(err).Fatal("unable to parse docker context line")
+		}
+		contexts = append(contexts, context)
 	}
+	log.WithField("contexts", contexts).Debug("parsed context list")
 
 	for _, c := range contexts {
 		if !c.Current {
 			continue
 		}
-		return c
+		log.WithField("context", c).Debug("current context")
+		CurrentContext = &c
+		return CurrentContext
 	}
-	return Context{}
+	return nil
 }
 
 func ColimaGetProfiles() []ColimaProfile {
@@ -90,9 +109,9 @@ func Exec(n string, cmdStr string) command.IShellCommand {
 	return command.ShellCommander("docker", "exec", n, "ash", "-c", cmdStr)
 }
 
-func Stop(n string) ([]byte, error) {
+func Stop(n string) command.IShellCommand {
 	log.WithField("container", n).Debug("stopping container")
-	return command.ShellCommander("docker", "stop", n).Output()
+	return command.ShellCommander("docker", "stop", n)
 }
 
 func Start(n string) ([]byte, error) {
