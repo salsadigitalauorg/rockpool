@@ -14,7 +14,7 @@ import (
 
 var requiredBinaries = []action.BinaryExists{
 	{Bin: "docker", VersionArgs: []string{"--format", "json"}},
-	{Bin: "kubectl", VersionArgs: []string{"--client", "--short"}},
+	{Bin: "kubectl", VersionArgs: []string{"--client"}},
 	{Bin: "helm"},
 }
 
@@ -46,6 +46,10 @@ func VerifyRequirements() error {
 }
 
 func Status() {
+	log.Debug("getting docker provider")
+	dockerProvider := docker.GetProvider()
+	log.Print("docker provider: " + dockerProvider)
+
 	log.Debug("getting cluster status")
 	currentDockerContext := docker.GetCurrentContext()
 

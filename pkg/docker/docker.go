@@ -12,6 +12,38 @@ import (
 
 var CurrentContext *Context
 
+func GetProvider() Provider {
+	out, err := command.ShellCommander("docker", "version", "--format", "json").Output()
+	if err != nil {
+		log.WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to get docker version")
+	}
+
+	log.WithField("docker-version-output", string(out)).
+		Debug("got docker version")
+	var version DockerVersion
+	err = json.Unmarshal(out, &version)
+	if err != nil {
+		log.WithError(err).Fatal("unable to parse docker version")
+	}
+
+	log.WithField("version", version).Debug("parsed docker version")
+	if version.Client.Context == "desktop-linux" &&
+		strings.Contains(version.Server.Platform.Name, "Docker Desktop") {
+		return ProviderDockerDesktop
+	} else if version.Client.Context == "colima" &&
+		version.Server.Platform.Name == "Docker Engine - Community" {
+		return ProviderColima
+	} else if version.Client.Context == "default" &&
+		strings.Contains(version.Client.Version, "-rd") {
+		return ProviderRancherDesktop
+	}
+
+	log.WithField("version", version).
+		Fatal("unable to determine docker provider")
+	return ""
+}
+
 func GetCurrentContext() *Context {
 	if CurrentContext != nil {
 		return CurrentContext
@@ -26,20 +58,13 @@ func GetCurrentContext() *Context {
 	log.WithField("contexts-output", string(out)).Debug("got context list")
 
 	var contexts []Context
-	contextLines := strings.Split(string(out), "\n")
-	for _, l := range contextLines {
-		if l == "" {
-			continue
-		}
-		var context Context
-		err = json.Unmarshal([]byte(l), &context)
-		if err != nil {
-			log.WithField("context-line", l).
-				WithError(err).Fatal("unable to parse docker context line")
-		}
-		contexts = append(contexts, context)
+	outStr := strings.Trim(string(out), "\n")
+	err = json.Unmarshal([]byte(outStr), &contexts)
+	if err != nil {
+		log.WithField("contexts-out", outStr).
+			WithError(err).Fatal("unable to parse docker contexts")
 	}
-	log.WithField("contexts", contexts).Debug("parsed context list")
+	log.WithField("contexts", contexts).Debug("parsed contexts")
 
 	for _, c := range contexts {
 		if !c.Current {
