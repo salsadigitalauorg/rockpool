@@ -77,5 +77,14 @@ func Stop() {
 	case config.ClusterProviderColima:
 		colima.Stop(config.C.Name)
 	}
+}
 
+func Delete() {
+	log.Info("deleting clusters")
+	switch config.C.Clusters.Provider {
+	case config.ClusterProviderKind:
+		kind.Delete(config.C.Name)
+	case config.ClusterProviderColima:
+		log.Error("deleting clusters is not yet supported for colima")
+	}
 }

@@ -84,6 +84,12 @@ func Status(name string) {
 
 // Create a cluster.
 func Create(name string) {
+	List()
+	if _, ok := ClusterNodes[name]; ok {
+		log.WithField("name", name).
+			Info("cluster already exists")
+		return
+	}
 	log.Debug("creating cluster")
 	err := command.
 		ShellCommander("kind", "create", "cluster", "-n", name).
@@ -101,6 +107,17 @@ func Stop(name string) {
 		err := docker.Stop(node).RunProgressive()
 		if err != nil {
 			log.WithError(err).Fatal("error stopping cluster nodes")
+		}
+	}
+}
+
+// Delete a cluster.
+func Delete(name string) {
+	log.Debug("deleting cluster nodes")
+	for _, node := range ClusterNodes[name] {
+		err := docker.Remove(node).RunProgressive()
+		if err != nil {
+			log.WithError(err).Fatal("error deleting cluster nodes")
 		}
 	}
 }

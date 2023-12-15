@@ -124,6 +124,11 @@ func Restart(n string) ([]byte, error) {
 	return command.ShellCommander("docker", "restart", n).Output()
 }
 
+func Remove(n string) command.IShellCommand {
+	log.WithField("container", n).Debug("deleting container")
+	return command.ShellCommander("docker", "rm", n)
+}
+
 func Inspect(n string) []Container {
 	log.WithField("container", n).Debug("inspecting container")
 	cmd := command.ShellCommander("docker", "inspect", n)
