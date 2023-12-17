@@ -1,4 +1,4 @@
-package kind
+package clusters
 
 import (
 	"strings"
@@ -10,16 +10,26 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 )
 
-var RequiredBinaries = []action.BinaryExists{{Bin: "kind"}}
+type KindClusterProvider struct {
+	requiredBinaries []action.BinaryExists
+	clusterNodes     map[string][]string
+}
 
-var ClusterNodes map[string][]string
+var kindcp = KindClusterProvider{
+	requiredBinaries: []action.BinaryExists{{Bin: "kind"}},
+}
+
+// Get the list of required binaries.
+func (cp *KindClusterProvider) GetRequiredBinaries() []action.BinaryExists {
+	return cp.requiredBinaries
+}
 
 // Get the list of clusters and nodes.
-func List() map[string][]string {
-	if ClusterNodes != nil {
-		return ClusterNodes
+func (cp *KindClusterProvider) List() map[string][]string {
+	if cp.clusterNodes != nil {
+		return cp.clusterNodes
 	}
-	ClusterNodes = make(map[string][]string)
+	cp.clusterNodes = make(map[string][]string)
 
 	log.Debug("fetching cluster list")
 	out, err := command.
@@ -32,7 +42,7 @@ func List() map[string][]string {
 
 	log.WithField("clusters-output", string(out)).Debug("got cluster list")
 	if string(out) == "No kind clusters found." {
-		return ClusterNodes
+		return cp.clusterNodes
 	}
 
 	cluster_lines := strings.Split(string(out), "\n")
@@ -40,14 +50,14 @@ func List() map[string][]string {
 		if l == "" {
 			continue
 		}
-		ClusterNodes[l] = Nodes(l)
+		cp.clusterNodes[l] = cp.Nodes(l)
 	}
 
-	return ClusterNodes
+	return cp.clusterNodes
 }
 
 // Get the list of nodes in a cluster.
-func Nodes(name string) []string {
+func (cp *KindClusterProvider) Nodes(name string) []string {
 	log.Debug("fetching cluster nodes")
 	out, err := command.
 		ShellCommander("kind", "get", "nodes", "--name", name).
@@ -60,32 +70,39 @@ func Nodes(name string) []string {
 	log.WithField("clusters-nodes-output", string(out)).
 		Debug("got cluster nodes list")
 
-	ClusterNodes[name] = []string{}
+	cp.clusterNodes[name] = []string{}
 	node_lines := strings.Split(string(out), "\n")
 	for _, l := range node_lines {
 		if l == "" {
 			continue
 		}
-		ClusterNodes[name] = append(ClusterNodes[name], l)
+		cp.clusterNodes[name] = append(cp.clusterNodes[name], l)
 	}
 
-	return ClusterNodes[name]
+	return cp.clusterNodes[name]
+}
+
+// Exist checks if the platform clusters exist.
+func (cp *KindClusterProvider) Exist(name string) bool {
+	cp.List()
+	_, exists := cp.clusterNodes[name]
+	return exists
 }
 
 // Get the status of the cluster.
-func Status(name string) {
-	List()
-	if _, ok := ClusterNodes[name]; !ok {
+func (cp *KindClusterProvider) Status(name string) {
+	cp.List()
+	if _, ok := cp.clusterNodes[name]; !ok {
 		log.WithField("name", name).
 			Fatal("cluster does not exist")
 	}
-	log.Print("cluster nodes: ", ClusterNodes[name])
+	log.Print("cluster nodes: ", cp.clusterNodes[name])
 }
 
 // Create a cluster.
-func Create(name string) {
-	List()
-	if _, ok := ClusterNodes[name]; ok {
+func (cp *KindClusterProvider) Create(name string) {
+	cp.List()
+	if _, ok := cp.clusterNodes[name]; ok {
 		log.WithField("name", name).
 			Info("cluster already exists")
 		return
@@ -100,10 +117,10 @@ func Create(name string) {
 }
 
 // Stop a cluster.
-func Stop(name string) {
-	List()
+func (cp *KindClusterProvider) Stop(name string) {
+	cp.List()
 	log.Debug("stopping cluster nodes")
-	for _, node := range ClusterNodes[name] {
+	for _, node := range cp.clusterNodes[name] {
 		err := docker.Stop(node).RunProgressive()
 		if err != nil {
 			log.WithError(err).Fatal("error stopping cluster nodes")
@@ -112,9 +129,9 @@ func Stop(name string) {
 }
 
 // Delete a cluster.
-func Delete(name string) {
+func (cp *KindClusterProvider) Delete(name string) {
 	log.Debug("deleting cluster nodes")
-	for _, node := range ClusterNodes[name] {
+	for _, node := range cp.clusterNodes[name] {
 		err := docker.Remove(node).RunProgressive()
 		if err != nil {
 			log.WithError(err).Fatal("error deleting cluster nodes")

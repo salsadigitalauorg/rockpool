@@ -1,15 +1,11 @@
 package clusters
 
 import (
-	"strings"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/action"
-	"github.com/salsadigitalauorg/rockpool/pkg/colima"
 	"github.com/salsadigitalauorg/rockpool/pkg/config"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
-	"github.com/salsadigitalauorg/rockpool/pkg/kind"
 )
 
 var requiredBinaries = []action.BinaryExists{
@@ -18,20 +14,21 @@ var requiredBinaries = []action.BinaryExists{
 	{Bin: "helm"},
 }
 
-func VerifyRequirements() error {
-	currentDockerContext := docker.GetCurrentContext()
+var clusterProvider ClusterProvider
 
+func init() {
 	switch config.C.Clusters.Provider {
 	case config.ClusterProviderKind:
-		if strings.Contains(currentDockerContext.Name, "colima-") {
-			log.Warn("please note that there is currently an issue preventing " +
-				"kind from working on Colima for kind >=0.20.0. See this issue for more " +
-				"information: https://github.com/kubernetes-sigs/kind/issues/3277")
-		}
-		requiredBinaries = append(requiredBinaries, kind.RequiredBinaries...)
-	case config.ClusterProviderColima:
-		requiredBinaries = append(requiredBinaries, colima.RequiredBinaries...)
+		clusterProvider = &kindcp
 	}
+}
+
+func Provider() ClusterProvider {
+	return clusterProvider
+}
+
+func VerifyRequirements() error {
+	requiredBinaries = append(requiredBinaries, clusterProvider.GetRequiredBinaries()...)
 
 	log.Debug("checking if binaries exist")
 	chain := &action.Chain{
@@ -55,40 +52,24 @@ func Status() {
 
 	log.Print("current docker context: "+currentDockerContext.Name, " ("+currentDockerContext.DockerEndpoint+")")
 
-	switch config.C.Clusters.Provider {
-	case config.ClusterProviderKind:
-		kind.Status(config.C.Name)
-	case config.ClusterProviderColima:
-		colima.Status(config.C.Name)
-	}
+	clusterProvider.Status(config.C.Name)
+}
+
+func Exist() bool {
+	return clusterProvider.Exist(config.C.Name)
 }
 
 func Ensure() {
 	log.Debug("ensuring clusters are created")
-	switch config.C.Clusters.Provider {
-	case config.ClusterProviderKind:
-		kind.Create(config.C.Name)
-	case config.ClusterProviderColima:
-		colima.Create(config.C.Name)
-	}
+	clusterProvider.Create(config.C.Name)
 }
 
 func Stop() {
 	log.Info("stopping clusters")
-	switch config.C.Clusters.Provider {
-	case config.ClusterProviderKind:
-		kind.Stop(config.C.Name)
-	case config.ClusterProviderColima:
-		colima.Stop(config.C.Name)
-	}
+	clusterProvider.Stop(config.C.Name)
 }
 
 func Delete() {
 	log.Info("deleting clusters")
-	switch config.C.Clusters.Provider {
-	case config.ClusterProviderKind:
-		kind.Delete(config.C.Name)
-	case config.ClusterProviderColima:
-		log.Error("deleting clusters is not yet supported for colima")
-	}
+	clusterProvider.Delete(config.C.Name)
 }
