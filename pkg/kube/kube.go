@@ -11,7 +11,7 @@ import (
 
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/components/templates"
-	"github.com/salsadigitalauorg/rockpool/pkg/platform"
+	"github.com/salsadigitalauorg/rockpool/pkg/config"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -83,7 +83,7 @@ func ApplyTemplate(cn string, ns string, fn string, force bool, retries int, del
 		"force":       force,
 	})
 
-	f, err := templates.Render(fn, platform.ToMap(), "")
+	f, err := templates.Render(fn, config.C.ToMap(), "")
 	if err != nil {
 		logger.Fatal("unable to render template")
 	}

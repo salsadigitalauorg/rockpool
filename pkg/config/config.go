@@ -38,12 +38,53 @@ func Initialise() {
 		}
 	} else {
 		C = &Config{
-			Name: "rockpool",
+			Name:   "rockpool",
+			Domain: "rockpool.local",
 			Clusters: Clusters{
 				Single:   true,
 				Provider: ClusterProviderKind,
 			},
 		}
 		log.WithField("config", C).Debug("initialised default config")
+	}
+}
+
+func (cc *ClusterConfig) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"Kubeconfig": cc.Kubeconfig,
+		"Context":    cc.Context,
+	}
+}
+
+func (cs *Clusters) ToMap() map[string]interface{} {
+	remotes := make([]map[string]interface{}, len(cs.Remotes))
+	for i, r := range cs.Remotes {
+		remotes[i] = r.ToMap()
+	}
+	return map[string]interface{}{
+		"KubernetesVersion": cs.KubernetesVersion,
+		"Single":            cs.Single,
+		"Provider":          cs.Provider,
+		"Core":              cs.Core.ToMap(),
+		"Remotes":           remotes,
+	}
+}
+
+func (cc *ComponentConfig) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"ChartValues": cc.ChartValues,
+	}
+}
+
+func (c *Config) ToMap() map[string]interface{} {
+	components := make(map[string]interface{})
+	for k, v := range c.Components {
+		components[k] = v.ToMap()
+	}
+	return map[string]interface{}{
+		"Name":       C.Name,
+		"Domain":     C.Domain,
+		"Clusters":   C.Clusters.ToMap(),
+		"Components": components,
 	}
 }

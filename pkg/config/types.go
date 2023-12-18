@@ -41,20 +41,8 @@ type Clusters struct {
 
 type HelmChartValues interface{}
 
-type LagoonClusterConfig struct {
+type ComponentConfig struct {
 	ChartValues HelmChartValues `yaml:"chart-values"`
-}
-
-type LagoonConfig struct {
-	// Defines the configuration for lagoon-core.
-	// See https://github.com/uselagoon/lagoon-charts/tree/main/charts/lagoon-core
-	// for more information.
-	Core LagoonClusterConfig `yaml:"core"`
-
-	// Defines the configuration for lagoon-remote.
-	// See https://github.com/uselagoon/lagoon-charts/tree/main/charts/lagoon-remote
-	// for more information.
-	Remote LagoonClusterConfig `yaml:"remote"`
 }
 
 type Config struct {
@@ -69,6 +57,6 @@ type Config struct {
 	// Defines the clusters that Rockpool will use to install Lagoon on.
 	Clusters `yaml:"clusters"`
 
-	// Defines the configuration for the Lagoon installation.
-	LagoonConfig `yaml:"lagoon-config"`
+	// Defines configuration for the components in the Lagoon installation.
+	Components map[string]ComponentConfig `yaml:"components"`
 }
