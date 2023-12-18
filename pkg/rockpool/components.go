@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
+	"github.com/salsadigitalauorg/rockpool/pkg/components/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/k3d"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 
 	log "github.com/sirupsen/logrus"
 )

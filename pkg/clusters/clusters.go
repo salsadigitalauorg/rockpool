@@ -16,19 +16,19 @@ var requiredBinaries = []action.BinaryExists{
 
 var clusterProvider ClusterProvider
 
-func init() {
+func Provider() ClusterProvider {
+	if clusterProvider != nil {
+		return clusterProvider
+	}
 	switch config.C.Clusters.Provider {
 	case config.ClusterProviderKind:
 		clusterProvider = &kindcp
 	}
-}
-
-func Provider() ClusterProvider {
 	return clusterProvider
 }
 
 func VerifyRequirements() error {
-	requiredBinaries = append(requiredBinaries, clusterProvider.GetRequiredBinaries()...)
+	requiredBinaries = append(requiredBinaries, Provider().GetRequiredBinaries()...)
 
 	log.Debug("checking if binaries exist")
 	chain := &action.Chain{
@@ -52,24 +52,24 @@ func Status() {
 
 	log.Print("current docker context: "+currentDockerContext.Name, " ("+currentDockerContext.DockerEndpoint+")")
 
-	clusterProvider.Status(config.C.Name)
+	Provider().Status(config.C.Name)
 }
 
 func Exist() bool {
-	return clusterProvider.Exist(config.C.Name)
+	return Provider().Exist(config.C.Name)
 }
 
 func Ensure() {
 	log.Debug("ensuring clusters are created")
-	clusterProvider.Create(config.C.Name)
+	Provider().Create(config.C.Name)
 }
 
 func Stop() {
 	log.Info("stopping clusters")
-	clusterProvider.Stop(config.C.Name)
+	Provider().Stop(config.C.Name)
 }
 
 func Delete() {
 	log.Info("deleting clusters")
-	clusterProvider.Delete(config.C.Name)
+	Provider().Delete(config.C.Name)
 }

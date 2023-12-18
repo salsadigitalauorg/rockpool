@@ -15,7 +15,10 @@ var Releases sync.Map
 var UpgradeComponents []string
 
 func Exec(cn string, ns string, args ...string) command.IShellCommand {
-	cmd := command.ShellCommander("helm", "--kubeconfig", kube.KubeconfigPath(cn))
+	cmd := command.ShellCommander("helm")
+	if kube.KubeconfigPath(cn) != "" {
+		cmd.AddArgs("--kubeconfig", kube.KubeconfigPath(cn))
+	}
 	if ns != "" {
 		cmd.AddArgs("--namespace", ns)
 	}

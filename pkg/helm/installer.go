@@ -2,7 +2,7 @@ package helm
 
 import (
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
-	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
+	"github.com/salsadigitalauorg/rockpool/pkg/components/templates"
 	log "github.com/sirupsen/logrus"
 )
 

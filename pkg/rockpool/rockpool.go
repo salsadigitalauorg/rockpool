@@ -10,6 +10,7 @@ import (
 
 	"github.com/salsadigitalauorg/rockpool/pkg/action"
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
+	"github.com/salsadigitalauorg/rockpool/pkg/components/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/gitea"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
@@ -17,7 +18,6 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
 	"github.com/salsadigitalauorg/rockpool/pkg/lagoon"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -232,7 +232,7 @@ func SetupLagoonController() {
 		Template:    "dnsmasq.yml.tmpl",
 	})
 
-	// chain.Add(kube.Templater{
+	// chain.Add(kube.Applyer{
 	// 	Stage:       "controller-setup",
 	// 	Info:        "installing gitlab",
 	// 	ClusterName: clusterName,

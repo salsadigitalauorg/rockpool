@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
+	"github.com/salsadigitalauorg/rockpool/pkg/components/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 
 	log "github.com/sirupsen/logrus"
 )

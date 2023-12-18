@@ -10,18 +10,14 @@ import (
 	"time"
 
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
+	"github.com/salsadigitalauorg/rockpool/pkg/components/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/platform"
-	"github.com/salsadigitalauorg/rockpool/pkg/platform/templates"
 
 	log "github.com/sirupsen/logrus"
 )
 
 func KubeconfigPath(clusterName string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(fmt.Sprintln("unable to get user home directory:", err))
-	}
-	return fmt.Sprintf("%s/.k3d/kubeconfig-%s.yaml", home, clusterName)
+	return ""
 }
 
 func GetTargetIdFromCn(cn string) int {
@@ -38,7 +34,10 @@ func GetTargetIdFromCn(cn string) int {
 }
 
 func Cmd(cn string, ns string, args ...string) command.IShellCommand {
-	cmd := command.ShellCommander("kubectl", "--kubeconfig", KubeconfigPath(cn))
+	cmd := command.ShellCommander("kubectl")
+	if KubeconfigPath(cn) != "" {
+		cmd.AddArgs("--kubeconfig", KubeconfigPath(cn))
+	}
 	if ns != "" {
 		cmd.AddArgs("--namespace", ns)
 	}
@@ -112,7 +111,7 @@ func ApplyTemplate(cn string, ns string, fn string, force bool, retries int, del
 			logger.WithField("retryFailedErr", failedErr)
 		}
 
-		logger.Fatal("unable to apply generated template")
+		logger.WithError(err).Fatal("unable to apply generated template")
 	}
 
 }
