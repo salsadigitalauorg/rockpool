@@ -32,8 +32,21 @@ type ColimaProfile struct {
 	Address string
 }
 
+type PsContainer struct {
+	ID     string
+	Names  string
+	Labels string
+	State  string
+}
+
 type Container struct {
-	Name            string
+	Name  string
+	State struct {
+		Status string
+	}
+	Config struct {
+		Labels map[string]string
+	}
 	NetworkSettings struct {
 		Networks map[string]struct {
 			IPAddress string

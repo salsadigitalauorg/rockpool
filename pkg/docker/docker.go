@@ -154,7 +154,32 @@ func Remove(n string) command.IShellCommand {
 	return command.ShellCommander("docker", "rm", n)
 }
 
-func Inspect(n string) []Container {
+func Ps(label string) ([]PsContainer, error) {
+	log.WithField("label", label).Debug("getting containers")
+	cmd := command.ShellCommander("docker", "ps", "--format", "json")
+	if label != "" {
+		cmd.AddArgs("--filter", "label="+label)
+	}
+	out, err := cmd.Output()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"label": label,
+			"out":   string(out),
+		}).WithError(command.GetMsgFromCommandError(err)).
+			Fatal("unable to get list of docker containers")
+	}
+	containers := []PsContainer{}
+	err = json.Unmarshal(out, &containers)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"label": label,
+			"err":   err,
+		}).Fatal("unable to parse docker containers")
+	}
+	return containers, err
+}
+
+func Inspect(n string) Container {
 	log.WithField("container", n).Debug("inspecting container")
 	cmd := command.ShellCommander("docker", "inspect", n)
 	out, err := cmd.Output()
@@ -165,6 +190,7 @@ func Inspect(n string) []Container {
 		}).WithError(command.GetMsgFromCommandError(err)).
 			Fatal("unable to get list of docker containers")
 	}
+
 	containers := []Container{}
 	err = json.Unmarshal(out, &containers)
 	if err != nil {
@@ -173,7 +199,10 @@ func Inspect(n string) []Container {
 			"err":       err,
 		}).Fatal("unable to parse docker containers")
 	}
-	return containers
+
+	log.WithField("docker-inspect-parsed", containers).
+		Debug("got inspected container")
+	return containers[0]
 }
 
 func Cp(src string, dest string) ([]byte, error) {
