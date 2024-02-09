@@ -9,14 +9,14 @@ import (
 	"net/http/httputil"
 	"time"
 
+	"github.com/salsadigitalauorg/rockpool/pkg/config"
 	"github.com/salsadigitalauorg/rockpool/pkg/interceptor"
-	"github.com/salsadigitalauorg/rockpool/pkg/platform"
 
 	log "github.com/sirupsen/logrus"
 )
 
 func ApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
-	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", platform.Hostname(), endpoint)
+	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", config.C.Domain, endpoint)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err

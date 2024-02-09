@@ -23,7 +23,7 @@ func Render(tmplName string, values interface{}, destName string) (string, error
 		"template": tmplName,
 		"values":   values,
 		"destName": destName,
-	}).Debug()
+	}).Debug("rendering template")
 	t := template.Must(template.ParseFS(templates, tmplName))
 
 	var rendered string

@@ -6,16 +6,18 @@ import (
 )
 
 func init() {
-	Add("dnsmasq", Component{
-		Name:     "dnsmasq",
-		CompType: ComponentTypeLocalReq,
-		InstallActions: []action.Action{
-			kube.Applyer{
-				Info:      "installing dnsmasq",
-				Namespace: "default",
-				Force:     true,
-				Template:  "dnsmasq.yml.tmpl",
+	Add("dnsmasq", func() Component {
+		return Component{
+			Name:     "dnsmasq",
+			CompType: ComponentTypeLocalReq,
+			InstallActions: []action.Action{
+				kube.Applyer{
+					Info:      "installing dnsmasq",
+					Namespace: "default",
+					Force:     true,
+					Template:  "dnsmasq.yml.tmpl",
+				},
 			},
-		},
+		}
 	})
 }
