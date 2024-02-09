@@ -128,7 +128,7 @@ func RegistryStart() {
 	logger := log.WithField("registry", registryNameFull)
 	logger.Info("starting registry")
 
-	_, err := docker.Start(registryNameFull)
+	_, err := docker.Start(registryNameFull).Output()
 	if err != nil {
 		logger.WithError(command.GetMsgFromCommandError(err)).
 			Fatal("error starting registry")

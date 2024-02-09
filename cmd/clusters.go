@@ -32,9 +32,19 @@ var clustersCreateCmd = &cobra.Command{
 	},
 }
 
+var clustersStartCmd = &cobra.Command{
+	Use:     "start",
+	Aliases: []string{"s"},
+	Short:   "Start the clusters.",
+	Run: func(cmd *cobra.Command, args []string) {
+		clusters.VerifyRequirements()
+		clusters.Start()
+	},
+}
+
 var clustersStopCmd = &cobra.Command{
 	Use:     "stop",
-	Aliases: []string{"s"},
+	Aliases: []string{"t"},
 	Short:   "Stop the clusters.",
 	Run: func(cmd *cobra.Command, args []string) {
 		clusters.VerifyRequirements()
@@ -44,7 +54,7 @@ var clustersStopCmd = &cobra.Command{
 
 var clustersDeleteCmd = &cobra.Command{
 	Use:     "delete",
-	Aliases: []string{"s"},
+	Aliases: []string{"rm"},
 	Short:   "Delete the clusters.",
 	Run: func(cmd *cobra.Command, args []string) {
 		clusters.VerifyRequirements()
@@ -56,6 +66,7 @@ var clustersDeleteCmd = &cobra.Command{
 func init() {
 	clustersCmd.AddCommand(clustersStatusCmd)
 	clustersCmd.AddCommand(clustersCreateCmd)
+	clustersCmd.AddCommand(clustersStartCmd)
 	clustersCmd.AddCommand(clustersStopCmd)
 	clustersCmd.AddCommand(clustersDeleteCmd)
 	rootCmd.AddCommand(clustersCmd)

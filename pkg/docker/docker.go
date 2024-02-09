@@ -139,9 +139,9 @@ func Stop(n string) command.IShellCommand {
 	return command.ShellCommander("docker", "stop", n)
 }
 
-func Start(n string) ([]byte, error) {
+func Start(n string) command.IShellCommand {
 	log.WithField("container", n).Debug("starting container")
-	return command.ShellCommander("docker", "start", n).Output()
+	return command.ShellCommander("docker", "start", n)
 }
 
 func Restart(n string) ([]byte, error) {

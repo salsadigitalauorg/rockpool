@@ -64,6 +64,11 @@ func Ensure() {
 	Provider().Create(config.C.Name)
 }
 
+func Start() {
+	log.Info("starting clusters")
+	Provider().Start(config.C.Name)
+}
+
 func Stop() {
 	log.Info("stopping clusters")
 	Provider().Stop(config.C.Name)

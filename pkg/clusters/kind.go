@@ -108,6 +108,7 @@ func (cp KindClusterProvider) Create(clusterName string) {
 	if cp.Exist(clusterName) {
 		log.WithField("cluster", clusterName).
 			Info("cluster already exists")
+		cp.Start(clusterName)
 		return
 	}
 
@@ -117,6 +118,32 @@ func (cp KindClusterProvider) Create(clusterName string) {
 		RunProgressive()
 	if err != nil {
 		log.WithField("cluster", clusterName).WithError(err).Fatal("error creating cluster")
+	}
+}
+
+// Start a cluster.
+func (cp KindClusterProvider) Start(clusterName string) {
+	if !cp.Exist(clusterName) {
+		log.WithField("cluster", clusterName).Fatal("cluster does not exist")
+	}
+
+	nodes := cp.ClusterNodes(clusterName)
+	if len(nodes) == 0 {
+		log.WithField("cluster", clusterName).
+			Fatal("no node to start - cluster not created?")
+	}
+
+	for nodeName, node := range nodes {
+		if node.Status == "running" {
+			log.WithField("node", nodeName).Debug("node already running")
+			continue
+		}
+		log.WithField("node", nodeName).Info("starting node")
+		err := docker.Start(nodeName).RunProgressive()
+		if err != nil {
+			log.WithField("node", nodeName).
+				WithError(err).Fatal("error starting node")
+		}
 	}
 }
 
@@ -138,7 +165,7 @@ func (cp KindClusterProvider) Stop(clusterName string) {
 		err := docker.Stop(nodeName).RunProgressive()
 		if err != nil {
 			log.WithField("node", nodeName).
-				WithError(err).Fatal("error stopping cluster nodes")
+				WithError(err).Fatal("error stopping node")
 		}
 	}
 }

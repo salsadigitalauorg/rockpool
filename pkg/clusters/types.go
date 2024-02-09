@@ -15,6 +15,7 @@ type ClusterProvider interface {
 	ClusterNodes(string) map[string]ClusterNode
 	Status(string)
 	Create(string)
+	Start(string)
 	Stop(string)
 	Delete(string)
 }
