@@ -40,6 +40,7 @@ func (i Installer) Execute() bool {
 		logger.Info(i.Info)
 	}
 
+	FetchInstalledReleases(i.ClusterName)
 	if i.AddRepo.Url != "" {
 		logger.WithField("addRepo", i.AddRepo)
 		err := Exec(i.ClusterName, "", "repo", "add", i.AddRepo.Name,
@@ -54,7 +55,7 @@ func (i Installer) Execute() bool {
 	if i.ValuesTemplate != "" {
 		valuesFile, err := templates.Render(i.ValuesTemplate, i.ValuesTemplateVars, "")
 		if err != nil {
-			logger.WithError(err).Fatal("error rendering gitea values template")
+			logger.WithError(err).Fatal("error rendering values template")
 		}
 		args = append(args, "-f", valuesFile)
 	}

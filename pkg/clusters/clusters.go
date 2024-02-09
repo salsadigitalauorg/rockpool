@@ -47,11 +47,12 @@ func Status() {
 	dockerProvider := docker.GetProvider()
 	log.Print("docker provider: " + dockerProvider)
 
-	log.Debug("getting cluster status")
+	log.Debug("getting current docker context")
 	currentDockerContext := docker.GetCurrentContext()
 
 	log.Print("current docker context: "+currentDockerContext.Name, " ("+currentDockerContext.DockerEndpoint+")")
 
+	log.Debug("getting cluster status")
 	Provider().Status(config.C.Name)
 }
 
