@@ -7,7 +7,8 @@ import (
 
 func init() {
 	Add("dnsmasq", Component{
-		Name: "dnsmasq",
+		Name:     "dnsmasq",
+		CompType: ComponentTypeLocalReq,
 		InstallActions: []action.Action{
 			kube.Applyer{
 				Info:      "installing dnsmasq",

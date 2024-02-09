@@ -11,7 +11,8 @@ var IngressNginxDefaultVersion = "4.5.2"
 
 func init() {
 	Add("ingress-nginx", Component{
-		Name: "ingress-nginx",
+		Name:     "ingress-nginx",
+		CompType: ComponentTypeLagoonReq,
 		InstallActions: []action.Action{
 			helm.Installer{
 				Info:        "installing ingress-nginx",

@@ -7,7 +7,8 @@ import (
 
 func init() {
 	Add("mailhog", Component{
-		Name: "mailhog",
+		Name:     "mailhog",
+		CompType: ComponentTypeLocalReq,
 		InstallActions: []action.Action{
 			kube.Applyer{
 				Info:      "installing mailhog",

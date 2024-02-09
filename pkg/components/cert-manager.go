@@ -7,7 +7,8 @@ import (
 
 func init() {
 	Add("cert-manager", Component{
-		Name: "cert-manager",
+		Name:     "cert-manager",
+		CompType: ComponentTypeLagoonReq,
 		InstallActions: []action.Action{
 			kube.Applyer{
 				Info:      "installing cert-manager",
