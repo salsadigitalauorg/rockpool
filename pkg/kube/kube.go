@@ -12,6 +12,7 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/components/templates"
 	"github.com/salsadigitalauorg/rockpool/pkg/config"
+	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -83,7 +84,12 @@ func ApplyTemplate(cn string, ns string, fn string, force bool, retries int, del
 		"force":       force,
 	})
 
-	f, err := templates.Render(fn, config.C.ToMap(), "")
+	tmplVars := config.C.ToMap()
+	if config.C.Provider != "" {
+		tmplVars["VmIp"] = docker.GetVmIp()
+	}
+
+	f, err := templates.Render(fn, tmplVars, "")
 	if err != nil {
 		logger.Fatal("unable to render template")
 	}

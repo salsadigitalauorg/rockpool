@@ -1,7 +1,10 @@
 package clusters
 
 import (
+	"io"
 	"strings"
+
+	_ "embed"
 
 	log "github.com/sirupsen/logrus"
 
@@ -9,6 +12,9 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/command"
 	"github.com/salsadigitalauorg/rockpool/pkg/docker"
 )
+
+//go:embed templates/kind.yaml
+var kindConfigYaml string
 
 type KindClusterProvider struct {
 	requiredBinaries []action.BinaryExists
@@ -112,10 +118,20 @@ func (cp KindClusterProvider) Create(clusterName string) {
 		return
 	}
 
-	log.Debug("creating cluster")
-	err := command.
-		ShellCommander("kind", "create", "cluster", "-n", clusterName).
-		RunProgressive()
+	log.WithField("config", kindConfigYaml).Debug("creating cluster")
+	cmd := command.ShellCommander("kind", "create", "cluster", "--config", "-", "-n", clusterName)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		log.WithError(err).
+			Fatal("error creating stdin pipe when creating kind cluster")
+	}
+
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, kindConfigYaml)
+	}()
+
+	err = cmd.RunProgressive()
 	if err != nil {
 		log.WithField("cluster", clusterName).WithError(err).Fatal("error creating cluster")
 	}

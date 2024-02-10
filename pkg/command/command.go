@@ -33,6 +33,7 @@ type IShellCommand interface {
 	Start() error
 	SetStdin(in io.Reader)
 	SetStdout(out io.Writer)
+	StdinPipe() (io.WriteCloser, error)
 	StdoutPipe() (io.ReadCloser, error)
 	StderrPipe() (io.ReadCloser, error)
 	Wait() error

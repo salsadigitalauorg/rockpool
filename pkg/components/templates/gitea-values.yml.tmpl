@@ -18,7 +18,7 @@ gitea:
 ingress:
   enabled: true
   hosts:
-    - host: gitea.lagoon.{{ .Domain }}
+    - host: gitea.lagoon.{{ .Hostname }}
       paths:
         - path: /
           pathType: Prefix

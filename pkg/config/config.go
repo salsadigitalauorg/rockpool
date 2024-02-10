@@ -39,7 +39,7 @@ func Initialise() {
 	} else {
 		C = &Config{
 			Name:   "rockpool",
-			Domain: "rockpool.local",
+			Domain: "local",
 			Clusters: Clusters{
 				Single:   true,
 				Provider: ClusterProviderKind,
@@ -76,6 +76,10 @@ func (cc *ComponentConfig) ToMap() map[string]interface{} {
 	}
 }
 
+func (c *Config) Hostname() string {
+	return c.Name + "." + c.Domain
+}
+
 func (c *Config) ToMap() map[string]interface{} {
 	components := make(map[string]interface{})
 	for k, v := range c.Components {
@@ -84,6 +88,7 @@ func (c *Config) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"Name":       C.Name,
 		"Domain":     C.Domain,
+		"Hostname":   C.Hostname(),
 		"Clusters":   C.Clusters.ToMap(),
 		"Components": components,
 	}

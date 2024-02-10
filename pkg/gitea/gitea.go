@@ -16,7 +16,7 @@ import (
 )
 
 func ApiReq(method string, endpoint string, data []byte) (*http.Request, error) {
-	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", config.C.Domain, endpoint)
+	url := fmt.Sprintf("http://gitea.lagoon.%s/api/v1/%s", config.C.Hostname(), endpoint)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
