@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"time"
@@ -114,7 +115,10 @@ func CreateToken() (string, error) {
 		}
 	}
 
-	data, _ := json.Marshal(map[string]string{"name": "test"})
+	data, _ := json.Marshal(map[string]interface{}{
+		"name":   "test",
+		"scopes": []string{"write:user", "write:repository"},
+	})
 	resp, err := TokenApiCall("POST", data, false)
 	if err != nil {
 		return "", err
@@ -140,6 +144,12 @@ func HasTestRepo(token string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return false, fmt.Errorf("error getting gitea repos: %s - %s", resp.Status, string(body))
+	}
+
 	var res []struct {
 		Name string `json:"name"`
 	}
@@ -159,6 +169,7 @@ func CreateRepo() {
 	if err != nil {
 		log.WithError(err).Fatal("error creating gitea token")
 	}
+	log.WithField("token", token).Debug("got gitea token")
 
 	if has, err := HasTestRepo(token); err != nil {
 		log.WithError(err).Fatal("error looking up gitea test repo")
