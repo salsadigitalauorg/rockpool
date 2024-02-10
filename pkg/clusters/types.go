@@ -4,8 +4,17 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/action"
 )
 
+type ClusterRole string
+
+const (
+	ClusterRoleTools      ClusterRole = "tools"
+	ClusterRoleController ClusterRole = "controller"
+	ClusterRoleRemote     ClusterRole = "remote"
+)
+
 type ClusterNode struct {
 	Status string
+	Roles  []ClusterRole
 }
 
 type ClusterProvider interface {
