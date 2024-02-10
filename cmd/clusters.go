@@ -8,7 +8,7 @@ import (
 
 var clustersCmd = &cobra.Command{
 	Use:     "clusters [command]",
-	Aliases: []string{"c"},
+	Aliases: []string{"cl"},
 	Short:   "Execute operations on the clusters.",
 }
 

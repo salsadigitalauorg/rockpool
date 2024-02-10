@@ -12,11 +12,14 @@ import (
 // is executed only when the component is actually installed. This is crucial
 // for components that require config.C to be initialised.
 var Registry = map[string]func() Component{}
-var List = []string{}
 
 func Add(name string, compFunc func() Component) {
 	Registry[name] = compFunc
-	List = append(List, name)
+}
+
+func IsValid(name string) bool {
+	_, ok := Registry[name]
+	return ok
 }
 
 func VerifyRequirements() {
