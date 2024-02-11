@@ -1,6 +1,8 @@
 package config
 
 import (
+	"runtime"
+
 	"github.com/spf13/viper"
 
 	log "github.com/sirupsen/logrus"
@@ -86,6 +88,7 @@ func (c *Config) ToMap() map[string]interface{} {
 		components[k] = v.ToMap()
 	}
 	return map[string]interface{}{
+		"Arch":       runtime.GOARCH,
 		"Name":       C.Name,
 		"Domain":     C.Domain,
 		"Hostname":   C.Hostname(),

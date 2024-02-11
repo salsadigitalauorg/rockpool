@@ -6,6 +6,7 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/action"
 	"github.com/salsadigitalauorg/rockpool/pkg/clusters"
 	"github.com/salsadigitalauorg/rockpool/pkg/config"
+	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 )
 
 // We keep a map of functions that return a Component, so that the logic
@@ -28,7 +29,7 @@ func VerifyRequirements() {
 	}
 }
 
-func Install(name string) {
+func Install(name string, upgrade bool) {
 	chain := action.Chain{}
 	compFunc, ok := Registry[name]
 	if !ok {
@@ -37,6 +38,12 @@ func Install(name string) {
 
 	VerifyRequirements()
 	for _, action := range compFunc().InstallActions {
+		if upgrade {
+			if helmInstallAction, ok := action.(helm.Installer); ok {
+				helmInstallAction.Upgrade = true
+				action = helmInstallAction
+			}
+		}
 		chain.Add(action)
 	}
 	chain.Run()

@@ -16,6 +16,7 @@ type Installer struct {
 	Info               string
 	ClusterName        string
 	AddRepo            HelmRepo
+	Upgrade            bool
 	Namespace          string
 	ReleaseName        string
 	Chart              string
@@ -60,6 +61,9 @@ func (i Installer) Execute() bool {
 		args = append(args, "-f", valuesFile)
 	}
 
+	if i.Upgrade {
+		UpgradeComponents = append(UpgradeComponents, i.ReleaseName)
+	}
 	err := InstallOrUpgrade(i.ClusterName, i.Namespace, i.ReleaseName, i.Chart, args)
 	if err != nil {
 		logger.WithError(err).Fatal("unable to install helm chart")

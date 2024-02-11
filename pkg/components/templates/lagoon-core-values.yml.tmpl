@@ -1,5 +1,8 @@
+harborURL: http://disabled-only-use-harbor-via-deploy-controller.invalid
+harborAdminPassword: not-needed
+registry: disabled-only-use-harbor-via-deploy-controller.invalid
+
 elasticsearchURL: https://none.com
-harborURL: "https://harbor.lagoon.{{ .Hostname }}"
 kibanaURL: https://none.com
 logsDBAdminPassword: none
 s3FilesAccessKeyID: none
@@ -9,14 +12,12 @@ s3FilesSecretAccessKey: none
 s3FilesRegion: none
 s3BAASAccessKeyID: none
 s3BAASSecretAccessKey: none
-imageTag: {{ .LagoonVersion }}
-registry: "harbor.lagoon.{{ .Hostname }}"
 
-keycloakAPIURL: http://keycloak.lagoon.{{ .Hostname }}/auth
+keycloakAPIURL: https://keycloak.lagoon.{{ .Hostname }}/auth
+keycloakFrontEndURL: https://keycloak.lagoon.{{ .Hostname }}
 lagoonAPIURL: http://api.lagoon.{{ .Hostname }}/graphql
 lagoonUIURL: http://ui.lagoon.{{ .Hostname }}
 
-harborAdminPassword: pass
 keycloakAdminPassword: pass
 keycloakLagoonAdminPassword: pass
 rabbitMQPassword: pass
@@ -37,10 +38,22 @@ api:
           - api.lagoon.{{ .Hostname }} */}}
 
 keycloak:
-  {{- if eq .Arch "arm64" }}
-  image:
-    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/keycloak
-  {{- end }}
+  keycloakFrontEndURL: https://keycloak.lagoon.{{ .Hostname }}
+  realmSettings:
+    enabled: true
+    options:
+      resetPasswordAllowed: true
+      rememberMe: true
+  email:
+    enabled: true
+    settings:
+      host: mailhog
+      port: '1025'
+      fromDisplayName: Lagoon
+      from: lagoon@example.com
+      replyToDisplayName: Lagoon No-Reply
+      replyTo: lagoon@example.com
+      envelopeFrom: lagoon@example.com
   resources:
     requests:
       memory: "512Mi"
@@ -83,6 +96,10 @@ webhookHandler:
 
 ui:
   replicaCount: 1
+  {{- if eq .Arch "arm64" }}
+  image:
+    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/ui
+  {{- end }}
   ingress:
     enabled: true
     {{/* annotations:
@@ -113,6 +130,7 @@ backupHandler:
           - backuphandler.lagoon.{{ .Hostname }} */}}
 
 drushAlias:
+  replicaCount: 1
   ingress:
     enabled: true
     {{/* annotations:
@@ -132,6 +150,10 @@ nats:
 
 ssh:
   replicaCount: 1
+  {{- if eq .Arch "arm64" }}
+  image:
+    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/ssh
+  {{- end }}
   service:
     type: LoadBalancer
     port: 22
@@ -142,16 +164,12 @@ sshPortalAPI:
   serviceMonitor:
     enabled: false
 
-sshToken:
+{{/* sshToken:
   enabled: false
-  replicaCount: 1
+  replicaCount: 1 */}}
 
 broker:
   replicaCount: 1
-  {{- if eq .Arch "arm64" }}
-  image:
-    repository: ghcr.io/salsadigitalauorg/rockpool/lagoon/broker
-  {{- end }}
   resources:
     requests:
       memory: "256Mi"
@@ -201,19 +219,14 @@ webhookHandler:
         hosts:
           - webhookhandler.lagoon.{{ .Hostname }} */}}
 
-autoIdler:
-  enabled: false
-
 storageCalculator:
   enabled: false
 
-logs2webhook:
+logs2notifications:
   replicaCount: 1
 
-drushAlias:
+logs2webhook:
   replicaCount: 1
-  image:
-    tag: "v3.1.0"
 
 controllerhandler:
   enabled: false

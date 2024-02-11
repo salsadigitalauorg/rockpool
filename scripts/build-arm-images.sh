@@ -27,8 +27,19 @@ function lagoon_download () {
   fi
   [ ! -d "lagoon" ] && \
     curl -Lo lagoon.tar.gz https://github.com/uselagoon/lagoon/archive/refs/tags/${LAGOON_VERSION}.tar.gz && \
-    tar -xzf lagoon.tar.gz && mv lagoon-* lagoon && rm lagoon.tar.gz
+    tar -xzf lagoon.tar.gz && mv lagoon-${LAGOON_VERSION:1} lagoon && rm lagoon.tar.gz
   pushd lagoon
+}
+
+function lagoon_ui_download () {
+  rm -rf lagoon-ui
+  if [ -z "${LAGOON_VERSION}" ]; then
+    LAGOON_VERSION=$(curl -s https://api.github.com/repos/uselagoon/lagoon/releases/latest | jq -r '.tag_name')
+  fi
+  [ ! -d "lagoon" ] && \
+    curl -Lo lagoon-ui.tar.gz https://github.com/uselagoon/lagoon-ui/archive/refs/tags/core-${LAGOON_VERSION}.tar.gz && \
+    tar -xzf lagoon-ui.tar.gz && mv lagoon-ui-core-${LAGOON_VERSION} lagoon-ui && rm lagoon-ui.tar.gz
+  pushd lagoon-ui
 }
 
 # Build lagoon images.
@@ -50,9 +61,25 @@ function lagoon_ssh () {
   fi
 }
 
+function lagoon_ui () {
+  fetched=$1
+  if [ ! "${fetched}" == "true" ]; then
+    lagoon_ui_download
+  fi
+  dockerfile=./Dockerfile
+  docker buildx build --platform linux/arm64 --file ${dockerfile} \
+    --label "org.opencontainers.image.source=${ROCKPOOL_REPO}" \
+    --tag ${ROCKPOOL_IMAGES_REPO}/lagoon/ui:core-${LAGOON_VERSION} \
+    --push .
+  if [ ! "${fetched}" == "true" ]; then
+    popd
+  fi
+}
+
 function lagoon () {
   lagoon_download
   lagoon_ssh true
+  lagoon_ui true
   popd
 }
 
