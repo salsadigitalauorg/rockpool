@@ -22,35 +22,22 @@ builds:
 
 archives:
   - id: targz
-    builds:
-      - linux
-    replacements:
-      linux: Linux
-      amd64: x86_64
-      arm64: aarch64
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-  - id: targz_darwin
-    builds:
-      - darwin
-    replacements:
-      darwin: Darwin
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    name_template: >-
+      {{ .ProjectName }}-
+      {{- title .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}aarch64
+      {{- else }}{{ .Arch }}{{ end }}
   - id: binaries
     format: binary
     builds:
       - linux
-    replacements:
-      linux: Linux
-      amd64: x86_64
-      arm64: aarch64
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-  - id: binaries_darwin
-    format: binary
-    builds:
-      - darwin
-    replacements:
-      darwin: Darwin
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    name_template: >-
+      {{ .ProjectName }}-
+      {{- title .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}aarch64
+      {{- else }}{{ .Arch }}{{ end }}
 
 checksum:
   name_template: 'checksums.txt'
@@ -67,7 +54,7 @@ changelog:
 
 brews:
   - name: rockpool
-    tap:
+    repository:
       owner: "salsadigitalauorg"
       name: homebrew-rockpool
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
@@ -78,4 +65,3 @@ brews:
     install: bin.install "rockpool"
     ids:
       - targz
-      - targz_darwin
