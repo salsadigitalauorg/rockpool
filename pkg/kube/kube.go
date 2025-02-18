@@ -38,12 +38,28 @@ func GetTargetIdFromCn(cn string) int {
 }
 
 func Cmd(cn string, ns string, args ...string) command.IShellCommand {
-	cmd := command.ShellCommander("kubectl", "--kubeconfig", KubeconfigPath(cn))
+	cmd := command.ShellCommander("kubectl")
 	if ns != "" {
 		cmd.AddArgs("--namespace", ns)
 	}
 	cmd.AddArgs(args...)
 	return cmd
+}
+
+// ValidateCluster checks if the cluster is valid.
+func ValidateCluster(cn string) bool {
+	nodes, err := Cmd(cn, "", "get", "nodes", "-o", "name").Output()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"cluster": cn,
+			"nodes":   nodes,
+		}).Fatal("unable to get nodes")
+	}
+
+	if strings.Contains(string(nodes), "node/rockpool-") {
+		return true
+	}
+	return false
 }
 
 func Apply(cn string, ns string, fn string, force bool) error {

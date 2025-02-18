@@ -38,6 +38,10 @@ func NewComponentManager(cfg *config.Config, clusterName string) *ComponentManag
 }
 
 func (m *ComponentManager) Install(ctx context.Context, component config.ComponentConfig) error {
+	if !kube.ValidateCluster(m.clusterName) {
+		return fmt.Errorf("cluster %s is not valid", m.clusterName)
+	}
+
 	// Run pre-install hooks
 	if err := m.runHooks(component.Hooks.PreInstall); err != nil {
 		return fmt.Errorf("pre-install hooks failed: %w", err)
@@ -46,14 +50,23 @@ func (m *ComponentManager) Install(ctx context.Context, component config.Compone
 	// Install based on component type
 	switch component.Type {
 	case "helm":
+		if component.Chart == "" {
+			return fmt.Errorf("chart is required for helm components")
+		}
+
 		// Convert values to helm arguments
 		var helmArgs []string
 		for key, value := range component.Values {
 			helmArgs = append(helmArgs, fmt.Sprintf("--set=%s=%v", key, value))
 		}
 
-		// Use the component name as release name and chart name
-		err := helm.InstallOrUpgrade(m.clusterName, component.Namespace, component.Name, component.Name, helmArgs)
+		// Add version if specified
+		if component.Version != "" {
+			helmArgs = append(helmArgs, "--version", component.Version)
+		}
+
+		// Use the component name as release name and specified chart
+		err := helm.InstallOrUpgrade(m.clusterName, component.Namespace, component.Name, component.Chart, helmArgs)
 		if err != nil {
 			return fmt.Errorf("helm installation failed: %w", err)
 		}
@@ -88,6 +101,10 @@ func (m *ComponentManager) Install(ctx context.Context, component config.Compone
 }
 
 func (m *ComponentManager) Upgrade(ctx context.Context, component config.ComponentConfig) error {
+	if !kube.ValidateCluster(m.clusterName) {
+		return fmt.Errorf("cluster %s is not valid", m.clusterName)
+	}
+
 	// Run pre-upgrade hooks
 	if err := m.runHooks(component.Hooks.PreUpgrade); err != nil {
 		return fmt.Errorf("pre-upgrade hooks failed: %w", err)
@@ -96,6 +113,10 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 	// Upgrade based on component type
 	switch component.Type {
 	case "helm":
+		if component.Chart == "" {
+			return fmt.Errorf("chart is required for helm components")
+		}
+
 		// Convert values to helm arguments
 		var helmArgs []string
 		for key, value := range component.Values {
@@ -107,8 +128,8 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 			helmArgs = append(helmArgs, "--version", component.Version)
 		}
 
-		// Use the component name as release name and chart name
-		err := helm.InstallOrUpgrade(m.clusterName, component.Namespace, component.Name, component.Name, helmArgs)
+		// Use the component name as release name and specified chart
+		err := helm.InstallOrUpgrade(m.clusterName, component.Namespace, component.Name, component.Chart, helmArgs)
 		if err != nil {
 			return fmt.Errorf("helm upgrade failed: %w", err)
 		}
@@ -143,6 +164,10 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 }
 
 func (m *ComponentManager) Uninstall(ctx context.Context, component config.ComponentConfig) error {
+	if !kube.ValidateCluster(m.clusterName) {
+		return fmt.Errorf("cluster %s is not valid", m.clusterName)
+	}
+
 	switch component.Type {
 	case "helm":
 		// Use helm uninstall command
@@ -177,6 +202,10 @@ func (m *ComponentManager) Uninstall(ctx context.Context, component config.Compo
 }
 
 func (m *ComponentManager) IsInstalled(ctx context.Context, component config.ComponentConfig) (bool, error) {
+	if !kube.ValidateCluster(m.clusterName) {
+		return false, fmt.Errorf("cluster %s is not valid", m.clusterName)
+	}
+
 	switch component.Type {
 	case "helm":
 		// Fetch current releases

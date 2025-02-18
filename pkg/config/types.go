@@ -13,6 +13,8 @@ type ComponentConfig struct {
 	Namespace string `yaml:"namespace,omitempty"`
 	// Dependencies are components that must be installed before this one
 	Dependencies []string `yaml:"dependencies,omitempty"`
+	// Chart specifies the helm chart to install (required when type is helm)
+	Chart string `yaml:"chart,omitempty"`
 	// Values for helm charts
 	Values map[string]interface{} `yaml:"values,omitempty"`
 	// Paths to kubernetes manifests
