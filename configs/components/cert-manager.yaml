@@ -1,0 +1,19 @@
+name: cert-manager
+version: v1.13.3
+type: helm
+enabled: true
+dependencies: []
+values:
+  installCRDs: true
+  global:
+    leaderElection:
+      namespace: cert-manager
+hooks:
+  preInstall:
+    - "kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s"
+  preUpgrade:
+    - "kubectl get issuers,clusterissuers,certificates --all-namespaces -o yaml > cert-manager-backup.yaml"
+  postUpgrade:
+    - "kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s"
