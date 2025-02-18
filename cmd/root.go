@@ -139,7 +139,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&trace, "trace", false,
 		"Enables trace logging (similar to `--log-level trace`)")
 
-	rootCmd.PersistentFlags().StringVarP(&platform.Name, "name", "n",
+	rootCmd.PersistentFlags().StringVar(&platform.Name, "name",
 		"rockpool", "The name of the platform")
 
 	upCmd.Flags().IntVarP(&platform.NumTargets, "targets", "t", 1,

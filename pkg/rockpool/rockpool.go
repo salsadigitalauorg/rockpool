@@ -30,7 +30,7 @@ func EnsureBinariesExist() {
 	}
 	chain.Add(action.BinaryExists{Bin: "k3d"}).
 		Add(action.BinaryExists{Bin: "docker", VersionArgs: []string{"--format", "json"}}).
-		Add(action.BinaryExists{Bin: "kubectl", VersionArgs: []string{"--client", "--short"}}).
+		Add(action.BinaryExists{Bin: "kubectl", VersionArgs: []string{"--client"}}).
 		Add(action.BinaryExists{Bin: "helm"}).
 		Add(action.BinaryExists{Bin: "lagoon"}).
 		Run()
