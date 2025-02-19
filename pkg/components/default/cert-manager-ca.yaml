@@ -1,0 +1,8 @@
+name: cert-manager-ca
+type: kubernetes
+enabled: true
+namespace: cert-manager
+manifestPaths:
+  - templates/cert-manager-ca.yml.tmpl
+dependencies:
+  - cert-manager

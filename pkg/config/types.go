@@ -35,10 +35,12 @@ type ComponentHooks struct {
 type Config struct {
 	// Dir is the user's local directory for configuration files.
 	Dir string `yaml:"dir"`
-	// LagoonVersion is the version of Lagoon to install.
-	LagoonVersion string `yaml:"lagoonVersion"`
 	// Domain is the domain name of the cluster.
 	Domain string `yaml:"domain"`
+	// DnsIp is the IP address of the DNS server.
+	DnsIp string `yaml:"dnsIp"`
+	// LagoonVersion is the version of Lagoon to install.
+	LagoonVersion string `yaml:"lagoonVersion"`
 	// Components are the components to install.
 	Components map[string]ComponentConfig `yaml:"components"`
 }

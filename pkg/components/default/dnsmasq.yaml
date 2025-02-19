@@ -1,0 +1,6 @@
+name: dnsmasq
+type: kubernetes
+enabled: true
+namespace: default
+manifestPaths:
+  - templates/dnsmasq.yml.tmpl

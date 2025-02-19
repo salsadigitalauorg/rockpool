@@ -27,13 +27,13 @@ func NewComponentManager(cfg *config.Config, clusterName string) *ComponentManag
 // NewTemplateData creates a new TemplateData struct with default values
 func (m *ComponentManager) NewTemplateData(component config.ComponentConfig) *TemplateData {
 	return &TemplateData{
-		Component: component,
-		Hostname:  m.clusterName + "." + m.config.Domain,
-		Arch:      runtime.GOARCH,
-		Name:      m.clusterName,
-		// Add other fields as needed from the component's Values
+		Component:     component,
+		Hostname:      m.clusterName + "." + m.config.Domain,
+		Arch:          runtime.GOARCH,
+		Name:          m.clusterName,
 		LagoonVersion: m.config.LagoonVersion,
 		Domain:        m.config.Domain,
+		DnsIp:         m.config.DnsIp,
 	}
 }
 
@@ -235,8 +235,14 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 			// Resolve the manifest path
 			manifestPath := filepath.Clean(filepath.Join(m.config.Dir, path))
 
+			// Render the manifest
+			renderedManifest, err := m.renderManifest(component, manifestPath)
+			if err != nil {
+				return fmt.Errorf("failed to render manifest: %w", err)
+			}
+
 			// Apply the kubernetes manifests with force flag for upgrade
-			err := kube.Apply(m.clusterName, component.Namespace, manifestPath, true)
+			err = kube.ApplyInline(m.clusterName, component.Namespace, renderedManifest, true)
 			if err != nil {
 				return fmt.Errorf("kubernetes manifest upgrade failed for %s: %w", path, err)
 			}
@@ -278,8 +284,16 @@ func (m *ComponentManager) Uninstall(ctx context.Context, component config.Compo
 			// Resolve the manifest path
 			manifestPath := filepath.Clean(filepath.Join(m.config.Dir, path))
 
+			// Render the manifest
+			renderedManifest, err := m.renderManifest(component, manifestPath)
+			if err != nil {
+				return fmt.Errorf("failed to render manifest: %w", err)
+			}
+
 			// Use kubectl delete for kubernetes manifests
-			err := kube.Cmd(m.clusterName, component.Namespace, "delete", "-f", manifestPath).RunProgressive()
+			cmd := kube.Cmd(m.clusterName, component.Namespace, "delete", "-f", "-")
+			cmd.SetStdin(strings.NewReader(renderedManifest))
+			err = cmd.RunProgressive()
 			if err != nil {
 				return fmt.Errorf("kubernetes manifest deletion failed for %s: %w", path, err)
 			}
@@ -320,7 +334,16 @@ func (m *ComponentManager) IsInstalled(ctx context.Context, component config.Com
 		// Check if all manifests exist
 		for _, path := range component.ManifestPaths {
 			manifestPath := filepath.Clean(filepath.Join(m.config.Dir, path))
-			_, err := kube.Cmd(m.clusterName, component.Namespace, "get", "-f", manifestPath).Output()
+
+			// Render the manifest
+			renderedManifest, err := m.renderManifest(component, manifestPath)
+			if err != nil {
+				return false, fmt.Errorf("failed to render manifest: %w", err)
+			}
+
+			cmd := kube.Cmd(m.clusterName, component.Namespace, "get", "-f", "-")
+			cmd.SetStdin(strings.NewReader(renderedManifest))
+			_, err = cmd.Output()
 			if err != nil {
 				return false, nil
 			}

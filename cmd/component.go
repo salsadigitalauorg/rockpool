@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -18,6 +19,7 @@ var (
 	rockpoolDir string
 	namespace   string
 	domain      string
+	dnsIp       string
 )
 
 var componentCmd = &cobra.Command{
@@ -25,6 +27,8 @@ var componentCmd = &cobra.Command{
 	Short: "Manage components",
 	Long:  `Install, upgrade, and manage components in your cluster`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		rootCmd.PersistentPreRun(cmd, args)
+
 		// Create the default config file.
 		err := createDefaultConfigFile()
 		if err != nil {
@@ -140,7 +144,15 @@ var componentListCmd = &cobra.Command{
 
 		manager := components.NewComponentManager(cfg, "rockpool")
 		fmt.Printf("%-20s %-10s %-10s %-15s %s\n", "NAME", "TYPE", "VERSION", "NAMESPACE", "STATUS")
-		for name, component := range cfg.Components {
+		// Sort the components by name.
+		names := make([]string, 0, len(cfg.Components))
+		for name := range cfg.Components {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		for _, name := range names {
+			component := cfg.Components[name]
 			installed, err := manager.IsInstalled(cmd.Context(), component)
 			status := "Not Installed"
 			if err != nil {
@@ -289,6 +301,11 @@ func loadConfig(rockpoolDir, path string) (*config.Config, error) {
 		cfg.Domain = domain
 	}
 
+	// Set the dnsIp in the config.
+	if cfg.DnsIp == "" {
+		cfg.DnsIp = dnsIp
+	}
+
 	// Set default namespace if not specified
 	for name, component := range cfg.Components {
 		if component.Namespace == "" {
@@ -321,4 +338,6 @@ func init() {
 		`The base domain of the platform; ancillary services will be created as
 its subdomains using the provided 'name', e.g, rockpool.local,
 lagoon.rockpool.local`)
+	componentCmd.PersistentFlags().StringVar(&dnsIp, "dns-ip", "127.0.0.1",
+		"Override the DNS IP address for the component")
 }

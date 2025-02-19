@@ -24,8 +24,8 @@ type TemplateData struct {
 	TargetId string
 	// Domain is the domain name
 	Domain string
-	// VmIp is the IP address of the VM
-	VmIp string
+	// DnsIp is the IP address of the DNS server
+	DnsIp string
 	// Data contains any additional template data
 	Data map[string]interface{}
 }
