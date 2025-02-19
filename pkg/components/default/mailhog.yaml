@@ -1,0 +1,6 @@
+name: mailhog
+type: kubernetes
+enabled: true
+namespace: default
+manifestPaths:
+  - templates/mailhog.yml.tmpl

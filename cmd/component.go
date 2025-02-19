@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
@@ -14,23 +14,41 @@ import (
 )
 
 var (
-	configFile string
-	namespace  string
+	configFile  string
+	rockpoolDir string
+	namespace   string
+	domain      string
 )
-
-// getDefaultConfigPath returns the path to the default components config file
-func getDefaultConfigPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "rockpool-components.yaml" // fallback to local file if home dir not found
-	}
-	return filepath.Join(home, ".rockpool", "default-components.yaml")
-}
 
 var componentCmd = &cobra.Command{
 	Use:   "component",
 	Short: "Manage components",
 	Long:  `Install, upgrade, and manage components in your cluster`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Create the default config file.
+		err := createDefaultConfigFile()
+		if err != nil {
+			return fmt.Errorf("failed to create default config: %w", err)
+		}
+
+		// Create all the templates to the templates directory.
+		err = createTemplates()
+		if err != nil {
+			return fmt.Errorf("failed to create templates: %w", err)
+		}
+
+		return err
+	},
+}
+
+var componentGenerateConfigCmd = &cobra.Command{
+	Use:   "generate-config",
+	Short: "Generate default components configuration file",
+	Long:  `Generate a components configuration file with all default components from embedded defaults`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Printf("Generated default components configuration at %s\n", getDefaultConfigPath())
+		return nil
+	},
 }
 
 var componentInstallCmd = &cobra.Command{
@@ -38,7 +56,7 @@ var componentInstallCmd = &cobra.Command{
 	Short: "Install a component",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := loadConfig(configFile)
+		cfg, err := loadConfig(rockpoolDir, configFile)
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
@@ -64,7 +82,7 @@ var componentUpgradeCmd = &cobra.Command{
 	Short: "Upgrade a component",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := loadConfig(configFile)
+		cfg, err := loadConfig(rockpoolDir, configFile)
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
@@ -90,7 +108,7 @@ var componentUninstallCmd = &cobra.Command{
 	Short: "Uninstall a component",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := loadConfig(configFile)
+		cfg, err := loadConfig(rockpoolDir, configFile)
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
@@ -115,7 +133,7 @@ var componentListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all components and their status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := loadConfig(configFile)
+		cfg, err := loadConfig(rockpoolDir, configFile)
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
@@ -146,7 +164,7 @@ var componentStatusCmd = &cobra.Command{
 	Short: "Show detailed status of a component",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := loadConfig(configFile)
+		cfg, err := loadConfig(rockpoolDir, configFile)
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
@@ -187,79 +205,70 @@ var componentStatusCmd = &cobra.Command{
 	},
 }
 
-var componentGenerateConfigCmd = &cobra.Command{
-	Use:   "generate-config",
-	Short: "Generate default components configuration file",
-	Long:  `Generate a components configuration file with all default components from embedded defaults`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Get user's home directory
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get user home directory: %w", err)
-		}
-
-		// Create .rockpool directory if it doesn't exist
-		rockpoolDir := filepath.Join(home, ".rockpool")
-		if err := os.MkdirAll(rockpoolDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .rockpool directory: %w", err)
-		}
-
-		// Path for the default components config
-		configPath := filepath.Join(rockpoolDir, "default-components.yaml")
-
-		// Read all component files from embedded defaults
-		componentsMap := make(map[string]config.ComponentConfig)
-
-		entries, err := components.DefaultComponents.ReadDir("default")
-		if err != nil {
-			return fmt.Errorf("failed to read embedded components: %w", err)
-		}
-
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
-				continue
-			}
-
-			data, err := components.DefaultComponents.ReadFile(filepath.Join("default", entry.Name()))
-			if err != nil {
-				return fmt.Errorf("failed to read component file %s: %w", entry.Name(), err)
-			}
-
-			var component config.ComponentConfig
-			if err := yaml.Unmarshal(data, &component); err != nil {
-				return fmt.Errorf("failed to parse component file %s: %w", entry.Name(), err)
-			}
-
-			// Use filename without extension as component name if not specified
-			if component.Name == "" {
-				component.Name = strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
-			}
-
-			componentsMap[component.Name] = component
-		}
-
-		// Create the config
-		cfg := config.Config{
-			Components: componentsMap,
-		}
-
-		// Marshal the config to YAML
-		data, err := yaml.Marshal(cfg)
-		if err != nil {
-			return fmt.Errorf("failed to marshal config: %w", err)
-		}
-
-		// Write the config file
-		if err := os.WriteFile(configPath, data, 0644); err != nil {
-			return fmt.Errorf("failed to write config file: %w", err)
-		}
-
-		fmt.Printf("Generated default components configuration at %s\n", configPath)
-		return nil
-	},
+func getRockpoolDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".rockpool")
 }
 
-func loadConfig(path string) (*config.Config, error) {
+func getDefaultConfigPath() string {
+	return filepath.Join(getRockpoolDir(), "default-components.yaml")
+}
+
+func createDefaultConfigFile() error {
+	log.Debug().Msgf("creating default config file at %s", getDefaultConfigPath())
+	if err := os.MkdirAll(getRockpoolDir(), 0755); err != nil {
+		return fmt.Errorf("failed to create rockpool directory: %w", err)
+	}
+
+	cfg, err := components.CreateDefaultConfig()
+	if err != nil {
+		return fmt.Errorf("failed to create default config: %w", err)
+	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	return os.WriteFile(getDefaultConfigPath(), data, 0644)
+}
+
+func createTemplates() error {
+	templatesDir := filepath.Join(getRockpoolDir(), "templates")
+	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create templates directory: %w", err)
+	}
+
+	entries, err := components.DefaultComponents.ReadDir("default/templates")
+	if err != nil {
+		return fmt.Errorf("failed to read templates: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		data, err := components.DefaultComponents.ReadFile(filepath.Join("default/templates", entry.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to read template %s: %w", entry.Name(), err)
+		}
+
+		dest := filepath.Join(templatesDir, entry.Name())
+		if err := os.WriteFile(dest, data, 0644); err != nil {
+			return fmt.Errorf("failed to write template %s: %w", entry.Name(), err)
+		}
+	}
+
+	return nil
+}
+
+func loadConfig(rockpoolDir, path string) (*config.Config, error) {
+	// If the path is a relative path, concatenate it with the rockpoolDir.
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(rockpoolDir, path)
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -268,6 +277,16 @@ func loadConfig(path string) (*config.Config, error) {
 	var cfg config.Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// Set the rockpoolDir in the config.
+	if cfg.Dir == "" {
+		cfg.Dir = rockpoolDir
+	}
+
+	// Set the domain in the config.
+	if cfg.Domain == "" {
+		cfg.Domain = domain
 	}
 
 	// Set default namespace if not specified
@@ -291,6 +310,15 @@ func init() {
 	componentCmd.AddCommand(componentGenerateConfigCmd)
 
 	// Add flags
-	componentCmd.PersistentFlags().StringVarP(&configFile, "config", "c", getDefaultConfigPath(), "Path to the components configuration file")
-	componentCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "", "Override the namespace for the component")
+	componentCmd.PersistentFlags().StringVar(&rockpoolDir, "rockpool-dir",
+		getRockpoolDir(), "Path to the rockpool configuration directory")
+	componentCmd.PersistentFlags().StringVarP(&configFile, "config", "c",
+		getDefaultConfigPath(), "Path to the components configuration file")
+	componentCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n",
+		"", "Override the namespace for the component")
+	componentCmd.PersistentFlags().StringVarP(&domain, "domain", "d",
+		"local",
+		`The base domain of the platform; ancillary services will be created as
+its subdomains using the provided 'name', e.g, rockpool.local,
+lagoon.rockpool.local`)
 }

@@ -92,6 +92,39 @@ func Apply(cn string, ns string, fn string, force bool) error {
 	return cmd.RunProgressive()
 }
 
+func ApplyInline(cn string, ns string, content string, force bool) error {
+	// dry-run first to check for changes.
+	cmd := Cmd(cn, ns, "apply", "-f", "-", "--dry-run=server")
+	cmd.SetStdin(strings.NewReader(content))
+	out, err := cmd.Output()
+	if err != nil {
+		return command.GetMsgFromCommandError(err)
+	}
+	changesRequired := false
+	for _, l := range strings.Split(strings.Trim(string(out), "\n"), "\n") {
+		if !strings.Contains(l, "unchanged (server dry run)") {
+			changesRequired = true
+			break
+		}
+	}
+	if !changesRequired {
+		return nil
+	}
+
+	cmd = Cmd(cn, ns, "apply", "-f", "-")
+	cmd.SetStdin(strings.NewReader(content))
+	if force {
+		cmd.AddArgs("--force=true")
+	}
+	log.WithFields(log.Fields{
+		"clusterName": cn,
+		"namespace":   ns,
+		"content":     content,
+		"force":       force,
+	}).Debug("applying manifest")
+	return cmd.RunProgressive()
+}
+
 func ApplyTemplate(cn string, ns string, fn string, force bool, retries int, delay int) {
 	logger := log.WithFields(log.Fields{
 		"clusterName": cn,

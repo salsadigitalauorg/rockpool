@@ -232,15 +232,6 @@ func SetupLagoonController() {
 		Template:    "dnsmasq.yml.tmpl",
 	})
 
-	// chain.Add(kube.Templater{
-	// 	Stage:       "controller-setup",
-	// 	Info:        "installing gitlab",
-	// 	ClusterName: clusterName,
-	// 	Namespace:   "gitlab",
-	// 	Force:       true,
-	// 	Template:    "gitlab.yml.tmpl",
-	// })
-
 	chain.Add(helm.Installer{
 		Stage:       "controller-setup",
 		Info:        "installing gitea",
