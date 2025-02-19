@@ -4,6 +4,12 @@ gitea:
       DB_TYPE: sqlite3
     security:
       MIN_PASSWORD_LENGTH: 1
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
   admin:
     username: "rockpool"
     password: "pass"

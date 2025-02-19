@@ -8,10 +8,12 @@ metadata:
     app.kubernetes.io/instance: rockpool-dnsmasq
     app.kubernetes.io/name: dnsmasq
 spec:
-  type: LoadBalancer
+  {{/* type: LoadBalancer */}}
+  type: NodePort
   ports:
     - name: dns
       protocol: UDP
+      nodePort: 30053
       port: 6153
       targetPort: 53
   selector:
@@ -28,12 +30,14 @@ metadata:
     app.kubernetes.io/instance: rockpool-dnsmasq
     app.kubernetes.io/name: dnsmasq
 spec:
-  type: LoadBalancer
+  {{/* type: LoadBalancer */}}
+  type: NodePort
   ports:
     - name: dns-tcp
-      targetPort: 53
       protocol: TCP
+      nodePort: 30153
       port: 6153
+      targetPort: 53
   selector:
     app.kubernetes.io/instance: rockpool-dnsmasq
     app.kubernetes.io/name: dnsmasq
