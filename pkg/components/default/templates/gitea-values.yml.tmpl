@@ -1,0 +1,30 @@
+gitea:
+  config:
+    database:
+      DB_TYPE: sqlite3
+    security:
+      MIN_PASSWORD_LENGTH: 1
+  admin:
+    username: "rockpool"
+    password: "pass"
+    email: "rockpool@example.com"
+
+ingress:
+  enabled: true
+  hosts:
+    - host: gitea.lagoon.{{ .Hostname }}
+      paths:
+        - path: /
+          pathType: Prefix
+
+memcached:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+postgresql-ha:
+  enabled: false
+
+redis-cluster:
+  enabled: false

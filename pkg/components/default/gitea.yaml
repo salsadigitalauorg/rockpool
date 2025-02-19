@@ -1,0 +1,13 @@
+name: gitea
+type: helm
+enabled: true
+namespace: gitea
+chart: gitea-charts/gitea
+valuesTemplate: templates/gitea-values.yml.tmpl
+hooks:
+  preInstall:
+    - "helm repo add gitea-charts https://dl.gitea.io/charts/"
+    - "helm repo update"
+    - "kubectl create namespace gitea --dry-run=client -o yaml | kubectl apply -f -"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/gitea -n gitea --timeout=300s"

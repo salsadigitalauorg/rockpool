@@ -13,7 +13,6 @@ hooks:
   postInstall:
     - "kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s"
   preUpgrade:
-    - "kubectl get issuers,clusterissuers,certificates --all-namespaces -o yaml > cert-manager-backup.yaml"
     - "helm repo update"
   postUpgrade:
     - "kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s"

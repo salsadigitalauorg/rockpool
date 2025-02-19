@@ -1,0 +1,23 @@
+name: ingress-nginx
+type: helm
+enabled: true
+namespace: ingress-nginx
+version: "4.5.2"
+chart: ingress-nginx/ingress-nginx
+values:
+  controller.config.ssl-redirect: false
+  controller.config.proxy-body-size: "8m"
+  controller.ingressClassResource.default: true
+  controller.watchIngressWithoutClass: true
+  server-name-hash-bucket-size: 128
+hooks:
+  preInstall:
+    - "helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx"
+    - "helm repo update"
+    - "kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s"
+  preUpgrade:
+    - "helm repo update"
+  postUpgrade:
+    - "kubectl wait --for=condition=Available deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s"

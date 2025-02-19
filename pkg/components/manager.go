@@ -13,7 +13,6 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/config"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
-	"gopkg.in/yaml.v3"
 )
 
 // NewComponentManager creates a new component manager
@@ -37,22 +36,17 @@ func (m *ComponentManager) NewTemplateData(component config.ComponentConfig) *Te
 	}
 }
 
-// processValuesTemplate reads and processes a values template file, returning the parsed values
-func (m *ComponentManager) processValuesTemplate(component config.ComponentConfig) (map[string]interface{}, error) {
-	if component.ValuesTemplate == "" {
-		return component.Values, nil
-	}
-
-	// Read the template file
-	tmplContent, err := DefaultComponents.ReadFile(component.ValuesTemplate)
+func (m *ComponentManager) renderHelmValuesFile(component config.ComponentConfig) (string, error) {
+	valuesTemplate := filepath.Clean(filepath.Join(m.config.Dir, component.ValuesTemplate))
+	valuesBytes, err := os.ReadFile(valuesTemplate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read values template %s: %w", component.ValuesTemplate, err)
+		return "", fmt.Errorf("failed to read values template: %w", err)
 	}
 
 	// Create a new template and parse the content
-	tmpl, err := template.New(filepath.Base(component.ValuesTemplate)).Parse(string(tmplContent))
+	tmpl, err := template.New(filepath.Base(component.ValuesTemplate)).Parse(string(valuesBytes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse template %s: %w", component.ValuesTemplate, err)
+		return "", fmt.Errorf("failed to parse template %s: %w", valuesTemplate, err)
 	}
 
 	// Create a buffer to store the rendered template
@@ -63,22 +57,10 @@ func (m *ComponentManager) processValuesTemplate(component config.ComponentConfi
 
 	// Execute the template with the template data
 	if err := tmpl.Execute(&renderedBuf, templateData); err != nil {
-		return nil, fmt.Errorf("failed to render template %s: %w", component.ValuesTemplate, err)
+		return "", fmt.Errorf("failed to render template %s: %w", valuesTemplate, err)
 	}
 
-	// Parse the rendered YAML into a map
-	var values map[string]interface{}
-	if err := yaml.Unmarshal([]byte(renderedBuf.String()), &values); err != nil {
-		return nil, fmt.Errorf("failed to parse rendered values: %w", err)
-	}
-
-	// If there are additional values specified, merge them with the template values
-	// Values from component.Values take precedence
-	for k, v := range component.Values {
-		values[k] = v
-	}
-
-	return values, nil
+	return renderedBuf.String(), nil
 }
 
 func (m *ComponentManager) renderManifest(component config.ComponentConfig, manifestPath string) (string, error) {
@@ -124,15 +106,11 @@ func (m *ComponentManager) Install(ctx context.Context, component config.Compone
 			return fmt.Errorf("chart is required for helm components")
 		}
 
-		// Process values from template and/or direct values
-		values, err := m.processValuesTemplate(component)
-		if err != nil {
-			return fmt.Errorf("failed to process values: %w", err)
-		}
-
 		// Convert values to helm arguments
 		var helmArgs []string
-		for key, value := range values {
+
+		// Process values.
+		for key, value := range component.Values {
 			helmArgs = append(helmArgs, fmt.Sprintf("--set=%s=%v", key, value))
 		}
 
@@ -144,7 +122,18 @@ func (m *ComponentManager) Install(ctx context.Context, component config.Compone
 		// Use the component name as release name and specified chart
 		cmd := helm.Exec(m.clusterName, component.Namespace, "install", component.Name, component.Chart)
 		cmd.AddArgs(helmArgs...)
-		err = cmd.RunProgressive()
+
+		// Render the values file
+		if component.ValuesTemplate != "" {
+			renderedValues, err := m.renderHelmValuesFile(component)
+			if err != nil {
+				return fmt.Errorf("failed to render values: %w", err)
+			}
+			cmd.AddArgs("--values", "-")
+			cmd.SetStdin(strings.NewReader(renderedValues))
+		}
+
+		err := cmd.RunProgressive()
 		if err != nil {
 			return fmt.Errorf("helm installation failed: %w", err)
 		}
@@ -201,15 +190,9 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 			return fmt.Errorf("chart is required for helm components")
 		}
 
-		// Process values from template and/or direct values
-		values, err := m.processValuesTemplate(component)
-		if err != nil {
-			return fmt.Errorf("failed to process values: %w", err)
-		}
-
 		// Convert values to helm arguments
 		var helmArgs []string
-		for key, value := range values {
+		for key, value := range component.Values {
 			helmArgs = append(helmArgs, fmt.Sprintf("--set=%s=%v", key, value))
 		}
 
@@ -221,7 +204,18 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 		// Use the component name as release name and specified chart
 		cmd := helm.Exec(m.clusterName, component.Namespace, "upgrade", component.Name, component.Chart)
 		cmd.AddArgs(helmArgs...)
-		err = cmd.RunProgressive()
+
+		// Render the values file
+		if component.ValuesTemplate != "" {
+			renderedValues, err := m.renderHelmValuesFile(component)
+			if err != nil {
+				return fmt.Errorf("failed to render values: %w", err)
+			}
+			cmd.AddArgs("--values", "-")
+			cmd.SetStdin(strings.NewReader(renderedValues))
+		}
+
+		err := cmd.RunProgressive()
 		if err != nil {
 			return fmt.Errorf("helm upgrade failed: %w", err)
 		}

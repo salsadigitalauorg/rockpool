@@ -1,0 +1,14 @@
+name: harbor
+type: helm
+enabled: true
+namespace: harbor
+version: "1.5.6"
+chart: harbor/harbor
+valuesTemplate: templates/harbor-values.yml.tmpl
+hooks:
+  preInstall:
+    - "helm repo add harbor https://helm.goharbor.io"
+    - "helm repo update"
+    - "kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/harbor-harbor-core -n harbor --timeout=300s"
