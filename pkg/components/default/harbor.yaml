@@ -10,4 +10,4 @@ hooks:
     - "helm repo update"
     - "kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -"
   postInstall:
-    - "kubectl wait --for=condition=Available deployment/harbor-harbor-core -n harbor --timeout=300s"
+    - "kubectl wait --for=condition=Available deployment/harbor-core -n harbor --timeout=300s"
