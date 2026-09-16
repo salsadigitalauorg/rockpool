@@ -12,6 +12,8 @@ import (
 	"github.com/salsadigitalauorg/rockpool/pkg/config"
 	"github.com/salsadigitalauorg/rockpool/pkg/helm"
 	"github.com/salsadigitalauorg/rockpool/pkg/kube"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // NewComponentManager creates a new component manager
@@ -353,9 +355,26 @@ func (m *ComponentManager) IsInstalled(ctx context.Context, component config.Com
 
 func (m *ComponentManager) runHooks(hooks []string) error {
 	for _, hook := range hooks {
+		logger := log.WithField("hook", hook)
+		logger.Debug("running hook")
+
 		cmd := exec.Command("bash", "-c", hook)
-		if err := cmd.Run(); err != nil {
+		// Capture stdout and stderr together so that failures can report what
+		// the hook actually said, rather than a bare exit status.
+		output, err := cmd.CombinedOutput()
+		trimmed := strings.TrimSpace(string(output))
+
+		if err != nil {
+			if trimmed != "" {
+				logger.WithField("output", trimmed).Error("hook failed")
+				return fmt.Errorf("hook failed: %s: %w: %s", hook, err, trimmed)
+			}
+			logger.Error("hook failed with no output")
 			return fmt.Errorf("hook failed: %s: %w", hook, err)
+		}
+
+		if trimmed != "" {
+			logger.WithField("output", trimmed).Debug("hook output")
 		}
 	}
 	return nil
