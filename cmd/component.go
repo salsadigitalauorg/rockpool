@@ -15,11 +15,12 @@ import (
 )
 
 var (
-	configFile  string
-	rockpoolDir string
-	namespace   string
-	domain      string
-	dnsIp       string
+	configFile    string
+	rockpoolDir   string
+	namespace     string
+	domain        string
+	dnsIp         string
+	lagoonVersion string
 )
 
 var componentCmd = &cobra.Command{
@@ -76,7 +77,7 @@ var componentInstallCmd = &cobra.Command{
 			component.Namespace = namespace
 		}
 
-		manager := components.NewComponentManager(cfg, "rockpool")
+		manager := components.NewComponentManager(cfg, clusterName)
 		return manager.Install(cmd.Context(), component)
 	},
 }
@@ -102,7 +103,7 @@ var componentUpgradeCmd = &cobra.Command{
 			component.Namespace = namespace
 		}
 
-		manager := components.NewComponentManager(cfg, "rockpool")
+		manager := components.NewComponentManager(cfg, clusterName)
 		return manager.Upgrade(cmd.Context(), component)
 	},
 }
@@ -128,7 +129,7 @@ var componentUninstallCmd = &cobra.Command{
 			component.Namespace = namespace
 		}
 
-		manager := components.NewComponentManager(cfg, "rockpool")
+		manager := components.NewComponentManager(cfg, clusterName)
 		return manager.Uninstall(cmd.Context(), component)
 	},
 }
@@ -142,7 +143,7 @@ var componentListCmd = &cobra.Command{
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		manager := components.NewComponentManager(cfg, "rockpool")
+		manager := components.NewComponentManager(cfg, clusterName)
 		fmt.Printf("%-20s %-10s %-10s %-15s %s\n", "NAME", "TYPE", "VERSION", "NAMESPACE", "STATUS")
 		// Sort the components by name.
 		names := make([]string, 0, len(cfg.Components))
@@ -187,7 +188,7 @@ var componentStatusCmd = &cobra.Command{
 			return fmt.Errorf("component %s not found in config", componentName)
 		}
 
-		manager := components.NewComponentManager(cfg, "rockpool")
+		manager := components.NewComponentManager(cfg, clusterName)
 		installed, err := manager.IsInstalled(cmd.Context(), component)
 		if err != nil {
 			return fmt.Errorf("failed to check component status: %w", err)
@@ -306,6 +307,11 @@ func loadConfig(rockpoolDir, path string) (*config.Config, error) {
 		cfg.DnsIp = dnsIp
 	}
 
+	// Set the lagoon version in the config.
+	if cfg.LagoonVersion == "" {
+		cfg.LagoonVersion = lagoonVersion
+	}
+
 	// Set default namespace if not specified
 	for name, component := range cfg.Components {
 		if component.Namespace == "" {
@@ -333,6 +339,8 @@ func init() {
 		getDefaultConfigPath(), "Path to the components configuration file")
 	componentCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n",
 		"", "Override the namespace for the component")
+	componentCmd.PersistentFlags().StringVar(&clusterName, "cluster",
+		"colima-rockpool", "Override the cluster for the component")
 	componentCmd.PersistentFlags().StringVarP(&domain, "domain", "d",
 		"local",
 		`The base domain of the platform; ancillary services will be created as
@@ -340,4 +348,6 @@ its subdomains using the provided 'name', e.g, rockpool.local,
 lagoon.rockpool.local`)
 	componentCmd.PersistentFlags().StringVar(&dnsIp, "dns-ip", "127.0.0.1",
 		"Override the DNS IP address for the component")
+	componentCmd.PersistentFlags().StringVar(&lagoonVersion, "lagoon-version",
+		"v2.22.0", "Set the Lagoon version for the platform")
 }

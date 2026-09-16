@@ -12,8 +12,6 @@ type TemplateData struct {
 	Component config.ComponentConfig
 	// Hostname is the cluster hostname
 	Hostname string
-	// Arch is the system architecture (e.g., "arm64", "amd64")
-	Arch string
 	// LagoonVersion is the version of Lagoon to use
 	LagoonVersion string
 	// RabbitMQPassword is the password for RabbitMQ

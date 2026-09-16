@@ -56,7 +56,7 @@ func ValidateCluster(cn string) bool {
 		}).Fatal("unable to get nodes")
 	}
 
-	if strings.Contains(string(nodes), "node/rockpool-") {
+	if strings.Contains(string(nodes), "rockpool") {
 		return true
 	}
 	return false

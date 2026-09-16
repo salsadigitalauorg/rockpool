@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"text/template"
 
@@ -28,7 +27,6 @@ func (m *ComponentManager) NewTemplateData(component config.ComponentConfig) *Te
 	return &TemplateData{
 		Component:     component,
 		Hostname:      m.clusterName + "." + m.config.Domain,
-		Arch:          runtime.GOARCH,
 		Name:          m.clusterName,
 		LagoonVersion: m.config.LagoonVersion,
 		Domain:        m.config.Domain,
@@ -355,7 +353,7 @@ func (m *ComponentManager) IsInstalled(ctx context.Context, component config.Com
 
 func (m *ComponentManager) runHooks(hooks []string) error {
 	for _, hook := range hooks {
-		cmd := exec.Command("sh", "-c", hook)
+		cmd := exec.Command("bash", "-c", hook)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("hook failed: %s: %w", hook, err)
 		}
