@@ -1,0 +1,14 @@
+name: lagoon-remote
+type: helm
+enabled: true
+namespace: lagoon
+chart: lagoon/lagoon-remote
+values:
+  # Values will be loaded from lagoon-remote-values.yml.tmpl
+hooks:
+  preInstall:
+    - "helm repo add lagoon https://uselagoon.github.io/lagoon-charts/"
+    - "helm repo update"
+    - "kubectl create namespace lagoon --dry-run=client -o yaml | kubectl apply -f -"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/lagoon-remote-lagoon-build-deploy -n lagoon --timeout=300s"

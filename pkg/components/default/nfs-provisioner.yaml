@@ -1,0 +1,14 @@
+name: nfs-provisioner
+type: helm
+enabled: true
+namespace: nfs-provisioner
+chart: nfs-provisioner/nfs-server-provisioner
+values:
+  # Values will be loaded from nfs-server-provisioner-values.yml.tmpl
+hooks:
+  preInstall:
+    - "helm repo add nfs-provisioner https://kubernetes-sigs.github.io/nfs-ganesha-server-and-external-provisioner/"
+    - "helm repo update"
+    - "kubectl create namespace nfs-provisioner --dry-run=client -o yaml | kubectl apply -f -"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/nfs-nfs-server-provisioner -n nfs-provisioner --timeout=300s"

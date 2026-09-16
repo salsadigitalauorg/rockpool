@@ -1,0 +1,71 @@
+name: lagoon-core
+type: helm
+enabled: true
+namespace: lagoon-core
+chart: lagoon/lagoon-core
+valuesTemplate: templates/lagoon-core-values.yml.tmpl
+hooks:
+  preInstall:
+    - "helm repo add lagoon https://uselagoon.github.io/lagoon-charts/"
+    - "helm repo update"
+    - "kubectl create namespace lagoon-core --dry-run=client -o yaml | kubectl apply -f -"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/lagoon-core-ui -n lagoon-core --timeout=3600s"
+
+    - |
+      set -eo pipefail
+
+      # Check if tables exist.
+      tables_result=$(kubectl exec -it -n lagoon-core sts/lagoon-core-api-db -- \
+        /bin/bash -c 'mysql -u$MARIADB_USER -p$MARIADB_PASSWORD \
+          $MARIADB_DATABASE -e "SHOW TABLES;"' | grep ssh_key)
+      if [ $? -ne 0 ]; then
+        echo "Tables do not exist, rerunning initdb"
+        kubectl exec -it -n lagoon-core sts/lagoon-core-api-db -- /legacy_rerun_initdb.sh
+      fi
+
+    - |
+      set -eo pipefail
+
+      # Configure keycloak.
+      kubectl exec -it -n lagoon-core deploy/lagoon-core-keycloak -- /bin/bash -c '
+        set -e
+        rm -f /tmp/kcadm.config
+        /opt/keycloak/bin/kcadm.sh config credentials \
+          --server http://localhost:8080/auth --realm master \
+          --user $KEYCLOAK_ADMIN_USER --password $KEYCLOAK_ADMIN_PASSWORD \
+          --config /tmp/kcadm.config'
+
+      smtpConfig=$(kubectl exec -it -n lagoon-core deploy/lagoon-core-keycloak -- \
+        /opt/keycloak/bin/kcadm.sh get realms/lagoon \
+          --fields 'smtpServer(from)' --config /tmp/kcadm.config \
+          --format csv | tr -d '\n')
+      if [ ! -z "$smtpConfig" ]; then
+        echo "SMTP already configured, skipping"
+        exit 0
+      fi
+
+      kubectl exec -it -n lagoon-core deploy/lagoon-core-keycloak -- /bin/bash -c '
+        set -ex
+
+        /opt/keycloak/bin/kcadm.sh update realms/lagoon \
+          -s resetPasswordAllowed=true --config /tmp/kcadm.config
+
+        /opt/keycloak/bin/kcadm.sh update realms/lagoon \
+          -s smtpServer.host="mailhog.default.svc.cluster.local" --config /tmp/kcadm.config
+
+        /opt/keycloak/bin/kcadm.sh update realms/lagoon \
+          -s smtpServer.port=1025 --config /tmp/kcadm.config
+
+        /opt/keycloak/bin/kcadm.sh update realms/lagoon \
+          -s smtpServer.from="lagoon@k3d-rockpool" --config /tmp/kcadm.config
+
+        # Allow direct access grants so we can grab a token by using a POST request.
+        client=$(/opt/keycloak/bin/kcadm.sh get realms/lagoon/clients \
+          --fields "id,clientId" --config /tmp/kcadm.config \
+          --format csv | grep "lagoon-ui" | grep -v "oidc")
+        client_id=$(echo ${client%,*} | sed "s/\"//g")
+        /opt/keycloak/bin/kcadm.sh update realms/lagoon/clients/${client_id} \
+          -s directAccessGrantsEnabled=true --config /tmp/kcadm.config'
+
+

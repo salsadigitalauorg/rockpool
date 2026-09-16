@@ -1,0 +1,16 @@
+name: metrics-server
+type: helm
+enabled: true
+namespace: kube-system
+chart: metrics-server/metrics-server
+valuesTemplate: templates/metrics-server.yml
+hooks:
+  preInstall:
+    - "helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server --force-update"
+    - "helm repo update"
+  postInstall:
+    - "kubectl wait --for=condition=Available deployment/metrics-server -n kube-system --timeout=120s"
+  preUpgrade:
+    - "helm repo update"
+  postUpgrade:
+    - "kubectl wait --for=condition=Available deployment/metrics-server -n kube-system --timeout=120s"

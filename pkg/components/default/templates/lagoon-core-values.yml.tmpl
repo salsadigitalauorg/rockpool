@@ -1,0 +1,241 @@
+imageTag: {{ .LagoonVersion }}
+
+harborURL: http://disabled-only-use-harbor-via-deploy-controller.invalid
+harborAdminPassword: not-needed
+registry: disabled-only-use-harbor-via-deploy-controller.invalid
+
+elasticsearchURL: https://none.com
+kibanaURL: https://none.com
+logsDBAdminPassword: none
+s3FilesAccessKeyID: none
+s3FilesBucket: none
+s3FilesHost: none
+s3FilesSecretAccessKey: none
+s3FilesRegion: none
+s3BAASAccessKeyID: none
+s3BAASSecretAccessKey: none
+
+keycloakAPIURL: https://keycloak.lagoon.{{ .Hostname }}/auth
+keycloakFrontEndURL: https://keycloak.lagoon.{{ .Hostname }}
+lagoonAPIURL: http://api.lagoon.{{ .Hostname }}/graphql
+lagoonUIURL: http://ui.lagoon.{{ .Hostname }}
+
+keycloakAdminPassword: pass
+keycloakLagoonAdminPassword: pass
+rabbitMQPassword: pass
+
+api:
+  replicaCount: 1
+  ingress:
+    enabled: true
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
+    hosts:
+    - host: api.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    {{/* tls:
+      - secretName: api-tls
+        hosts:
+          - api.lagoon.{{ .Hostname }} */}}
+
+keycloak:
+  keycloakFrontEndURL: https://keycloak.lagoon.{{ .Hostname }}
+  realmSettings:
+    enabled: true
+    options:
+      resetPasswordAllowed: true
+      rememberMe: true
+  email:
+    enabled: true
+    settings:
+      host: mailhog
+      port: '1025'
+      fromDisplayName: Lagoon
+      from: lagoon@example.com
+      replyToDisplayName: Lagoon No-Reply
+      replyTo: lagoon@example.com
+      envelopeFrom: lagoon@example.com
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "1000m"
+    limits:
+      memory: "1536Mi"
+      cpu: "1500m"
+  additionalEnvs:
+    JAVA_OPTS: >
+      -server -Xms512m -Xmx1536m -XX:MetaspaceSize=96M
+      -XX:MaxMetaspaceSize=256m -Djava.net.preferIPv4Stack=true
+      -Djboss.modules.system.pkgs=org.jboss.byteman
+      -Djava.awt.headless=true
+  ingress:
+    enabled: true
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
+    hosts:
+    - host: keycloak.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    {{/* tls:
+      - secretName: keycloak-tls
+        hosts:
+          - keycloak.lagoon.{{ .Hostname }} */}}
+
+webhookHandler:
+  ingress:
+    enabled: true
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
+    hosts:
+    - host: webhookhandler.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    {{/* tls:
+      - secretName: webhookhandler-tls
+        hosts:
+          - webhookhandler.lagoon.{{ .Hostname }} */}}
+
+ui:
+  replicaCount: 1
+  ingress:
+    enabled: true
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
+    hosts:
+    - host: ui.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    {{/* tls:
+      - secretName: ui-tls
+        hosts:
+          - ui.lagoon.{{ .Hostname }} */}}
+
+backupHandler:
+  enabled: false
+  replicaCount: 1
+  {{/* ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/tls-acme: "true"
+    hosts:
+    - host: backuphandler.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    tls:
+      - secretName: backuphandler-tls
+        hosts:
+          - backuphandler.lagoon.{{ .Hostname }} */}}
+
+drushAlias:
+  replicaCount: 1
+  ingress:
+    enabled: true
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
+    hosts:
+    - host: drushalias.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    {{/* tls:
+      - secretName: drushalias-tls
+        hosts:
+          - drushalias.lagoon.{{ .Hostname }} */}}
+
+nats:
+  enabled: false
+  replicaCount: 1
+
+ssh:
+  replicaCount: 1
+  service:
+    type: LoadBalancer
+    port: 22
+
+sshPortalAPI:
+  enabled: false
+  replicaCount: 1
+  serviceMonitor:
+    enabled: false
+
+{{/* sshToken:
+  enabled: false
+  replicaCount: 1 */}}
+
+broker:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "1000m"
+    limits:
+      memory: "512Mi"
+      cpu: "1500m"
+  service:
+    amqpExternal:
+      enabled: true
+  serviceMonitor:
+    enabled: false
+  ingress:
+    enabled: true
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
+    hosts:
+    - host: broker.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    {{/* tls:
+      - secretName: broker-tls
+        hosts:
+          - broker.lagoon.{{ .Hostname }} */}}
+
+authServer:
+  replicaCount: 1
+
+webhooks2tasks:
+  replicaCount: 1
+
+actionsHandler:
+  replicaCount: 1
+
+webhookHandler:
+  replicaCount: 1
+  ingress:
+    enabled: true
+    {{/* annotations:
+      kubernetes.io/tls-acme: "true" */}}
+    hosts:
+    - host: webhookhandler.lagoon.{{ .Hostname }}
+      paths:
+      - /
+    {{/* tls:
+      - secretName: webhookhandler-tls
+        hosts:
+          - webhookhandler.lagoon.{{ .Hostname }} */}}
+
+storageCalculator:
+  enabled: false
+
+logs2notifications:
+  replicaCount: 1
+
+logs2webhook:
+  replicaCount: 1
+
+controllerhandler:
+  enabled: false
+  replicaCount: 1
+
+workflows:
+  replicaCount: 1
+
+logs2slack:
+  enabled: false
+logs2microsoftteams:
+  enabled: false
+logs2rocketchat:
+  enabled: false
+logs2email:
+  enabled: false
+logs2s3:
+  enabled: false

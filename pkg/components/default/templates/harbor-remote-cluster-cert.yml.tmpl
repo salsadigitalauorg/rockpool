@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor-cert
+type: kubernetes.io/tls
+data:
+  ca.crt: {{ index .Data "ca.crt" }}
+  tls.crt: {{ index .Data "tls.crt" }}
+  tls.key: {{ index .Data "tls.key" }}

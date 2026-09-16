@@ -1,0 +1,22 @@
+name: mariadb
+type: kubernetes
+enabled: true
+namespace: mariadb
+manifestPaths:
+  - templates/mariadb.yml.tmpl
+
+---
+name: mariadb-production
+type: kubernetes
+enabled: true
+namespace: mariadb
+manifestPaths:
+  - templates/mariadb.yml.tmpl
+
+---
+name: mariadb-development
+type: kubernetes
+enabled: true
+namespace: mariadb
+manifestPaths:
+  - templates/mariadb.yml.tmpl

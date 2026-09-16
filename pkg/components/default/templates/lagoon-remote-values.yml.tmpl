@@ -1,0 +1,50 @@
+imageTag: {{ .LagoonVersion }}
+
+lagoon-build-deploy:
+  enabled: true
+  extraArgs:
+    - "--enable-harbor=true"
+    - "--harbor-url=https://harbor.lagoon.{{ .Hostname }}"
+    - "--harbor-api=https://harbor.lagoon.{{ .Hostname }}/api/"
+    - "--harbor-username=admin"
+    - "--harbor-password=pass"
+  rabbitMQUsername: lagoon
+  rabbitMQPassword: {{ .RabbitMQPassword }}
+  rabbitMQHostname: broker.lagoon.{{ .Hostname }}
+  lagoonTargetName: {{ .Name }}{{ .TargetId}}
+  taskSSHHost: ssh.lagoon.{{ .Hostname }}
+  taskSSHPort: "22"
+  taskAPIHost: "api.lagoon.{{ .Hostname }}"
+
+dbaas-operator:
+  enabled: true
+  enableMariaDBProviders: true
+  enableMongoDBProviders: false
+  enablePostreSQLProviders: false
+
+  mariadbProviders:
+    production:
+      environment: production
+      hostname: production.mariadb.svc.cluster.local
+      readReplicaHostnames:
+      - production.mariadb.svc.cluster.local
+      password: mariadbpass
+      port: '3306'
+      user: root
+
+    development:
+      environment: development
+      hostname: development.mariadb.svc.cluster.local
+      readReplicaHostnames:
+      - development.mariadb.svc.cluster.local
+      password: mariadbpass
+      port: '3306'
+      user: root
+
+dockerHost:
+  image:
+    tag: "v3.3.0"
+
+sshPortal:
+  enabled: false
+  replicaCount: 1

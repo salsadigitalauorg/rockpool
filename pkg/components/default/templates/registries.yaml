@@ -1,0 +1,8 @@
+mirrors:
+  docker.io:
+    endpoint:
+      - "http://k3d-rockpool-registry:5000"
+  k3d-rockpool-registry:5000:
+    endpoint:
+      - "k3d-rockpool-registry:5000"
+
