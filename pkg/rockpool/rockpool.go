@@ -22,6 +22,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// EnsureBinariesExist checks for every binary the legacy k3d-based
+// orchestration requires. It exits the process if any are missing.
 func EnsureBinariesExist() {
 	log.Debug("checking if binaries exist")
 	chain := &action.Chain{
@@ -33,6 +35,20 @@ func EnsureBinariesExist() {
 		Add(action.BinaryExists{Bin: "kubectl", VersionArgs: []string{"--client"}}).
 		Add(action.BinaryExists{Bin: "helm"}).
 		Add(action.BinaryExists{Bin: "lagoon"}).
+		Run()
+}
+
+// EnsureComponentBinariesExist checks only for the binaries the component
+// system needs. Components are applied to whichever cluster the current
+// kubectl context points at, so neither k3d nor the lagoon CLI are required.
+func EnsureComponentBinariesExist() {
+	log.Debug("checking if component binaries exist")
+	chain := &action.Chain{
+		FailOnFirstError: &[]bool{false}[0],
+		ErrorMsg:         "some requirements were not met; please review above",
+	}
+	chain.Add(action.BinaryExists{Bin: "kubectl", VersionArgs: []string{"--client"}}).
+		Add(action.BinaryExists{Bin: "helm"}).
 		Run()
 }
 

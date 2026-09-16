@@ -30,22 +30,7 @@ var rootCmd = &cobra.Command{
 	Use:   "rockpool [command]",
 	Short: "Easily create local Lagoon instances.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// TODO: Remove logrus once zerolog is fully adopted.
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-		if debug {
-			logLevel = "debug"
-			zerolog.SetGlobalLevel(zerolog.DebugLevel)
-		}
-		if trace {
-			logLevel = "trace"
-			zerolog.SetGlobalLevel(zerolog.TraceLevel)
-		}
-		if logrusLevel, err := log.ParseLevel(logLevel); err != nil {
-			panic(err)
-		} else {
-			log.SetLevel(logrusLevel)
-		}
+		setupLogging()
 		// Do not initialise when just running the root command.
 		if cmd.Use == "rockpool [command]" {
 			return
@@ -55,6 +40,28 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Usage()
 	},
+}
+
+// setupLogging configures the loggers from the global log level flags. It is
+// separate from r.Initialise so that commands which do not depend on the
+// legacy k3d orchestration can still set up logging.
+func setupLogging() {
+	// TODO: Remove logrus once zerolog is fully adopted.
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	if debug {
+		logLevel = "debug"
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+	if trace {
+		logLevel = "trace"
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	}
+	if logrusLevel, err := log.ParseLevel(logLevel); err != nil {
+		panic(err)
+	} else {
+		log.SetLevel(logrusLevel)
+	}
 }
 
 var versionCmd = &cobra.Command{
