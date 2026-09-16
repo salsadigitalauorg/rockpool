@@ -22,7 +22,7 @@ lagoonUIURL: http://ui.lagoon.{{ .Hostname }}
 
 keycloakAdminPassword: pass
 keycloakLagoonAdminPassword: pass
-rabbitMQPassword: pass
+rabbitMQPassword: {{ .RabbitMQPassword | quote }}
 
 api:
   replicaCount: 1

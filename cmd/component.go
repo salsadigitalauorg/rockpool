@@ -17,13 +17,14 @@ import (
 )
 
 var (
-	configFile    string
-	rockpoolDir   string
-	namespace     string
-	domain        string
-	dnsIp         string
-	lagoonVersion string
-	forceGenerate bool
+	configFile       string
+	rockpoolDir      string
+	namespace        string
+	domain           string
+	dnsIp            string
+	lagoonVersion    string
+	rabbitMQPassword string
+	forceGenerate    bool
 )
 
 var componentCmd = &cobra.Command{
@@ -367,6 +368,11 @@ func loadConfig(rockpoolDir, path string) (*config.Config, error) {
 		cfg.LagoonVersion = lagoonVersion
 	}
 
+	// Set the RabbitMQ password in the config.
+	if cfg.RabbitMQPassword == "" {
+		cfg.RabbitMQPassword = rabbitMQPassword
+	}
+
 	// Set default namespace if not specified
 	for name, component := range cfg.Components {
 		if component.Namespace == "" {
@@ -409,4 +415,6 @@ lagoon.rockpool.local`)
 		"Override the DNS IP address for the component")
 	componentCmd.PersistentFlags().StringVar(&lagoonVersion, "lagoon-version",
 		"v2.25.0", "Set the Lagoon version for the platform")
+	componentCmd.PersistentFlags().StringVar(&rabbitMQPassword, "rabbitmq-password",
+		"pass", "Set the RabbitMQ password shared between lagoon-core and lagoon-remote")
 }

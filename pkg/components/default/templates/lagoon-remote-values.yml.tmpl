@@ -9,9 +9,9 @@ lagoon-build-deploy:
     - "--harbor-username=admin"
     - "--harbor-password=pass"
   rabbitMQUsername: lagoon
-  rabbitMQPassword: {{ .RabbitMQPassword }}
+  rabbitMQPassword: {{ .RabbitMQPassword | quote }}
   rabbitMQHostname: broker.lagoon.{{ .Hostname }}
-  lagoonTargetName: {{ .Name }}{{ .TargetId}}
+  lagoonTargetName: {{ .Name }}
   taskSSHHost: ssh.lagoon.{{ .Hostname }}
   taskSSHPort: "22"
   taskAPIHost: "api.lagoon.{{ .Hostname }}"

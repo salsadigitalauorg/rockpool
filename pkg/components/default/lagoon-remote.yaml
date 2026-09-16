@@ -3,8 +3,7 @@ type: helm
 enabled: true
 namespace: lagoon
 chart: lagoon/lagoon-remote
-values:
-  # Values will be loaded from lagoon-remote-values.yml.tmpl
+valuesTemplate: templates/lagoon-remote-values.yml.tmpl
 hooks:
   preInstall:
     - "helm repo add lagoon https://uselagoon.github.io/lagoon-charts/"

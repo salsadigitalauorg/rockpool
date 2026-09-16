@@ -41,6 +41,11 @@ type Config struct {
 	DnsIp string `yaml:"dnsIp"`
 	// LagoonVersion is the version of Lagoon to install.
 	LagoonVersion string `yaml:"lagoonVersion"`
+	// RabbitMQPassword is the password shared between lagoon-core's broker
+	// and lagoon-remote's connection to it. Both components render this from
+	// the same config value so they always agree, since there is no
+	// cross-component secret store yet.
+	RabbitMQPassword string `yaml:"rabbitMQPassword"`
 	// Components are the components to install.
 	Components map[string]ComponentConfig `yaml:"components"`
 }

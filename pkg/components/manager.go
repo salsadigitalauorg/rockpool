@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -24,15 +25,33 @@ func NewComponentManager(cfg *config.Config, clusterName string) *ComponentManag
 	}
 }
 
+// templateFuncs are made available to every values file, manifest, and hook
+// rendered through text/template.
+var templateFuncs = template.FuncMap{
+	"trimPrefix": strings.TrimPrefix,
+	"quote":      quote,
+}
+
+// quote renders v as a YAML double-quoted scalar. Interpolating a
+// user-supplied value into a values template unquoted lets characters that are
+// significant to YAML (':', '[', '{', '*', '#') either break parsing or
+// silently change the value's type — a password of "[a,b]" would otherwise
+// become a list. Go's escape syntax is a subset of YAML's double-quoted style,
+// so strconv.Quote produces a valid scalar and never line-folds.
+func quote(v interface{}) string {
+	return strconv.Quote(fmt.Sprintf("%v", v))
+}
+
 // NewTemplateData creates a new TemplateData struct with default values
 func (m *ComponentManager) NewTemplateData(component config.ComponentConfig) *TemplateData {
 	return &TemplateData{
-		Component:     component,
-		Hostname:      m.clusterName + "." + m.config.Domain,
-		Name:          m.clusterName,
-		LagoonVersion: m.config.LagoonVersion,
-		Domain:        m.config.Domain,
-		DnsIp:         m.config.DnsIp,
+		Component:        component,
+		Hostname:         m.clusterName + "." + m.config.Domain,
+		Name:             m.clusterName,
+		LagoonVersion:    m.config.LagoonVersion,
+		Domain:           m.config.Domain,
+		DnsIp:            m.config.DnsIp,
+		RabbitMQPassword: m.config.RabbitMQPassword,
 	}
 }
 
@@ -44,7 +63,7 @@ func (m *ComponentManager) renderHelmValuesFile(component config.ComponentConfig
 	}
 
 	// Create a new template and parse the content
-	tmpl, err := template.New(filepath.Base(component.ValuesTemplate)).Parse(string(valuesBytes))
+	tmpl, err := template.New(filepath.Base(component.ValuesTemplate)).Funcs(templateFuncs).Parse(string(valuesBytes))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template %s: %w", valuesTemplate, err)
 	}
@@ -70,7 +89,7 @@ func (m *ComponentManager) renderManifest(component config.ComponentConfig, mani
 	}
 
 	// Create a new template and parse the content
-	tmpl, err := template.New(filepath.Base(manifestPath)).Parse(string(manifest))
+	tmpl, err := template.New(filepath.Base(manifestPath)).Funcs(templateFuncs).Parse(string(manifest))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template %s: %w", manifestPath, err)
 	}
@@ -95,7 +114,7 @@ func (m *ComponentManager) Install(ctx context.Context, component config.Compone
 	}
 
 	// Run pre-install hooks
-	if err := m.runHooks(component.Hooks.PreInstall); err != nil {
+	if err := m.runHooks(component, component.Hooks.PreInstall); err != nil {
 		return fmt.Errorf("pre-install hooks failed: %w", err)
 	}
 
@@ -166,7 +185,7 @@ func (m *ComponentManager) Install(ctx context.Context, component config.Compone
 	}
 
 	// Run post-install hooks
-	if err := m.runHooks(component.Hooks.PostInstall); err != nil {
+	if err := m.runHooks(component, component.Hooks.PostInstall); err != nil {
 		return fmt.Errorf("post-install hooks failed: %w", err)
 	}
 
@@ -179,7 +198,7 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 	}
 
 	// Run pre-upgrade hooks
-	if err := m.runHooks(component.Hooks.PreUpgrade); err != nil {
+	if err := m.runHooks(component, component.Hooks.PreUpgrade); err != nil {
 		return fmt.Errorf("pre-upgrade hooks failed: %w", err)
 	}
 
@@ -248,7 +267,7 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 	}
 
 	// Run post-upgrade hooks
-	if err := m.runHooks(component.Hooks.PostUpgrade); err != nil {
+	if err := m.runHooks(component, component.Hooks.PostUpgrade); err != nil {
 		return fmt.Errorf("post-upgrade hooks failed: %w", err)
 	}
 
@@ -353,8 +372,36 @@ func (m *ComponentManager) IsInstalled(ctx context.Context, component config.Com
 	}
 }
 
-func (m *ComponentManager) runHooks(hooks []string) error {
-	for _, hook := range hooks {
+// renderHook renders a hook string through text/template using the same
+// TemplateData available to values files and manifests, so hooks can
+// reference e.g. {{ .Hostname }} instead of hardcoding cluster-specific
+// values.
+//
+// Note that this reserves '{{' inside hook bodies: a hook using
+// 'kubectl -o go-template' must escape its own delimiters as {{"{{"}}.
+// Single-brace forms such as -o jsonpath='{.items[0]}' and awk '{print $1}'
+// are unaffected.
+func (m *ComponentManager) renderHook(component config.ComponentConfig, hook string) (string, error) {
+	tmpl, err := template.New("hook").Funcs(templateFuncs).Parse(hook)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse hook template: %w", err)
+	}
+
+	var renderedBuf strings.Builder
+	if err := tmpl.Execute(&renderedBuf, m.NewTemplateData(component)); err != nil {
+		return "", fmt.Errorf("failed to render hook template: %w", err)
+	}
+
+	return renderedBuf.String(), nil
+}
+
+func (m *ComponentManager) runHooks(component config.ComponentConfig, hooks []string) error {
+	for _, rawHook := range hooks {
+		hook, err := m.renderHook(component, rawHook)
+		if err != nil {
+			return fmt.Errorf("failed to render hook: %w", err)
+		}
+
 		logger := log.WithField("hook", hook)
 		logger.Debug("running hook")
 
