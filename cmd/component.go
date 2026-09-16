@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/salsadigitalauorg/rockpool/pkg/components"
 	"github.com/salsadigitalauorg/rockpool/pkg/config"
+	"github.com/salsadigitalauorg/rockpool/pkg/rockpool"
 )
 
 var (
@@ -21,6 +23,7 @@ var (
 	domain        string
 	dnsIp         string
 	lagoonVersion string
+	forceGenerate bool
 )
 
 var componentCmd = &cobra.Command{
@@ -28,30 +31,56 @@ var componentCmd = &cobra.Command{
 	Short: "Manage components",
 	Long:  `Install, upgrade, and manage components in your cluster`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		rootCmd.PersistentPreRun(cmd, args)
+		// Deliberately does not call rootCmd.PersistentPreRun: that runs the
+		// legacy k3d initialisation, which hard-fails when k3d or the lagoon
+		// CLI are absent. Components only need kubectl and helm, and operate
+		// on the current kubectl context.
+		setupLogging()
+		rockpool.EnsureComponentBinariesExist()
 
-		// Create the default config file.
-		err := createDefaultConfigFile()
+		// Scaffold the default config file if it does not exist yet. Existing
+		// files are never overwritten here; use 'generate-config --force' to
+		// deliberately regenerate them.
+		err := createDefaultConfigFile(false)
 		if err != nil {
 			return fmt.Errorf("failed to create default config: %w", err)
 		}
 
-		// Create all the templates to the templates directory.
-		err = createTemplates()
+		// Scaffold any missing templates in the templates directory.
+		err = createTemplates(false)
 		if err != nil {
 			return fmt.Errorf("failed to create templates: %w", err)
 		}
 
-		return err
+		return nil
 	},
 }
 
 var componentGenerateConfigCmd = &cobra.Command{
 	Use:   "generate-config",
 	Short: "Generate default components configuration file",
-	Long:  `Generate a components configuration file with all default components from embedded defaults`,
+	Long: `Generate a components configuration file with all default components from
+embedded defaults, along with their templates.
+
+By default, existing files are preserved. Use --force to overwrite them with the
+embedded defaults, discarding any local modifications.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("Generated default components configuration at %s\n", getDefaultConfigPath())
+		if err := createDefaultConfigFile(forceGenerate); err != nil {
+			return fmt.Errorf("failed to create default config: %w", err)
+		}
+
+		if err := createTemplates(forceGenerate); err != nil {
+			return fmt.Errorf("failed to create templates: %w", err)
+		}
+
+		if forceGenerate {
+			fmt.Printf("Regenerated default components configuration at %s\n",
+				getDefaultConfigPath())
+		} else {
+			fmt.Printf("Ensured default components configuration exists at %s\n"+
+				"Existing files were preserved; use --force to overwrite them.\n",
+				getDefaultConfigPath())
+		}
 		return nil
 	},
 }
@@ -227,11 +256,25 @@ func getDefaultConfigPath() string {
 	return filepath.Join(getRockpoolDir(), "default-components.yaml")
 }
 
-func createDefaultConfigFile() error {
-	log.Debug().Msgf("creating default config file at %s", getDefaultConfigPath())
+// createDefaultConfigFile writes the embedded default component config to the
+// user's rockpool directory. Unless force is true, an existing config file is
+// left untouched so that local edits are never overwritten.
+func createDefaultConfigFile(force bool) error {
+	configPath := getDefaultConfigPath()
 	if err := os.MkdirAll(getRockpoolDir(), 0755); err != nil {
 		return fmt.Errorf("failed to create rockpool directory: %w", err)
 	}
+
+	if !force {
+		if _, err := os.Stat(configPath); err == nil {
+			log.Debug().Msgf("config file already exists at %s; leaving it as is", configPath)
+			return nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("failed to check for existing config file: %w", err)
+		}
+	}
+
+	log.Debug().Msgf("writing default config file at %s", configPath)
 
 	cfg, err := components.CreateDefaultConfig()
 	if err != nil {
@@ -243,10 +286,13 @@ func createDefaultConfigFile() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	return os.WriteFile(getDefaultConfigPath(), data, 0644)
+	return os.WriteFile(configPath, data, 0644)
 }
 
-func createTemplates() error {
+// createTemplates copies the embedded templates to the user's rockpool
+// directory. Unless force is true, templates which already exist are left
+// untouched so that local edits are never overwritten.
+func createTemplates(force bool) error {
 	templatesDir := filepath.Join(getRockpoolDir(), "templates")
 	if err := os.MkdirAll(templatesDir, 0755); err != nil {
 		return fmt.Errorf("failed to create templates directory: %w", err)
@@ -262,12 +308,21 @@ func createTemplates() error {
 			continue
 		}
 
+		dest := filepath.Join(templatesDir, entry.Name())
+		if !force {
+			if _, err := os.Stat(dest); err == nil {
+				log.Debug().Msgf("template already exists at %s; leaving it as is", dest)
+				continue
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("failed to check for existing template %s: %w", entry.Name(), err)
+			}
+		}
+
 		data, err := components.DefaultComponents.ReadFile(filepath.Join("default/templates", entry.Name()))
 		if err != nil {
 			return fmt.Errorf("failed to read template %s: %w", entry.Name(), err)
 		}
 
-		dest := filepath.Join(templatesDir, entry.Name())
 		if err := os.WriteFile(dest, data, 0644); err != nil {
 			return fmt.Errorf("failed to write template %s: %w", entry.Name(), err)
 		}
@@ -332,6 +387,10 @@ func init() {
 	componentCmd.AddCommand(componentStatusCmd)
 	componentCmd.AddCommand(componentGenerateConfigCmd)
 
+	componentGenerateConfigCmd.Flags().BoolVar(&forceGenerate, "force", false,
+		"Overwrite existing config and templates with the embedded defaults, "+
+			"discarding local modifications")
+
 	// Add flags
 	componentCmd.PersistentFlags().StringVar(&rockpoolDir, "rockpool-dir",
 		getRockpoolDir(), "Path to the rockpool configuration directory")
@@ -349,5 +408,5 @@ lagoon.rockpool.local`)
 	componentCmd.PersistentFlags().StringVar(&dnsIp, "dns-ip", "127.0.0.1",
 		"Override the DNS IP address for the component")
 	componentCmd.PersistentFlags().StringVar(&lagoonVersion, "lagoon-version",
-		"v2.22.0", "Set the Lagoon version for the platform")
+		"v2.25.0", "Set the Lagoon version for the platform")
 }
