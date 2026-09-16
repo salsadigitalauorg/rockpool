@@ -34,7 +34,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push
-        run: ./scripts/build-arm-images.sh k3s
+        run: docker buildx bake k3s --progress=plain --push
 
   build-nfs-provisioner:
     runs-on: ubuntu-latest
@@ -63,4 +63,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push
-        run: ./scripts/build-arm-images.sh nfs_provisioner
+        run: docker buildx bake nfs-provisioner --progress=plain --push
