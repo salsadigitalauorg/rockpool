@@ -88,8 +88,8 @@ func (m *ComponentManager) renderManifest(component config.ComponentConfig, mani
 }
 
 func (m *ComponentManager) Install(ctx context.Context, component config.ComponentConfig) error {
-	if !kube.ValidateCluster(m.clusterName) {
-		return fmt.Errorf("cluster %s is not valid", m.clusterName)
+	if err := kube.ValidateCluster(m.clusterName); err != nil {
+		return fmt.Errorf("cluster validation failed: %w", err)
 	}
 
 	// Run pre-install hooks
@@ -172,8 +172,8 @@ func (m *ComponentManager) Install(ctx context.Context, component config.Compone
 }
 
 func (m *ComponentManager) Upgrade(ctx context.Context, component config.ComponentConfig) error {
-	if !kube.ValidateCluster(m.clusterName) {
-		return fmt.Errorf("cluster %s is not valid", m.clusterName)
+	if err := kube.ValidateCluster(m.clusterName); err != nil {
+		return fmt.Errorf("cluster validation failed: %w", err)
 	}
 
 	// Run pre-upgrade hooks
@@ -254,8 +254,8 @@ func (m *ComponentManager) Upgrade(ctx context.Context, component config.Compone
 }
 
 func (m *ComponentManager) Uninstall(ctx context.Context, component config.ComponentConfig) error {
-	if !kube.ValidateCluster(m.clusterName) {
-		return fmt.Errorf("cluster %s is not valid", m.clusterName)
+	if err := kube.ValidateCluster(m.clusterName); err != nil {
+		return fmt.Errorf("cluster validation failed: %w", err)
 	}
 
 	switch component.Type {
@@ -300,8 +300,8 @@ func (m *ComponentManager) Uninstall(ctx context.Context, component config.Compo
 }
 
 func (m *ComponentManager) IsInstalled(ctx context.Context, component config.ComponentConfig) (bool, error) {
-	if !kube.ValidateCluster(m.clusterName) {
-		return false, fmt.Errorf("cluster %s is not valid", m.clusterName)
+	if err := kube.ValidateCluster(m.clusterName); err != nil {
+		return false, fmt.Errorf("cluster validation failed: %w", err)
 	}
 
 	switch component.Type {

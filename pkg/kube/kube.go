@@ -46,20 +46,53 @@ func Cmd(cn string, ns string, args ...string) command.IShellCommand {
 	return cmd
 }
 
-// ValidateCluster checks if the cluster is valid.
-func ValidateCluster(cn string) bool {
-	nodes, err := Cmd(cn, "", "get", "nodes", "-o", "name").Output()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"cluster": cn,
-			"nodes":   nodes,
-		}).Fatal("unable to get nodes")
+// summariseKubectlError reduces kubectl's output to its most useful line.
+// kubectl retries API discovery and emits a klog line per attempt, which
+// otherwise buries the actual failure.
+func summariseKubectlError(err error) string {
+	lines := strings.Split(strings.TrimSpace(err.Error()), "\n")
+
+	// The trailing human-readable summary is the most useful line, so prefer
+	// the last line that is not a klog diagnostic.
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		// klog lines are prefixed with a severity letter and timestamp,
+		// e.g. E0916 14:37:17.916593.
+		if len(line) > 0 && strings.ContainsAny(line[:1], "EWIF") &&
+			strings.Contains(line, "memcache.go") {
+			continue
+		}
+		return line
 	}
 
-	if strings.Contains(string(nodes), "rockpool") {
-		return true
+	return strings.TrimSpace(err.Error())
+}
+
+// ValidateCluster checks that a cluster is reachable and has at least one
+// node. Rockpool operates against whichever cluster the current kubectl
+// context points at, so no assumption is made about how the cluster was
+// provisioned or how its nodes are named.
+func ValidateCluster(cn string) error {
+	nodes, err := Cmd(cn, "", "get", "nodes", "-o", "name").Output()
+	if err != nil {
+		return fmt.Errorf(
+			"unable to reach the cluster for the current kubectl context: %s",
+			summariseKubectlError(command.GetMsgFromCommandError(err)))
 	}
-	return false
+
+	if strings.TrimSpace(string(nodes)) == "" {
+		return fmt.Errorf("cluster is reachable but reports no nodes")
+	}
+
+	log.WithFields(log.Fields{
+		"cluster": cn,
+		"nodes":   strings.Fields(string(nodes)),
+	}).Debug("validated cluster")
+
+	return nil
 }
 
 func Apply(cn string, ns string, fn string, force bool) error {
