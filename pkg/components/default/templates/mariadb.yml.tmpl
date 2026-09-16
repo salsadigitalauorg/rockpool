@@ -1,41 +1,78 @@
+{{- $name := trimPrefix .Component.Name "mariadb-" -}}
+{{- if eq $name .Component.Name }}{{ $name = "mariadb" }}{{ end -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: mariadb
+  name: {{ $name }}
   labels:
     app.kubernetes.io/managed-by: Rockpool
-    app.kubernetes.io/instance: rockpool-mariadb
-    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: rockpool-{{ .Component.Name }}
+    app.kubernetes.io/name: {{ .Component.Name }}
 spec:
   ports:
     - name: mariadb
       port: 3306
   selector:
-    app.kubernetes.io/instance: rockpool-mariadb
-    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: rockpool-{{ .Component.Name }}
+    app.kubernetes.io/name: {{ .Component.Name }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Component.Name }}
+  labels:
+    app.kubernetes.io/managed-by: Rockpool
+    app.kubernetes.io/instance: rockpool-{{ .Component.Name }}
+    app.kubernetes.io/name: {{ .Component.Name }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mariadb
+  name: {{ .Component.Name }}
   labels:
     app.kubernetes.io/managed-by: Rockpool
-    app.kubernetes.io/instance: rockpool-mariadb
-    app.kubernetes.io/name: mariadb
+    app.kubernetes.io/instance: rockpool-{{ .Component.Name }}
+    app.kubernetes.io/name: {{ .Component.Name }}
 spec:
+  # A ReadWriteOnce PVC can only be mounted by one pod at a time; Recreate
+  # avoids the new pod starting (and failing to mount) before the old one
+  # terminates, which is what RollingUpdate would attempt.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
-      app.kubernetes.io/instance: rockpool-mariadb
-      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/instance: rockpool-{{ .Component.Name }}
+      app.kubernetes.io/name: {{ .Component.Name }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/instance: rockpool-mariadb
-        app.kubernetes.io/name: mariadb
+        app.kubernetes.io/instance: rockpool-{{ .Component.Name }}
+        app.kubernetes.io/name: {{ .Component.Name }}
     spec:
       containers:
       - name: mariadb
-        image: mariadb:latest
+        image: mariadb:10.11
+        env:
+          # Without a root password option the entrypoint refuses to
+          # initialise and the container exits. dbaas-operator connects as
+          # root with this password, per lagoon-remote-values.yml.tmpl.
+          - name: MARIADB_ROOT_PASSWORD
+            value: mariadbpass
         ports:
           - containerPort: 3306
+        volumeMounts:
+          - name: data
+            mountPath: /var/lib/mysql
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Component.Name }}
